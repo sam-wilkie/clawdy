@@ -55,8 +55,8 @@ OPTIONS = {
     "argv_emulation": False,
     "iconfile": "AppIcon.icns",
     "plist": {
-        "CFBundleName": "Margarita Tank",
-        "CFBundleDisplayName": "Margarita Tank",
+        "CFBundleName": "Clawdy",
+        "CFBundleDisplayName": "Clawdy",
         # Kept from upstream so existing installs keep their Bluetooth permission
         # and launchd login item (launchd.PLIST_LABEL uses the same id).
         "CFBundleIdentifier": "com.clawd-tank.menubar",
@@ -64,7 +64,7 @@ OPTIONS = {
         "CFBundleShortVersionString": "1.0.0",
         "LSUIElement": True,  # menu-bar-only app (no Dock icon)
         "NSBluetoothAlwaysUsageDescription": (
-            "Margarita Tank uses Bluetooth to communicate with the ESP32 display."
+            "Clawdy uses Bluetooth to communicate with the ESP32 display."
         ),
     },
     "packages": ["clawd_tank_daemon", "clawd_tank_menubar"],
@@ -73,7 +73,7 @@ OPTIONS = {
 }
 
 setup(
-    name="Margarita Tank",
+    name="Clawdy",
     app=APP,
     data_files=DATA_FILES,
     options={"py2app": OPTIONS},

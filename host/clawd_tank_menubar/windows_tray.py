@@ -162,13 +162,13 @@ class WindowsTrayView:
             ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(f"Version: {get_version()}", None, enabled=False),
-            pystray.MenuItem("Quit Margarita Tank", lambda item: controller.quit()),
+            pystray.MenuItem("Quit Clawdy", lambda item: controller.quit()),
         )
 
         self._icon = pystray.Icon(
             "clawd-tank",
             icon=_load_icon_image(_ICON_FILES["disconnected"]),
-            title="Margarita Tank",
+            title="Clawdy",
             menu=menu,
         )
 

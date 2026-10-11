@@ -536,7 +536,7 @@ class ClawdTankController(DaemonObserver):
             self._view.alert(
                 title="Claude Code Mod Disabled",
                 message=(
-                    "The Margarita panel was removed from ~/.claude/settings.json. "
+                    "The Clawdy panel was removed from ~/.claude/settings.json. "
                     "Restart your Claude Code sessions for the change to take effect."
                 ),
             )
@@ -545,7 +545,7 @@ class ClawdTankController(DaemonObserver):
                 self._view.alert(
                     title="Claude Code Mod Not Enabled",
                     message=(
-                        "The Margarita panel could not be installed: its files could not "
+                        "The Clawdy panel could not be installed: its files could not "
                         "be copied, or ~/.claude/settings.json could not be parsed and "
                         "was left untouched. See the log for details."
                     ),
@@ -558,7 +558,7 @@ class ClawdTankController(DaemonObserver):
             self._view.alert(
                 title="Claude Code Mod Enabled",
                 message=(
-                    "The Margarita panel was added to Claude Code. Restart your Claude "
+                    "The Clawdy panel was added to Claude Code. Restart your Claude "
                     "Code sessions for it to appear; type /margarita to open it."
                 ),
             )

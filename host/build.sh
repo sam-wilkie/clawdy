@@ -6,10 +6,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SIM_DIR="$SCRIPT_DIR/../simulator"
 SIM_BINARY="$SIM_DIR/build-static/clawd-tank-sim"
-APP_NAME="Margarita Tank.app"
-# Bundle name used before the rebrand; removed on --install so two copies of
-# the same app (same bundle id) don't linger in /Applications.
+APP_NAME="Clawdy.app"
+# Bundle names used before each rebrand; removed on --install so stale copies
+# of the same app (same bundle id) don't linger in /Applications.
 LEGACY_APP_NAME="Clawd Tank.app"
+LEGACY_APP_NAME_2="Margarita Tank.app"
 
 # Always rebuild static simulator — cmake handles incremental builds
 echo "==> Building static simulator..."
@@ -34,6 +35,7 @@ echo "==> Built: dist/$APP_NAME"
 if [ "${1:-}" = "--install" ]; then
     echo "==> Installing to /Applications..."
     rm -rf "/Applications/$LEGACY_APP_NAME"
+    rm -rf "/Applications/$LEGACY_APP_NAME_2"
     rm -rf "/Applications/$APP_NAME"
     cp -R "dist/$APP_NAME" "/Applications/$APP_NAME"
     echo "==> Installed to /Applications/$APP_NAME"

@@ -153,7 +153,7 @@ class RumpsTrayView:
 
         # Quit
         self._quit_item = rumps.MenuItem(
-            "Quit Margarita Tank", callback=lambda _sender: controller.quit()
+            "Quit Clawdy", callback=lambda _sender: controller.quit()
         )
 
         # Assemble menu
