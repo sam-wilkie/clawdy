@@ -329,14 +329,30 @@ def test_subagent_events_produce_no_ble_payload():
 
 
 def test_display_state_to_payload_v2_sessions():
-    state = {"anims": ["typing", "thinking"], "ids": [1, 2], "subagents": 3}
+    state = {
+        "anims": ["typing", "thinking"], "ids": [1, 2],
+        "agents": ["claude", "kiro"], "subagents": 3,
+    }
     payload = display_state_to_ble_payload(state)
     parsed = json.loads(payload)
     assert parsed["action"] == "set_sessions"
     assert parsed["anims"] == ["typing", "thinking"]
     assert parsed["ids"] == [1, 2]
+    # The per-slot product array flows into the v2 payload automatically.
+    assert parsed["agents"] == ["claude", "kiro"]
     assert parsed["subagents"] == 3
     assert "overflow" not in parsed
+
+
+def test_display_state_to_v1_drops_agents_key():
+    """v1 transports get a single set_status and never see the agents array."""
+    state = {
+        "anims": ["typing"], "ids": [1],
+        "agents": ["kiro"], "subagents": 0,
+    }
+    parsed = json.loads(display_state_to_v1_payload(state))
+    assert parsed == {"action": "set_status", "status": "working_1"}
+    assert "agents" not in parsed
 
 
 def test_display_state_to_payload_v2_with_overflow():

@@ -36,22 +36,22 @@ def test_no_sessions_returns_sleeping():
 def test_single_registered_session_returns_idle():
     d = make_daemon()
     _add_session(d, "s1", {"state": "registered", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "subagents": 0}
 
 def test_single_idle_session_returns_idle():
     d = make_daemon()
     _add_session(d, "s1", {"state": "idle", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "subagents": 0}
 
 def test_single_thinking_session_returns_thinking():
     d = make_daemon()
     _add_session(d, "s1", {"state": "thinking", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["thinking"], "ids": [1], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["thinking"], "ids": [1], "agents": ["claude"], "subagents": 0}
 
 def test_single_working_session_returns_typing():
     d = make_daemon()
     _add_session(d, "s1", {"state": "working", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "subagents": 0}
 
 def test_two_working_sessions_returns_two_typing():
     d = make_daemon()
@@ -60,6 +60,30 @@ def test_two_working_sessions_returns_two_typing():
     state = d._compute_display_state()
     assert state["anims"] == ["typing", "typing"]
     assert len(state["ids"]) == 2
+
+
+# --- Per-slot agent/product (derived from the session-id prefix) ---
+
+def test_agents_array_derives_product_from_prefix():
+    """Each slot reports its product: Claude (no prefix), Codex ('codex:'),
+    Kiro ('kiro:'). Aligned 1:1 with anims/ids."""
+    d = make_daemon()
+    _add_session(d, "s_claude", {"state": "working", "last_event": time.time()})
+    _add_session(d, "codex:s_cx", {"state": "working", "last_event": time.time()})
+    _add_session(d, "kiro:s_ki", {"state": "working", "last_event": time.time()})
+    state = d._compute_display_state()
+    assert state["agents"] == ["claude", "codex", "kiro"]
+    assert len(state["agents"]) == len(state["anims"]) == len(state["ids"])
+
+
+def test_agents_groups_kiro_ide_and_cli_as_one_product():
+    """Kiro IDE and Kiro CLI both namespace with 'kiro:', so both report 'kiro'
+    — the desktop pet groups them into one product window with a xN counter."""
+    d = make_daemon()
+    _add_session(d, "kiro:sess_ide", {"state": "working", "last_event": time.time()})
+    _add_session(d, "kiro:sess_cli", {"state": "thinking", "last_event": time.time()})
+    state = d._compute_display_state()
+    assert state["agents"] == ["kiro", "kiro"]
 
 def test_three_plus_working_sessions_capped_at_four():
     d = make_daemon()
@@ -162,16 +186,16 @@ async def test_last_display_state_tracks_changes():
     d = make_daemon()
     assert d._last_display_state == {"status": "sleeping"}
     await d._handle_message({"event": "session_start", "session_id": "s1"})
-    assert d._last_display_state == {"anims": ["idle"], "ids": [1], "subagents": 0}
+    assert d._last_display_state == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "subagents": 0}
     await d._handle_message({"event": "dismiss", "hook": "UserPromptSubmit", "session_id": "s1"})
-    assert d._last_display_state == {"anims": ["thinking"], "ids": [1], "subagents": 0}
+    assert d._last_display_state == {"anims": ["thinking"], "ids": [1], "agents": ["claude"], "subagents": 0}
     await d._handle_message({"event": "tool_use", "session_id": "s1"})
-    assert d._last_display_state == {"anims": ["typing"], "ids": [1], "subagents": 0}
+    assert d._last_display_state == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "subagents": 0}
     await d._handle_message({
         "event": "add", "hook": "Stop", "session_id": "s1",
         "project": "proj", "message": "Waiting",
     })
-    assert d._last_display_state == {"anims": ["idle"], "ids": [1], "subagents": 0}
+    assert d._last_display_state == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "subagents": 0}
     await d._handle_message({"event": "dismiss", "hook": "SessionEnd", "session_id": "s1"})
     assert d._last_display_state == {"status": "sleeping"}
 
@@ -416,10 +440,10 @@ async def test_subagent_lifecycle():
 
     # Session starts and begins working
     await d._handle_message({"event": "session_start", "session_id": "s1"})
-    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "subagents": 0}
 
     await d._handle_message({"event": "tool_use", "session_id": "s1"})
-    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "subagents": 0}
 
     # Subagent spawned — the session keeps showing its own work
     await d._handle_message({"event": "subagent_start", "session_id": "s1", "agent_id": "a1"})
@@ -441,7 +465,7 @@ async def test_subagent_lifecycle():
     # Subagent finishes via SubagentStop
     await d._handle_message({"event": "subagent_stop", "session_id": "s1", "agent_id": "a1"})
     assert not d._session_states["s1"].get("subagents")
-    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "subagents": 0}
 
     # Staleness eviction works normally
     d._session_states["s1"]["last_event"] = time.time() - 9999
@@ -569,7 +593,7 @@ def test_daemon_startup_display_state_from_loaded_sessions(tmp_path):
     d = ClawdDaemon(sim_only=True, sessions_path=path)
     d._transports.clear()
     d._transport_queues.clear()
-    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "subagents": 0}
 
 
 def test_daemon_evicts_stale_sessions_on_startup(tmp_path):
@@ -648,7 +672,7 @@ async def test_display_state_single_session_typing():
     await d._handle_message({"event": "session_start", "session_id": "aaa"})
     await d._handle_message({"event": "tool_use", "session_id": "aaa"})
     state = d._compute_display_state()
-    assert state == {"anims": ["typing"], "ids": [1], "subagents": 0}
+    assert state == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "subagents": 0}
 
 
 @pytest.mark.asyncio
@@ -824,7 +848,7 @@ async def test_compact_sends_per_session_sweeping_v2():
 def test_error_state_returns_dizzy():
     d = make_daemon()
     _add_session(d, "s1", {"state": "error", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["dizzy"], "ids": [1], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["dizzy"], "ids": [1], "agents": ["claude"], "subagents": 0}
 
 
 @pytest.mark.asyncio
@@ -1002,7 +1026,7 @@ async def test_ask_user_question_tool_use_sets_waiting():
 def test_waiting_session_returns_alert():
     d = make_daemon()
     _add_session(d, "s1", {"state": "waiting", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["alert"], "ids": [1], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["alert"], "ids": [1], "agents": ["claude"], "subagents": 0}
 
 
 def test_waiting_and_working_mixed():

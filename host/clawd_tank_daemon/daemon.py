@@ -99,6 +99,26 @@ def _tool_to_anim(tool_name: str) -> str:
     return TOOL_ANIMATION_MAP.get(tool_name, "typing")
 
 
+# Which AI product a session belongs to, derived from the session-id prefix the
+# translators add (codex_protocol "codex:", kiro_protocol "kiro:", Claude none).
+# Grouped by PRODUCT: a Kiro IDE session and a Kiro CLI session are both "kiro".
+# Lets the desktop pet pick a per-product crab (and group/count by product)
+# without the daemon storing anything new — the prefix is the single source of
+# truth. Unknown/unprefixed ids are Claude Code, the original agent.
+SESSION_AGENT_PREFIXES = (
+    ("codex:", "codex"),
+    ("kiro:", "kiro"),
+)
+
+
+def _session_agent(session_id: str) -> str:
+    """Return the product name for a (possibly namespaced) session id."""
+    for prefix, agent in SESSION_AGENT_PREFIXES:
+        if session_id.startswith(prefix):
+            return agent
+    return "claude"
+
+
 PID_PATH = Path.home() / ".clawd-tank" / "daemon.pid"
 LOCK_PATH = Path.home() / ".clawd-tank" / "daemon.lock"
 # After stopping the old daemon on takeover, keep retrying the lock this long.
@@ -569,6 +589,7 @@ class ClawdDaemon:
 
         anims = []
         ids = []
+        agents = []
 
         # Count subagents across ALL sessions, not just visible ones
         total_subagents = sum(
@@ -604,11 +625,19 @@ class ClawdDaemon:
             else:
                 anims.append("idle")
             ids.append(display_id)
+            # Parallel to anims/ids: which product this slot belongs to, so the
+            # desktop pet can pick a per-product crab and group/count by product.
+            agents.append(_session_agent(session_id))
 
         if not anims:
             return {"status": "sleeping"}
 
-        result = {"anims": anims, "ids": ids, "subagents": total_subagents}
+        result = {
+            "anims": anims,
+            "ids": ids,
+            "agents": agents,
+            "subagents": total_subagents,
+        }
         if len(self._session_order) > 4:
             result["overflow"] = len(self._session_order) - 4
         return result
