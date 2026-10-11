@@ -16,6 +16,8 @@
 #define LV_FONT_MONTSERRAT_12 1
 #define LV_FONT_MONTSERRAT_14 1
 #define LV_FONT_MONTSERRAT_18 1
+/* Crisp 8x8 pixel font for the permission bubble (simulator only) */
+#define LV_FONT_UNSCII_8 1
 
 /* Software renderer (no GPU) */
 #define LV_USE_DRAW_SW 1

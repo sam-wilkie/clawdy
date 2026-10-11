@@ -166,6 +166,19 @@ LV_FONT_DECLARE(clawd_font_clock_24);
 #define LOW_BATTERY_FRAME_MS ((1000 + 3) / 6) /* 167ms @ 6fps */
 #define HAT_MISHAP_FRAME_MS ((1000 + 3) / 6)  /* 167ms @ 6fps */
 
+/* Per-animation frame_ms values above are tuned for the ESP32-C6 panel, where the SPI bus and
+ * single core make 6-8 fps the sweet spot and the crab reads well. The desktop simulator and the
+ * website have no such limit, so the same low rate looks sluggish there. SCENE_SPEEDUP divides the
+ * effective frame interval ONLY in the simulator build: frames advance proportionally faster
+ * without touching the sprite data, the per-animation ratios, or anything the firmware compiles.
+ * 1 = firmware timing; raise to make the preview livelier. The firmware (no SIMULATOR define) is
+ * never affected. Tune in one place; see the elapsed-vs-threshold check in scene_tick(). */
+#ifdef SIMULATOR
+#define SCENE_SPEEDUP 2
+#else
+#define SCENE_SPEEDUP 1
+#endif
+
 /* ---------- Animation metadata ---------- */
 
 typedef struct {
@@ -679,6 +692,49 @@ static void __attribute__((unused)) scene_deactivate_slot(scene_t *s, int idx)
 
 /* ---------- Create ---------- */
 
+/* ---------- Desk-pet mode (simulator only) ----------
+ * The simulator's --desk window shows only the sprites: the scenery is hidden and the screen is
+ * painted with a key color the simulator turns into transparency. The device never calls
+ * scene_enable_desk_mode(), so its scene is unchanged. */
+static bool s_desk_mode = false;
+
+void scene_enable_desk_mode(void)
+{
+    s_desk_mode = true;
+}
+
+static void hide_object(lv_obj_t *obj)
+{
+    if (obj) lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+}
+
+/* Time, usage and HUD updates show some scenery again; in desk mode it stays hidden. */
+static void show_object(lv_obj_t *obj)
+{
+    if (obj && !s_desk_mode) lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void apply_desk_mode(scene_t *s)
+{
+    /* 0x1B192B is the RGB888 value that LVGL converts to RGB565 0x18C5 (the sprites' transparency
+     * key) under both truncating and rounding conversion, so the framebuffer holds exactly that. */
+    lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x1B192B), 0);
+    lv_obj_set_style_bg_opa(lv_screen_active(), LV_OPA_COVER, 0);
+
+    hide_object(s->sky);
+    hide_object(s->grass);
+    hide_object(s->topbar);
+    hide_object(s->sun);
+    hide_object(s->moon);
+    hide_object(s->noconn_label);
+    hide_object(s->hud_canvas);
+    hide_object(s->hud_badge_canvas);
+    for (int i = 0; i < STAR_COUNT; i++) hide_object(s->stars[i]);
+    for (int i = 0; i < HILL_COUNT; i++) hide_object(s->hills[i]);
+    for (int c = 0; c < CLOUD_COUNT; c++)
+        for (int p = 0; p < CLOUD_PUFFS; p++) hide_object(s->clouds[c][p]);
+}
+
 scene_t *scene_create(lv_obj_t *parent)
 {
     scene_t *s = calloc(1, sizeof(scene_t));
@@ -1038,6 +1094,8 @@ scene_t *scene_create(lv_obj_t *parent)
     s->mini_crab_frame = 0;
     s->mini_crab_last_tick = 0;
 
+    if (s_desk_mode) apply_desk_mode(s);
+
     return s;
 }
 
@@ -1245,7 +1303,7 @@ void scene_set_clawd_anim(scene_t *scene, clawd_anim_id_t anim)
     if (anim == CLAWD_ANIM_DISCONNECTED) {
         lv_obj_set_style_image_recolor(slot->sprite_img, lv_color_hex(0x888888), 0);
         lv_obj_set_style_image_recolor_opa(slot->sprite_img, LV_OPA_30, 0);
-        lv_obj_clear_flag(scene->noconn_label, LV_OBJ_FLAG_HIDDEN);
+        show_object(scene->noconn_label);
     } else {
         lv_obj_set_style_image_recolor_opa(slot->sprite_img, LV_OPA_TRANSP, 0);
         lv_obj_add_flag(scene->noconn_label, LV_OBJ_FLAG_HIDDEN);
@@ -1309,7 +1367,7 @@ static void apply_astro_window(lv_obj_t *astro, int minute, int show, int hide)
         opa = (into * 255) / ASTRO_FADE_MIN;
     else if (left < ASTRO_FADE_MIN)
         opa = (left * 255) / ASTRO_FADE_MIN;
-    lv_obj_clear_flag(astro, LV_OBJ_FLAG_HIDDEN);
+    show_object(astro);
     lv_obj_set_style_bg_opa(astro, (lv_opa_t)opa, 0);
 }
 
@@ -1422,7 +1480,7 @@ static void scene_apply_daylight(scene_t *scene, int hour, int minute)
         scene->stars_visible = night;
         for (int i = 0; i < STAR_COUNT; i++) {
             if (night)
-                lv_obj_clear_flag(scene->stars[i], LV_OBJ_FLAG_HIDDEN);
+                show_object(scene->stars[i]);
             else
                 lv_obj_add_flag(scene->stars[i], LV_OBJ_FLAG_HIDDEN);
         }
@@ -1453,7 +1511,7 @@ void scene_set_time_visible(scene_t *scene, bool visible)
     if (!scene) return;
     if (visible) {
         /* Show the wrapper (and its bg strip + clock). */
-        lv_obj_clear_flag(scene->topbar, LV_OBJ_FLAG_HIDDEN);
+        show_object(scene->topbar);
         lv_obj_clear_flag(scene->time_label, LV_OBJ_FLAG_HIDDEN);
         if (scene->usage_has_data)
             usage_widgets_set_hidden(scene, false);
@@ -1696,7 +1754,12 @@ void scene_tick(scene_t *scene)
 
         const anim_def_t *def = &anim_defs[slot->cur_anim];
         uint32_t elapsed = now - slot->last_frame_tick;
-        if (elapsed >= (uint32_t)def->frame_ms) {
+        /* SCENE_SPEEDUP is 1 on firmware (no-op) and >1 in the simulator, where the shorter
+         * interval makes the same frames play faster so the preview is not sluggish. Never let
+         * the threshold reach 0, or a frame would advance on every tick. */
+        uint32_t frame_ms = (uint32_t)def->frame_ms / SCENE_SPEEDUP;
+        if (frame_ms < 1) frame_ms = 1;
+        if (elapsed >= frame_ms) {
             slot->last_frame_tick = now;
 
             if (def->looping) {
@@ -1964,7 +2027,7 @@ static void scene_update_hud(scene_t *s, uint8_t subagent_count, uint8_t overflo
         char buf[8];
         snprintf(buf, sizeof(buf), "x%d", subagent_count);
         pixel_font_draw(s->hud_canvas, buf, MINI_CRAB_WIDTH * 2 + 2, 3, 2, lv_color_hex(0xFFC107));
-        lv_obj_clear_flag(s->hud_canvas, LV_OBJ_FLAG_HIDDEN);
+        show_object(s->hud_canvas);
     } else {
         lv_canvas_fill_bg(s->hud_canvas, lv_color_hex(0x000000), LV_OPA_TRANSP);
         lv_obj_add_flag(s->hud_canvas, LV_OBJ_FLAG_HIDDEN);
@@ -1978,7 +2041,7 @@ static void scene_update_hud(scene_t *s, uint8_t subagent_count, uint8_t overflo
         } else {
             snprintf(s->hud_badge_text, sizeof(s->hud_badge_text), "+%d", overflow);
         }
-        lv_obj_clear_flag(s->hud_badge_canvas, LV_OBJ_FLAG_HIDDEN);
+        show_object(s->hud_badge_canvas);
     } else {
         s->hud_badge_text[0] = '\0';
         lv_obj_add_flag(s->hud_badge_canvas, LV_OBJ_FLAG_HIDDEN);

@@ -29,6 +29,8 @@ typedef enum {
 } clawd_anim_id_t;
 
 scene_t *scene_create(lv_obj_t *parent);
+/* Simulator --desk only: call before scene_create(); the scene then shows just the sprites. */
+void scene_enable_desk_mode(void);
 void scene_set_width(scene_t *scene, int width_px, int anim_ms);
 void scene_set_clawd_anim(scene_t *scene, clawd_anim_id_t anim);
 void scene_set_fallback_anim(scene_t *scene, clawd_anim_id_t anim);

@@ -1,6 +1,7 @@
 // simulator/sim_socket.c
 #include "sim_socket.h"
 #include "sim_ble_parse.h"
+#include "sim_permission.h"
 #include "ble_service.h"
 #include "config_store.h"
 #include "ui_manager.h"
@@ -251,6 +252,9 @@ static void handle_client(int client_fd) {
                 } else if (rc == 4) {
                     /* State query — flag for main thread (LVGL not thread-safe) */
                     s_query_pending = true;
+                } else if (rc == 5) {
+                    /* Permission bubble — validated and queued for the main thread */
+                    sim_permission_post_json(line_start, line_len);
                 } else if (rc < 0) {
                     printf("[tcp] Parse error, ignoring: %.*s\n", line_len, line_start);
                 }

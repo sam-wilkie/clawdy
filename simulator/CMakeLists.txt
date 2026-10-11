@@ -45,6 +45,7 @@ add_executable(clawd-tank-sim
     sim_events.c
     sim_ble_parse.c
     sim_socket.c
+    sim_permission.c
     sim_timer.c
     cjson/cJSON.c
     # Shared firmware sources (compiled unmodified)

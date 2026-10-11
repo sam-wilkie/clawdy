@@ -11,6 +11,7 @@
 // Returns 2 for config actions (read_config/write_config — caller handles directly).
 // Returns 3 for window commands (show_window/hide_window/set_window — caller handles directly).
 // Returns 4 for query_state (caller sets pending flag for main thread).
+// Returns 5 for permission_request/permission_clear (caller hands the line to sim_permission).
 // Returns -1 on parse error.
 int sim_ble_parse_json(const char *buf, uint16_t len, ble_evt_t *out);
 

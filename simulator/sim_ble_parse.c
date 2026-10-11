@@ -173,6 +173,10 @@ int sim_ble_parse_json(const char *buf, uint16_t len, ble_evt_t *out) {
     } else if (strcmp(action->valuestring, "query_state") == 0) {
         cJSON_Delete(json);
         return 4;
+    } else if (strcmp(action->valuestring, "permission_request") == 0 ||
+               strcmp(action->valuestring, "permission_clear") == 0) {
+        cJSON_Delete(json);
+        return 5;
     } else {
         cJSON_Delete(json);
         return -1;

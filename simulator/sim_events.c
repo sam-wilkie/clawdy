@@ -3,6 +3,8 @@
 #include "ui_manager.h"
 #include "config_store.h"
 #include "scene.h"
+#include "sim_permission.h"
+#include "sim_display.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +18,9 @@ typedef struct {
     uint32_t time_ms;       /* absolute simulated time */
     ble_evt_t evt;          /* event to fire */
     bool is_wait;           /* true = just a time advance, no event */
+    int perm_kind;          /* 0 none, 1 permission request, 2 permission_clear, 3 click, 4 quit */
+    int click_mode, click_x, click_y;  /* 3: 0=allow 1=deny 2=logical xy 3=window-pixel xy */
+    char perm_id[40], perm_nonce[24], perm_project[260], perm_tool[260], perm_summary[520];
     char suffix[32];        /* for screenshot naming */
 } sim_event_t;
 
@@ -36,6 +41,7 @@ static void add_event(uint32_t time_ms, const ble_evt_t *evt, const char *suffix
     sim_event_t *e = &s_events[s_event_count++];
     e->time_ms = time_ms;
     e->is_wait = false;
+    e->perm_kind = 0;
     if (evt) {
         e->evt = *evt;
     }
@@ -44,6 +50,18 @@ static void add_event(uint32_t time_ms, const ble_evt_t *evt, const char *suffix
     } else {
         e->suffix[0] = '\0';
     }
+}
+
+/* Queue a permission-bubble event (handled by sim_permission, not by the UI manager). */
+static sim_event_t *add_perm_event(uint32_t time_ms, int kind, const char *suffix)
+{
+    if (s_event_count >= MAX_EVENTS) return NULL;
+    sim_event_t *e = &s_events[s_event_count++];
+    memset(e, 0, sizeof(*e));
+    e->time_ms = time_ms;
+    e->perm_kind = kind;
+    snprintf(e->suffix, sizeof(e->suffix), "%s", suffix);
+    return e;
 }
 
 /* Skip whitespace */
@@ -260,6 +278,69 @@ void sim_events_init_inline(const char *events_str)
                 add_event(current_time, &evt, suffix);
             }
         }
+        else if (strncmp(p, "permission_clear", 16) == 0 && (!p[16] || p[16] == ';' || isspace((unsigned char)p[16]))) {
+            /* permission_clear <id> */
+            p += 16;
+            sim_event_t *e = add_perm_event(current_time, 2, "perm_clear");
+            char id[40];
+            p = parse_quoted(p, id, sizeof(id));
+            if (e) snprintf(e->perm_id, sizeof(e->perm_id), "%s", id);
+        }
+        else if (strncmp(p, "permission", 10) == 0 && isspace((unsigned char)p[10])) {
+            /* permission <id32hex> <nonce16hex> "project" "tool" "summary" */
+            p += 10;
+            sim_event_t *e = add_perm_event(current_time, 1, "perm");
+            char id[40], nonce[24];
+            p = parse_quoted(p, id, sizeof(id));
+            p = parse_quoted(p, nonce, sizeof(nonce));
+            if (e) {
+                snprintf(e->perm_id, sizeof(e->perm_id), "%s", id);
+                snprintf(e->perm_nonce, sizeof(e->perm_nonce), "%s", nonce);
+                p = parse_quoted(p, e->perm_project, sizeof(e->perm_project));
+                p = parse_quoted(p, e->perm_tool, sizeof(e->perm_tool));
+                p = parse_quoted(p, e->perm_summary, sizeof(e->perm_summary));
+            }
+        }
+        else if (strncmp(p, "clickw", 6) == 0 && isspace((unsigned char)p[6])) {
+            /* clickw <window_px_x> <window_px_y>: test-only left click, same path as a real one */
+            p += 6;
+            sim_event_t *e = add_perm_event(current_time, 3, "click");
+            if (e) { e->click_mode = 3; e->click_x = (int)strtol(p, (char **)&p, 10); e->click_y = (int)strtol(p, (char **)&p, 10); }
+        }
+        else if (strncmp(p, "click", 5) == 0 && isspace((unsigned char)p[5])) {
+            /* click allow|deny|<logical_x> <logical_y>  (test-only; press+release) */
+            p += 5;
+            p = skip_ws(p);
+            sim_event_t *e = add_perm_event(current_time, 3, "click");
+            if (strncmp(p, "allow", 5) == 0) { if (e) e->click_mode = 0; p += 5; }
+            else if (strncmp(p, "deny", 4) == 0) { if (e) e->click_mode = 1; p += 4; }
+            else if (e) { e->click_mode = 2; e->click_x = (int)strtol(p, (char **)&p, 10); e->click_y = (int)strtol(p, (char **)&p, 10); }
+        }
+        else if (strncmp(p, "winmove", 7) == 0 && isspace((unsigned char)p[7])) {
+            /* winmove <x> <y>: test-only SDL_SetWindowPosition (what a drag does), logs the result */
+            p += 7;
+            sim_event_t *e = add_perm_event(current_time, 5, "winmove");
+            if (e) { e->click_x = (int)strtol(p, (char **)&p, 10); e->click_y = (int)strtol(p, (char **)&p, 10); }
+        }
+        else if (strncmp(p, "winsize", 7) == 0 && isspace((unsigned char)p[7])) {
+            p += 7;
+            sim_event_t *e = add_perm_event(current_time, 6, "winsize");
+            if (e) { e->click_x = (int)strtol(p, (char **)&p, 10); e->click_y = (int)strtol(p, (char **)&p, 10); }
+        }
+        else if (strncmp(p, "winlmb", 6) == 0 && (!p[6] || p[6] == ';' || isspace((unsigned char)p[6]))) {
+            p += 6;
+            add_perm_event(current_time, 8, "winlmb");   /* test-only: WM_GETMINMAXINFO as a drag start sends */
+        }
+        else if (strncmp(p, "winlog", 6) == 0 && (!p[6] || p[6] == ';' || isspace((unsigned char)p[6]))) {
+            p += 6;
+            p = skip_ws(p);
+            sim_event_t *e = add_perm_event(current_time, 7, "winlog");
+            if (e) { int i = 0; while (*p && *p != ';' && i < 39) e->perm_id[i++] = *p++; e->perm_id[i] = 0; }
+        }
+        else if (strncmp(p, "quit", 4) == 0 && (!p[4] || p[4] == ';' || isspace((unsigned char)p[4]))) {
+            p += 4;
+            add_perm_event(current_time, 4, "quit");
+        }
         else if (strncmp(p, "wait", 4) == 0) {
             p += 4;
             p = skip_ws(p);
@@ -377,7 +458,29 @@ bool sim_events_process(uint32_t current_time_ms)
         sim_event_t *e = &s_events[s_event_cursor];
         s_event_cursor++;
 
-        if (!e->is_wait) {
+        if (e->perm_kind == 1) {
+            sim_permission_add(e->perm_id, e->perm_nonce, e->perm_project, e->perm_tool, e->perm_summary);
+            snprintf(s_last_suffix, sizeof(s_last_suffix), "%s", e->suffix);
+            fired = true;
+        } else if (e->perm_kind == 3) {
+            sim_permission_test_click(e->click_mode, e->click_x, e->click_y);
+            snprintf(s_last_suffix, sizeof(s_last_suffix), "%s", e->suffix);
+            fired = true;
+        } else if (e->perm_kind == 5) {
+            sim_display_test_window(1, e->click_x, e->click_y, "winmove");
+        } else if (e->perm_kind == 6) {
+            sim_display_test_window(2, e->click_x, e->click_y, "winsize");
+        } else if (e->perm_kind == 8) {
+            sim_display_test_window(3, 0, 0, "drag-start (WM_GETMINMAXINFO)");
+        } else if (e->perm_kind == 7) {
+            sim_display_test_window(0, 0, 0, e->perm_id);
+        } else if (e->perm_kind == 4) {
+            sim_display_set_quit();
+        } else if (e->perm_kind == 2) {
+            sim_permission_remove(e->perm_id);
+            snprintf(s_last_suffix, sizeof(s_last_suffix), "%s", e->suffix);
+            fired = true;
+        } else if (!e->is_wait) {
             ui_manager_handle_event(&e->evt);
             snprintf(s_last_suffix, sizeof(s_last_suffix), "%s", e->suffix);
             fired = true;

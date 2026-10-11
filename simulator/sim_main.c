@@ -2,6 +2,8 @@
 #include "sim_display.h"
 #include "sim_events.h"
 #include "sim_screenshot.h"
+#include "sim_permission.h"
+#include "scene.h"
 #include "sim_socket.h"
 #include "sim_timer.h"
 #include "ui_manager.h"
@@ -17,6 +19,7 @@
 /* ---- CLI options ---- */
 static bool     opt_headless = false;
 static int      opt_scale = 1;
+static bool     opt_scale_given = false;
 static const char *opt_events = NULL;
 static const char *opt_scenario = NULL;
 static const char *opt_screenshot_dir = NULL;
@@ -25,6 +28,7 @@ static bool     opt_screenshot_on_event = false;
 static uint32_t opt_run_ms = 0;
 static int      opt_listen_port = 0;  /* 0 = disabled */
 static bool     opt_pinned = false;
+static bool     opt_desk = false;     /* crab only, transparent window (see --desk) */
 static bool     opt_hidden = false;   /* start with window hidden */
 static bool     opt_bordered = false; /* use a normal bordered window */
 static const char *opt_capture_anim = NULL;  /* status name for --capture-anim */
@@ -38,10 +42,11 @@ static void print_usage(void)
         "\n"
         "Display:\n"
         "  --headless              Run without SDL2 window\n"
-        "  --scale <N>             Window scale factor (default: 2)\n"
+        "  --scale <N>             Window scale factor (default: 1; 2 with --desk)\n"
         "  --pinned                Keep window always on top\n"
         "  --hidden                Start with window hidden (show via TCP show_window)\n"
         "  --bordered              Use a normal bordered window (default: borderless)\n"
+        "  --desk                  Desk pet: just the crab in a transparent, always-on-top window\n"
         "  --capture-anim <status> <dir>  Capture one animation cycle as PNGs\n"
         "\n"
         "Events:\n"
@@ -67,6 +72,7 @@ static void parse_args(int argc, char *argv[])
             opt_headless = true;
         } else if (strcmp(argv[i], "--scale") == 0 && i + 1 < argc) {
             opt_scale = atoi(argv[++i]);
+            opt_scale_given = true;
         } else if (strcmp(argv[i], "--events") == 0 && i + 1 < argc) {
             opt_events = argv[++i];
         } else if (strcmp(argv[i], "--scenario") == 0 && i + 1 < argc) {
@@ -85,6 +91,8 @@ static void parse_args(int argc, char *argv[])
             opt_hidden = true;
         } else if (strcmp(argv[i], "--bordered") == 0) {
             opt_bordered = true;
+        } else if (strcmp(argv[i], "--desk") == 0) {
+            opt_desk = true;
         } else if (strcmp(argv[i], "--capture-anim") == 0 && i + 2 < argc) {
             opt_capture_anim = argv[++i];
             opt_capture_dir = argv[++i];
@@ -173,6 +181,7 @@ static void run_headless(void)
         if (opt_listen_port > 0) {
             sim_socket_process();
             sim_socket_process_window_cmds(handle_window_cmd);
+            sim_permission_drain();
             if (sim_socket_has_pending_query()) {
                 scene_t *scene = ui_manager_get_scene();
                 char *state_json = scene_get_state_json(scene);
@@ -367,6 +376,7 @@ static void handle_window_cmd(const sim_win_cmd_t *cmd)
 {
     switch (cmd->type) {
     case SIM_WIN_CMD_SHOW:
+        sim_permission_note_user_show();  /* explicit show: never auto-hide it later */
         sim_display_show_window();
         sim_display_clear_quit();
         break;
@@ -407,6 +417,7 @@ static void run_interactive(void)
         if (opt_listen_port > 0) {
             sim_socket_process();
             sim_socket_process_window_cmds(handle_window_cmd);
+            sim_permission_drain();
             if (sim_socket_has_pending_query()) {
                 scene_t *scene = ui_manager_get_scene();
                 char *state_json = scene_get_state_json(scene);
@@ -457,6 +468,16 @@ static void handle_sdl_events(void)
         if (e.type == SDL_WINDOWEVENT &&
             e.window.event == SDL_WINDOWEVENT_RESIZED) {
             sim_display_enforce_aspect_ratio();
+        }
+        if ((e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) &&
+            e.button.button == SDL_BUTTON_LEFT) {
+            /* Permission bubble clicks. Out-of-scene points become (-1,-1), which no
+             * button contains, so a release elsewhere cancels the click. */
+            int lx = -1, ly = -1;
+            if (!sim_display_window_to_logical(e.button.x, e.button.y, &lx, &ly)) {
+                lx = ly = -1;
+            }
+            sim_permission_mouse(true, e.type == SDL_MOUSEBUTTONDOWN, lx, ly);
         }
         if (e.type == SDL_QUIT) {
             if (opt_listen_port > 0) {
@@ -553,6 +574,9 @@ int main(int argc, char *argv[])
 
     parse_args(argc, argv);
 
+    /* The desk pet reads better a bit bigger: 2x unless --scale was given. */
+    if (opt_desk && !opt_scale_given) opt_scale = 2;
+
     /* headless takes precedence over hidden (hidden is meaningless without a window) */
     if (opt_headless && opt_hidden) opt_hidden = false;
 
@@ -560,6 +584,11 @@ int main(int argc, char *argv[])
     lv_init();
 
     /* 2. Init display */
+    /* Desk pet must be set before the window exists and before ui_manager_init() builds the scene. */
+    if (opt_desk) {
+        sim_display_set_desk(true);
+        scene_enable_desk_mode();
+    }
     sim_display_init(opt_headless, opt_scale, opt_bordered, opt_pinned);
 
     /* 3. Init events */
