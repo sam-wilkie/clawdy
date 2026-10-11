@@ -104,3 +104,8 @@ desktop/node_modules/
 /process-diagnostic.json
 /terminal-repair-result.json
 /terminal-update-verification-start.txt
+
+# Third-party mascot art (Codex cloud) and the tool that generates it: kept
+# local until permission and licensing are settled, see NOTICE.md.
+/desktop/renderer/assets/codex/
+/tools/codex_cloud_pixel.py
