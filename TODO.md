@@ -24,6 +24,18 @@ Custom app icon. Proactive BLE reconnection with full state sync on disconnect.
 
 ---
 
+## Permission bubble (desk window Allow/Deny) — simulator side Implemented
+
+- [x] `simulator/sim_permission.c/.h`: parses `permission_request` / `permission_clear` on the socket thread (validated, mutex queue), FIFO bubble on the LVGL top layer (8x8 unscii font, ASCII-sanitised text, 2-line summary, "+N waiting"), Allow/Deny buttons, 400 ms click guard (restarts for every newly shown request), decision `{"event":"permission_decision",id,nonce,decision}` sent only from a real left press+release on a button; send failure keeps the bubble; daemon disconnect clears all.
+- [x] Desk hit-test: button rectangles return `SDL_HITTEST_NORMAL`, the rest stays draggable. Windows: desk window is `WS_EX_NOACTIVATE|WS_EX_TOOLWINDOW`; other windows are non-activating only while a bubble is up; hidden window is auto-shown WITHOUT activation and re-hidden when the last request resolves.
+- [x] Test hooks in `--events`: `permission <id32> <nonce16> "proj" "tool" "summary"`, `permission_clear <id>`, `click allow|deny|<x> <y>` (logical), `clickw <x> <y>` (window px), `quit`.
+- [x] Verified headless (screenshots with/without `--desk`), fake-daemon TCP E2E, and the real daemon + `clawd-tank-notify` chain with in-sim injected clicks (hook printed allow / deny JSON).
+- [x] Bubble made compact after the first manual test: 176x52 logical (352x104 px at scale 2, 528x156 at scale 3), centred above the crab; buttons 80x12 logical; `project > tool` header, 2-line summary, "+N" counter. Desk mode defaults to `--scale 2`; `ver-sim.bat` has a separate DESKSCALE (default 2).
+- [x] Desk window snapped back after a drag. Root cause: SDL's Win32 shaped-window code (WM_GETMINMAXINFO -> Win32_ResizeWindowShape) parks the window at (-1000,-1000) when a drag starts and the next SDL_SetWindowShape() restores the PRE-drag position. Fix: on Windows the desk window is a plain window and the shape is a region set with SetWindowRgn (`desk_set_region_win32`); aspect-ratio enforcement and the 328x180 minimum size no longer apply to the desk window. Reproduced and verified with the in-sim hooks `winlmb`/`winmove`/`winlog`/`winsize`.
+- [ ] Unexplained: the TCP connection from a fake daemon dropped ~53 s into a manual run. Not reproduced (27 s soak with 28 simulated drag starts + bubbles: connection intact, no crash).
+- [ ] Manual check needed on a real desktop: real mouse click on the bubble in `--desk`, keyboard focus stays in the terminal, dragging the crab still works.
+
+
 ## v2 crab art on the device (15 anims) — Implemented (firmware target build + full v1 re-check pending)
 
 - [x] 15 mapped anims regenerated from v2 SVGs at scale x3 via `tools/regen_v2_sprite.py`; `*_FRAME_MS` matched to v2 fps, `.looping` preserved, uniform `y_offset=-21`, `GRASS_HEIGHT` 14→24 in `scene.c`.
@@ -45,6 +57,22 @@ Custom app icon. Proactive BLE reconnection with full state sync on disconnect.
 - [ ] Restart the installed app with the board in range and check the log: first scan may log `BLE scan failed ... retrying in 1s`, then `Found Margarita` and `Transport 'ble' connected` with no click on Reconnect.
 - [ ] Switch the board off and on (or walk out of range) and check it reconnects by itself within a few seconds.
 - [ ] Known leftover: `ClawdBleClient.disconnect()` awaits bleak's `disconnect()` with no timeout (only the manual Reconnect path uses it on a live link).
+
+## Desk-pet simulator window (`--desk`) — Implemented (interactive window untested)
+
+- [x] `scene_enable_desk_mode()` hides the scenery and paints the screen with the sprites' key color `0x18C5`; `sim_display` makes the window borderless, always on top, no LED border, and shapes it to the sprites with `SDL_SetWindowShape`. Device path unchanged (the flag is never set on the device).
+- [x] Verified headless: `--headless --desk` screenshots show only the crab over the key color; normal mode still renders sky, hills and grass.
+- [x] Real window on Windows (screen capture): the window is shaped and only the sprite shows. It needed `SDL_CreateShapedWindow` (`SDL_SetWindowShape` fails on a normal window), which the first version missed.
+- [ ] Check click-through outside the sprite and drag on the real window.
+- [x] Tray toggle "Floating desk pet" (Windows pystray, top-level item right after Simulator; mirrored in rumps_view.py as "(untested on macOS)"). `controller.toggle_sim_desk()`: ON persists `sim_desk_mode`, enables the simulator and restarts it via `SimProcessManager(desk=True)` (args `--listen <port> --desk`, visible, no `--hidden`/`--pinned`); OFF persists false and stops AND disables the simulator (`sim_enabled=false`, no fallback to the normal window; Simulator > Enabled brings that back). One sim process/port, so the two modes are exclusive; Simulator > Enabled OFF also clears desk mode. Show Window / Always on Top are greyed out and ignored in desk mode. `sim_desk_mode` saved true => the crab starts automatically at tray start. Run the tray from source with `ver-tray.bat`.
+- [ ] Manual check needed: click the real tray item on Windows (unit tests use fakes only); packaged PyInstaller flow unchanged (it already bundles the simulator exe).
+- Known limits: notification cards and the usage/time HUD are hidden in desk mode; the mod's own band still shows in the terminal.
+
+## Claude Code mod — no auto-shown crab (band tried and removed)
+
+- [x] `margarita-band` no longer opens the side pane at session start and no longer draws an `AbovePrompt` band. The crab is shown on the desk by the simulator's `--desk` window instead. `/margarita` still opens the pane on demand.
+- [x] The band at `BAND_SCALE = 1/3` looked blocky (the v2 art was downscaled too far), so it was dropped.
+- [ ] `claude plugin test` has 4 failures in `usage-cache.test.ts` on Windows (path separators `/` vs `\`); not addressed.
 
 ## Claude Code mod (side panel) — Implemented (Windows and a real Claude session untested)
 
