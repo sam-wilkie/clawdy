@@ -314,6 +314,28 @@ Multi-agent review of the attention-hooks work surfaced 15 findings; fixes:
 - [x] **Heap diagnostics** — Free heap logged at boot. OOM logging in `ensure_frame_buf`.
 - [x] **PSRAM correction** — ESP32-C6FH8 has no PSRAM. Removed bogus settings from `sdkconfig.defaults`, corrected CLAUDE.md.
 
+## Desktop pet: grooving = subagents working — Implemented (live pet untested)
+
+- [x] Verified in the Claude Code hooks docs: PreToolUse/PostToolUse fired inside a subagent carry `agent_id` + `agent_type` (under the PARENT `session_id`); the main agent's calls have neither.
+- [x] `protocol.py` + embedded `NOTIFY_SCRIPT` (`NOTIFY_SCRIPT_VERSION` 2026-10-11-subagent-agent-id) add `agent_id` to tool_use/tool_done/tool_failed/permission only when present.
+- [x] Daemon: a subagent's tool event no longer overwrites the main session's state/tool_name (it only refreshes liveness). A subagent permission still raises the alert.
+- [x] `products[].bg` = running subagents (omitted when 0), sim/pet transport only; `anims`/BLE payloads unchanged.
+- [x] Pet: `renderer/anim-map.js` (`mapAnim`, tested with `npm test`): main-agent tool/thinking/alert > conducting (first 4s of an Agent dispatch) > grooving (bg>0) > idle. `fake-daemon.js` demo exercises it.
+- [ ] Manual check in the live pet with a real Claude session running subagents (conducting -> grooving, main-agent tool wins).
+- [ ] Open: a subagent tool_use still cancels the parent's pending permission bubble (pre-existing per-session cancel; now could be made agent-aware).
+
+## Desktop pet: no_credits (broke crab) — Implemented (live pet untested)
+
+- [x] `products[].exhausted: true` (omitted when false, pet/sim transport only): set when a product has an `out_of_credits` session and its final `anim` is still `low_battery`, so an active/alert/thinking/error/conducting sibling session keeps the pet on that. `anims`, BLE and v2 downgrade unchanged (out_of_credits stays `low_battery`/idle for hardware). Tests in `host/tests/test_session_state.py`.
+- [x] `anim-map.js` `mapAnim(name, bg, conductMs, exhausted)`: alert > exhausted -> `no_credits` > the rest. New art `renderer/assets/clawd-no-credits-v2.svg` (declined card with blinking red X slides over the head, shrug, flapping empty pockets, tear), registered in `renderer.js` STATES; Codex window reuses the low-battery cloud. `fake-daemon.js` cycle and scenario include it. `npm test`: 6 pass.
+- [ ] Manual check in the live pet with a real exhaustion (or `fake-daemon.js`), and a Codex window.
+- [ ] Optional: dedicated Codex cloud art for no_credits.
+
+## Out-of-credits detection — Part A implemented, Part B proposal only
+
+- [x] **Claude Code `StopFailure` exhaustion** — `protocol.classify_exhaustion()` matches `error`/`stop_reason`/`error_type`/`error_details` (case-insensitive: credit, quota, billing, insufficient, usage limit, `rate_limit` token). Match -> card "Out of credits" / "Usage limit reached" (red alert flash kept) and session state `out_of_credits`, which renders as `low_battery` (v2 transports downgrade it to idle). No firmware change. Verified from the Claude Code hooks docs: StopFailure error types include `billing_error` and `rate_limit`; assumed: the exact payload field names beyond `error`.
+- [ ] **Codex/Kiro exhausted credits** — no hook fires. Codex rollout `event_msg/token_count` carries `rate_limits` (`credits.has_credits`, `rate_limit_reached_type`, `primary/secondary.used_percent`), but the exhausted values were never observed, so nothing is implemented. Kiro: no local log/hook signal found. Fallback proposal: stall hint for codex/kiro sessions stuck thinking/working for N minutes (false positives on long tool calls).
+
 ## Future Considerations (Out of Scope)
 
 - Physical button interaction (dismiss notifications from the device)

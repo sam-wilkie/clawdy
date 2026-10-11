@@ -249,6 +249,14 @@ Clawdy también puede vivir **dentro de Claude Code**: un panel lateral con el c
 - **Dónde aparece**: en pantalla completa el panel se acopla a la **derecha** desde unas **110 columnas** de ancho; en una terminal más angosta se muestra encima del prompt. `/margarita` lo abre de nuevo; `/margarita <animación>` previsualiza una animación y `/margarita auto` vuelve al modo automático.
 - **Barras de uso**: las lee de `~/.clawd-tank/statusline-cache.json`, el mismo archivo que escribe el puente de `statusLine` de arriba.
 
+### Codex: aprueba los hooks (importante)
+
+Para Codex, los hooks viven en `~/.codex/hooks.json` (se instalan con `host/.venv/Scripts/python.exe tools/install_codex_hooks.py`). Codex **no ejecuta ningún hook hasta que lo apruebes**: si ves *"N hooks need review before they can run"* en `/hooks`, el cangrejo de Codex no aparecerá porque no llega ningún evento al daemon.
+
+- Abre `/hooks` en Codex, aprueba los hooks pendientes y envía un mensaje.
+- Codex guarda un hash de confianza por hook en `~/.codex/config.toml`. **Cada vez que `hooks.json` cambia** (reinstalar los hooks, actualizar la app) hay que aprobarlos de nuevo.
+- Para comprobar que el puente funciona sin depender de Codex: `tools/install_codex_hooks.py --smoke-test`.
+
 ## `$ ./test`
 
 ```bash
@@ -267,3 +275,9 @@ cd firmware/test && make test
 ## `$ cat LICENSE`
 
 MIT. Consulta [LICENSE](LICENSE): conserva el copyright original de Marcio Granzotto Rodrigues, además del de las modificaciones de Clawdy.
+
+El arte original que no representa personajes de terceros se rige por [ASSETS-LICENSE.md](ASSETS-LICENSE.md). Los personajes y las marcas de terceros **no** están licenciados por este proyecto: consulta [NOTICE.md](NOTICE.md).
+
+## `$ cat AVISO`
+
+Proyecto independiente y no oficial: **no está afiliado, patrocinado ni respaldado por Anthropic, OpenAI, Kiro ni ninguna otra empresa** cuyos productos puede mostrar. "Claude", "Claude Code", el personaje Clawd, "Codex" y "OpenAI" son propiedad de sus respectivos dueños y se mencionan solo para indicar compatibilidad. Los personajes incluidos son versiones hechas por fans, para uso personal. Si un titular pide que se cambien o se retiren, se hará.

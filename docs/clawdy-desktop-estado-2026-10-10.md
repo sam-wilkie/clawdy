@@ -71,8 +71,7 @@ allow/deny de vuelta al hook.
    de `website/`.
 
 **Motivo**: el usuario quiere que el desktop pet sea FLUIDO, con las animaciones de la web
-terminadas. LVGL sobre framebuffer (el `--desk` SDL2) no puede dar eso. clawd-on-desk (el
-proyecto de referencia) es Electron por lo mismo.
+terminadas. LVGL sobre framebuffer (el `--desk` SDL2) no puede dar eso. Electron sí puede.
 
 **Consecuencias asumidas:**
 - Habrá 2 pipelines de animación (firmware/RLE y Electron/SVG), por decisión deliberada.
