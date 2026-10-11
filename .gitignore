@@ -88,3 +88,19 @@ desktop/node_modules/
 # exist. Each user regenerates it locally. The rest of .kiro/ is left to the
 # project to track as it sees fit.
 .kiro/hooks/clawdy.json
+
+# Generated local artifacts: browser profiles and Python deps created by the
+# SVG preview/render tooling, plus logs and pid files. Recreated on demand.
+/.preview-deps/
+/.edge-preview/
+/.chrome-preview/
+*.log
+*.pid
+
+# Local diagnostics and machine backups (may contain personal settings).
+/terminal-ab-test/
+/console-host-backup.json
+/windows-terminal-settings-backup.json
+/process-diagnostic.json
+/terminal-repair-result.json
+/terminal-update-verification-start.txt
