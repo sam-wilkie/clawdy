@@ -151,3 +151,32 @@ def test_find_desktop_pet_none_without_dependencies(tmp_path, monkeypatch):
     monkeypatch.setenv("CLAWDY_DESKTOP_DIR", str(tmp_path))
     monkeypatch.delenv("CLAWDY_DESKTOP_PET", raising=False)
     assert SimProcessManager()._find_desktop_pet() is None
+
+
+@pytest.mark.asyncio
+async def test_client_is_marked_desktop_pet_only_when_the_electron_pet_runs():
+    """The daemon sends the pet-only "waiting_reply" animation solely to a
+    client flagged as the Electron desktop pet; the SDL2 window never is."""
+    from clawd_tank_daemon.sim_client import SimClient
+
+    async def client_of(mgr, pet=None):
+        async def fake_exec(*args, **kw):
+            class _Proc:
+                stdout = stderr = None
+                returncode = None
+            return _Proc()
+
+        async def not_in_use():
+            return False
+
+        mgr._is_port_in_use = not_in_use
+        mgr._find_binary = lambda: "sim.exe"
+        mgr._find_desktop_pet = lambda: pet
+        with patch("asyncio.create_subprocess_exec", fake_exec):
+            return await mgr.start()
+
+    pet = ["electron.exe", "/repo/desktop"]
+    assert (await client_of(SimProcessManager(port=1234, desk=True), pet)).desktop_pet is True
+    assert (await client_of(SimProcessManager(port=1234, desk=True))).desktop_pet is False
+    assert (await client_of(SimProcessManager(port=1234), pet)).desktop_pet is False
+    assert SimClient().desktop_pet is False

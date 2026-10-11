@@ -256,7 +256,7 @@ async def test_last_display_state_tracks_changes():
         "event": "add", "hook": "Stop", "session_id": "s1",
         "project": "proj", "message": "Waiting",
     })
-    assert d._last_display_state == {"anims": ["alert"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "alert"}], "subagents": 0}
+    assert d._last_display_state == {"anims": ["waiting_reply"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "waiting_reply"}], "subagents": 0}
     await d._handle_message({"event": "dismiss", "hook": "SessionEnd", "session_id": "s1"})
     assert d._last_display_state == {"status": "sleeping"}
 
@@ -1310,9 +1310,9 @@ async def test_non_web_tool_failure_stays_confused():
 
 
 @pytest.mark.asyncio
-async def test_idle_prompt_after_web_tool_shows_alert_not_hat_mishap():
+async def test_idle_prompt_after_web_tool_shows_waiting_reply_not_hat_mishap():
     """An idle_prompt Notification is not a web failure, even if the last tool was
-    web: it must surface the waiting alert, never hat_mishap."""
+    web: it must surface the end-of-turn wait, never hat_mishap."""
     d = make_daemon()
     await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "WebFetch"})
     await d._handle_message({
@@ -1321,7 +1321,7 @@ async def test_idle_prompt_after_web_tool_shows_alert_not_hat_mishap():
     await d._handle_message({
         "event": "add", "hook": "Notification", "session_id": "s1", "project": "p", "message": "x",
     })
-    assert d._compute_display_state()["anims"] == ["alert"]
+    assert d._compute_display_state()["anims"] == ["waiting_reply"]
 
 
 # --- Low usage headroom → low_battery instead of idle ---
@@ -2484,3 +2484,178 @@ def test_exhausted_survives_v2_downgrade_without_unknown_names():
     v2 = downgrade_display_state(state, 2)
     assert v2["anims"] == ["idle"]
     assert v2["products"][0]["exhausted"] is True
+
+
+# --- "waiting" split: end-of-turn waiting_reply vs blocked alert ---
+#
+# A session rests in "waiting" both when its turn ended (Stop / idle_prompt:
+# "your turn") and when it is blocked on the human (PermissionRequest /
+# AskUserQuestion). Only the blocked kind is urgent: it keeps "alert", the
+# end-of-turn kind shows "waiting_reply". Both stay state "waiting" so every
+# waiting rule (eviction exemption, clears, persistence) applies to both.
+
+
+def _stop(sid="s1"):
+    return {"event": "add", "hook": "Stop", "session_id": sid, "project": "p", "message": "x"}
+
+
+def _idle_prompt(sid="s1"):
+    return {"event": "add", "hook": "Notification", "session_id": sid,
+            "project": "p", "message": "Claude is waiting for your input"}
+
+
+@pytest.mark.asyncio
+async def test_stop_shows_waiting_reply():
+    d = make_daemon()
+    await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "Bash"})
+    await d._handle_message(_stop())
+    assert d._session_states["s1"]["state"] == "waiting"
+    state = d._compute_display_state()
+    assert state["anims"] == ["waiting_reply"]
+    assert state["products"] == [{"agent": "claude", "count": 1, "anim": "waiting_reply"}]
+
+
+@pytest.mark.asyncio
+async def test_idle_prompt_shows_waiting_reply():
+    d = make_daemon()
+    await d._handle_message({"event": "session_start", "session_id": "s1"})
+    await d._handle_message(_idle_prompt())
+    assert d._session_states["s1"]["state"] == "waiting"
+    assert d._compute_display_state()["anims"] == ["waiting_reply"]
+
+
+@pytest.mark.asyncio
+async def test_permission_request_shows_alert():
+    d = make_daemon()
+    await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "Bash"})
+    await d._handle_message({"event": "permission", "session_id": "s1", "tool_name": "Bash"})
+    assert d._compute_display_state()["anims"] == ["alert"]
+
+
+@pytest.mark.asyncio
+async def test_ask_user_question_shows_alert():
+    d = make_daemon()
+    await d._handle_message({"event": "tool_use", "session_id": "s1",
+                             "tool_name": "AskUserQuestion"})
+    assert d._compute_display_state()["anims"] == ["alert"]
+
+
+@pytest.mark.asyncio
+async def test_permission_after_end_of_turn_is_urgent_again():
+    """A blocked prompt after an end-of-turn wait must not inherit waiting_reply."""
+    d = make_daemon()
+    await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "Bash"})
+    await d._handle_message(_stop())
+    await d._handle_message({"event": "permission", "session_id": "s1", "tool_name": "Bash"})
+    assert d._compute_display_state()["anims"] == ["alert"]
+    await d._handle_message(_stop())
+    await d._handle_message({"event": "tool_use", "session_id": "s1",
+                             "tool_name": "AskUserQuestion"})
+    assert d._compute_display_state()["anims"] == ["alert"]
+
+
+@pytest.mark.asyncio
+async def test_stop_after_permission_becomes_waiting_reply():
+    d = make_daemon()
+    await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "Bash"})
+    await d._handle_message({"event": "permission", "session_id": "s1", "tool_name": "Bash"})
+    await d._handle_message(_stop())
+    assert d._compute_display_state()["anims"] == ["waiting_reply"]
+
+
+@pytest.mark.asyncio
+async def test_stop_after_permission_is_persisted(tmp_path):
+    """alert -> waiting_reply keeps state "waiting" but is still a structural
+    change: the reason must reach disk, or a restart would show the wrong crab."""
+    path = tmp_path / "sessions.json"
+    d = make_daemon_with_path(path)
+    await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "Bash"})
+    await d._handle_message({"event": "permission", "session_id": "s1", "tool_name": "Bash"})
+    await d._handle_message(_stop())
+    d2 = make_daemon_with_path(path)
+    assert d2._compute_display_state()["anims"] == ["waiting_reply"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("enter", [
+    [_stop()],
+    [_idle_prompt()],
+    [{"event": "permission", "session_id": "s1", "tool_name": "Bash"}],
+    [{"event": "tool_use", "session_id": "s1", "tool_name": "AskUserQuestion"}],
+])
+async def test_user_prompt_submit_clears_both_kinds_of_waiting(enter):
+    d = make_daemon()
+    await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "Bash"})
+    for msg in enter:
+        await d._handle_message(msg)
+    assert d._session_states["s1"]["state"] == "waiting"
+    await d._handle_message({"event": "dismiss", "hook": "UserPromptSubmit", "session_id": "s1"})
+    assert d._session_states["s1"]["state"] == "thinking"
+    assert d._compute_display_state()["anims"] == ["thinking"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("enter", [_stop(), _idle_prompt()])
+async def test_staleness_does_not_evict_end_of_turn_waiting(enter):
+    d = make_daemon()
+    await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "Bash"})
+    await d._handle_message(enter)
+    d._session_states["s1"]["last_event_monotonic"] = time.monotonic() - 9999
+    d._session_staleness_timeout = 1
+    d._evict_stale_sessions()
+    assert "s1" in d._session_states
+
+
+@pytest.mark.asyncio
+async def test_stop_with_running_subagents_is_not_waiting_reply():
+    d = make_daemon()
+    await d._handle_message({"event": "session_start", "session_id": "s1"})
+    await d._handle_message({"event": "subagent_start", "session_id": "s1", "agent_id": "a1"})
+    await d._handle_message(_stop())
+    assert d._session_states["s1"]["state"] != "waiting"
+    assert d._compute_display_state()["anims"] == ["conducting"]
+
+
+def test_waiting_persistence_round_trip(tmp_path):
+    path = tmp_path / "sessions.json"
+    d = make_daemon_with_path(path)
+    _add_session(d, "s1", {"state": "waiting", "last_event": time.time(),
+                           "awaiting_prompt": True})
+    _add_session(d, "s2", {"state": "waiting", "last_event": time.time()})
+    d._persist_sessions()
+    d2 = make_daemon_with_path(path)
+    assert d2._compute_display_state()["anims"] == ["waiting_reply", "alert"]
+
+
+def test_legacy_saved_waiting_entry_loads_as_alert(tmp_path):
+    """sessions.json written before the split has a bare "waiting": it still
+    loads, and shows the conservative (urgent) alert."""
+    path = tmp_path / "sessions.json"
+    path.write_text(json.dumps({
+        "sessions": {"s1": {"state": "waiting", "last_event": time.time()}},
+        "session_order": [["s1", 1]],
+        "next_display_id": 2,
+    }))
+    d = make_daemon_with_path(path)
+    assert d._session_states["s1"]["state"] == "waiting"
+    assert d._compute_display_state()["anims"] == ["alert"]
+
+
+def test_product_alert_outranks_waiting_reply():
+    """A blocked sibling must not be masked by one that only finished its turn."""
+    for order in (("reply", "blocked"), ("blocked", "reply")):
+        d = make_daemon()
+        for i, kind in enumerate(order):
+            entry = {"state": "waiting", "last_event": time.time()}
+            if kind == "reply":
+                entry["awaiting_prompt"] = True
+            _add_session(d, f"c{i}", entry)
+        assert d._compute_display_state()["products"][0]["anim"] == "alert", order
+
+
+def test_product_waiting_reply_outranks_work():
+    d = make_daemon()
+    _add_session(d, "c1", {"state": "working", "tool_name": "Bash", "last_event": time.time()})
+    _add_session(d, "c2", {"state": "waiting", "awaiting_prompt": True,
+                           "last_event": time.time()})
+    assert d._compute_display_state()["products"][0]["anim"] == "waiting_reply"

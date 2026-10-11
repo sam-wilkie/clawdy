@@ -58,10 +58,27 @@ class SimProcessManager:
         """
         if os.environ.get("CLAWDY_DESKTOP_PET") == "0":
             return None
-        app_dir = os.environ.get("CLAWDY_DESKTOP_DIR") or os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            "desktop",
-        )
+        app_dir = os.environ.get("CLAWDY_DESKTOP_DIR")
+        if not app_dir and sys.platform == "darwin":
+            # The release bundles the Electron runtime and pet sources under
+            # Contents/Resources/desktop. Resolve it from the host app so the
+            # installed menu-bar app can launch the pet without a repo checkout.
+            try:
+                from Foundation import NSBundle
+                bundle = NSBundle.mainBundle()
+                if bundle:
+                    candidate = os.path.join(
+                        bundle.bundlePath(), "Contents", "Resources", "desktop"
+                    )
+                    if os.path.isfile(os.path.join(candidate, "main.js")):
+                        app_dir = candidate
+            except ImportError:
+                pass
+        if not app_dir:
+            app_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "desktop",
+            )
         electron_dir = os.path.join(app_dir, "node_modules", "electron")
         try:
             with open(os.path.join(electron_dir, "path.txt"), encoding="utf-8") as fh:
@@ -160,7 +177,9 @@ class SimProcessManager:
         asyncio.create_task(self._log_stream(self._process.stdout, logging.INFO))
         asyncio.create_task(self._log_stream(self._process.stderr, logging.WARNING))
         await asyncio.sleep(0.3)
-        self._client = SimClient(port=self._port, on_event_cb=self._handle_sim_event)
+        self._client = SimClient(
+            port=self._port, on_event_cb=self._handle_sim_event, desktop_pet=bool(pet)
+        )
         return self._client
 
     async def stop(self) -> None:

@@ -91,9 +91,10 @@ class RumpsTrayView:
             self._sim_pinned_toggle,
         ])
 
-        # Floating desk pet (simulator --desk). Only verified on Windows.
+        # Floating Electron desktop pet (falls back to SDL2 in dev if Electron
+        # dependencies are missing).
         self._sim_desk_item = rumps.MenuItem(
-            "Floating desk pet (untested on macOS)",
+            "Electron Desktop Pet",
             callback=lambda _sender: controller.toggle_sim_desk(),
         )
         self._sim_desk_item.state = controller.sim_desk

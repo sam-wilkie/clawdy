@@ -2,7 +2,7 @@ name: Release
 
 # Builds both desktop installers and attaches them to the GitHub release:
 #
-#   Margarita-Tank.dmg          macOS (Apple Silicon) menu bar app
+#   Margarita-Tank.dmg          macOS (Apple Silicon) menu bar app + Electron pet
 #   Margarita-Tank-Setup.exe    Windows tray app (per-user Inno Setup installer)
 #
 # Asset names carry no version on purpose, so the README can link to
@@ -41,6 +41,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Install Electron runtime
+        working-directory: desktop
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.5 --activate
+          pnpm install --frozen-lockfile
+
       - name: Fetch LVGL (managed component not in git)
         run: |
           mkdir -p firmware/managed_components
@@ -75,6 +86,23 @@ jobs:
       - name: Build .app with py2app
         working-directory: host
         run: python setup.py py2app
+
+      - name: Bundle Electron desktop pet
+        run: |
+          resources="host/dist/Margarita Tank.app/Contents/Resources/desktop"
+          mkdir -p "$resources/node_modules/electron/dist"
+          cp desktop/main.js desktop/preload.js desktop/daemon-bridge.js "$resources/"
+          cp -R desktop/renderer "$resources/renderer"
+          cp desktop/node_modules/electron/path.txt "$resources/node_modules/electron/path.txt"
+          cp desktop/node_modules/electron/package.json "$resources/node_modules/electron/package.json"
+          cp -R desktop/node_modules/electron/dist/Electron.app "$resources/node_modules/electron/dist/Electron.app"
+
+      - name: Check the bundled Electron desktop pet
+        run: |
+          resources="host/dist/Margarita Tank.app/Contents/Resources/desktop"
+          test -f "$resources/main.js"
+          test -f "$resources/renderer/index.html"
+          test -x "$resources/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
 
       - name: Check the bundled Claude Code mod
         # hooks.resolve_mod_source() reads it from Contents/Resources/claude-mod.

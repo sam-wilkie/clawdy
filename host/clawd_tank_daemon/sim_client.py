@@ -22,6 +22,7 @@ class SimClient:
         on_connect_cb=None,
         on_event_cb=None,
         retry_interval: float = SIM_RETRY_INTERVAL,
+        desktop_pet: bool = False,
     ):
         self._host = host
         self._port = port
@@ -31,6 +32,9 @@ class SimClient:
         self._on_connect_cb = on_connect_cb
         self._on_event_cb = on_event_cb
         self._retry_interval = retry_interval
+        # True when the other end is the Electron desktop pet rather than the
+        # SDL2 simulator: the daemon sends it pet-only animations.
+        self.desktop_pet = desktop_pet
         self._lock = asyncio.Lock()
         self._reader_task: asyncio.Task | None = None
         self._config_response: asyncio.Future | None = None

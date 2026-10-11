@@ -68,6 +68,15 @@ PHASE1_ANIM_FALLBACKS = {
     "happy": "idle",
 }
 
+# Animations only the Electron desktop pet has art for. Firmware and the SDL2
+# simulator share one sprite set without them (v2/v3 firmware drops a slot with
+# an unknown name), so every other transport gets the fallback, whatever its
+# protocol version. "waiting_reply" is the calm end-of-turn wait; hardware keeps
+# showing it as the urgent "alert", exactly as before the split.
+DESKTOP_PET_ANIM_FALLBACKS = {
+    "waiting_reply": "alert",
+}
+
 # The simulator compiles the same firmware sources, so it speaks the latest
 # protocol. It has no version characteristic to read.
 SIM_PROTOCOL_VERSION = 3
@@ -87,18 +96,26 @@ def downgrade_display_state(state: dict, version: int) -> dict:
     The input is never mutated (other transports may still need the original
     names); a status-only state, or a transport at MIN_PROTOCOL_FOR_PHASE1_ANIMS
     or newer, gets `state` back unchanged."""
-    if version >= MIN_PROTOCOL_FOR_PHASE1_ANIMS or "anims" not in state:
+    if version >= MIN_PROTOCOL_FOR_PHASE1_ANIMS:
         return state
-    anims = [PHASE1_ANIM_FALLBACKS.get(a, a) for a in state["anims"]]
-    downgraded = {**state, "anims": anims}
-    # The per-product crabs (Phase 2) carry their own anim name, so they need the
-    # same fallback or a v2 transport would receive a name its parser drops.
+    return _map_anims(state, PHASE1_ANIM_FALLBACKS)
+
+
+def _map_anims(state: dict, fallbacks: dict) -> dict:
+    """Return `state` with every animation name in `fallbacks` replaced.
+
+    The input is never mutated; a status-only state is returned unchanged. The
+    per-product crabs (Phase 2) carry their own anim name, so they get the same
+    fallback or a transport would receive a name its parser drops."""
+    if "anims" not in state:
+        return state
+    mapped = {**state, "anims": [fallbacks.get(a, a) for a in state["anims"]]}
     if "products" in state:
-        downgraded["products"] = [
-            {**p, "anim": PHASE1_ANIM_FALLBACKS.get(p["anim"], p["anim"])}
+        mapped["products"] = [
+            {**p, "anim": fallbacks.get(p["anim"], p["anim"])}
             for p in state["products"]
         ]
-    return downgraded
+    return mapped
 
 
 # Tool events that, when tagged with an agent_id, belong to a subagent rather
@@ -123,7 +140,9 @@ def _state_to_anim(state: dict, has_subagents: bool, usage_low: bool) -> str:
     """
     s = state["state"]
     if s == "waiting":
-        return "alert"
+        # Same state, two meanings: the turn ended and the session awaits the
+        # next prompt (calm), or it is blocked on an approval/answer (urgent).
+        return "waiting_reply" if state.get("awaiting_prompt") else "alert"
     if s == "working":
         return _tool_to_anim(state.get("tool_name", ""))
     if s == "thinking":
@@ -171,6 +190,9 @@ def _session_agent(session_id: str) -> str:
 # listed (future additions) sorts at 0, below everything explicit here.
 _ANIM_PRIORITY = {
     "alert": 100,
+    # End-of-turn wait: still "your turn", so above active work, but below a
+    # blocked sibling (alert) so an urgent prompt is never masked by a calm one.
+    "waiting_reply": 90,
     # Active work — all equal; the specific tool anim is kept as-is.
     "typing": 80, "building": 80, "debugger": 80, "wizard": 80,
     "beacon": 80, "sweeping": 80,
@@ -803,9 +825,14 @@ class ClawdDaemon:
         a write larger than one ATT payload (MTU-3). Those fields nearly doubled
         the JSON and pushed BLE writes past the MTU, so strip them for every
         transport except the pet.
+
+        Pet-only animation names (DESKTOP_PET_ANIM_FALLBACKS) are swapped for
+        every transport not flagged `desktop_pet`, including an SDL2 "sim".
         """
         version = self._transport_versions.get(name, 1)
         downgraded = downgrade_display_state(state, version)
+        if not getattr(self._transports.get(name), "desktop_pet", False):
+            downgraded = _map_anims(downgraded, DESKTOP_PET_ANIM_FALLBACKS)
         if name != "sim":
             downgraded = {
                 k: v for k, v in downgraded.items() if k not in ("agents", "products")
@@ -826,6 +853,9 @@ class ClawdDaemon:
         s["state"] = state
         s["tool_name"] = tool_name
         s["last_event"] = now
+        # Every "waiting" entered here is a blocked one (permission/question);
+        # only Stop/idle_prompt mark the calm end-of-turn wait.
+        s.pop("awaiting_prompt", None)
 
     def _update_session_state(
         self, event: str, hook: str, session_id: str,
@@ -843,6 +873,7 @@ class ClawdDaemon:
         now_mono = time.monotonic()
         prev = self._session_states.get(session_id)
         prev_state = prev["state"] if prev else None
+        prev_awaiting = prev.get("awaiting_prompt", False) if prev else False
         prev_subagents = prev.get("subagents", set()).copy() if prev else None
 
         if event == "session_start":
@@ -892,10 +923,11 @@ class ClawdDaemon:
             self._session_states.setdefault(session_id, {"state": "idle", "last_event": now})
             if hook == "Stop":
                 # End of turn: the crab plays a brief happy oneshot (see
-                # end_of_turn below), then rests in "waiting" so the user sees it
-                # is waiting for their next prompt. This is the only "needs you"
-                # signal Kiro/Codex have (no idle_prompt Notification), so it must
-                # drive the alert state uniformly. UserPromptSubmit clears it.
+                # end_of_turn below), then rests in "waiting" (awaiting_prompt, so
+                # the calm "waiting_reply" crab, not the urgent alert) so the user
+                # sees it is waiting for their next prompt. This is the only "your
+                # turn" signal Kiro/Codex have (no idle_prompt Notification), so it
+                # must drive this state uniformly. UserPromptSubmit clears it.
                 # Exception: if subagents are still running, the turn's work is not
                 # really done — stay out of waiting so _compute_display_state can
                 # show "conducting" instead of a false "needs you" alert.
@@ -903,11 +935,13 @@ class ClawdDaemon:
                     self._session_states[session_id]["state"] = "idle"
                 else:
                     self._session_states[session_id]["state"] = "waiting"
+                    self._session_states[session_id]["awaiting_prompt"] = True
             elif hook == "Notification":
-                # idle_prompt ("waiting for your input"): the session is blocked on
-                # the user, so surface the waiting alert. Drop the last tool so a
+                # idle_prompt ("waiting for your input"): same end-of-turn wait as
+                # Stop (waiting_reply, not the urgent alert). Drop the last tool so a
                 # stale web tool can't turn a later state into "hat_mishap".
                 self._session_states[session_id]["state"] = "waiting"
+                self._session_states[session_id]["awaiting_prompt"] = True
                 self._session_states[session_id]["tool_name"] = ""
             elif hook == "StopFailure":
                 self._session_states[session_id]["state"] = (
@@ -954,7 +988,11 @@ class ClawdDaemon:
 
         if cur is None:
             return prev is not None  # session was removed
-        return cur["state"] != prev_state or cur.get("subagents", set()) != (prev_subagents or set())
+        return (
+            cur["state"] != prev_state
+            or cur.get("awaiting_prompt", False) != prev_awaiting
+            or cur.get("subagents", set()) != (prev_subagents or set())
+        )
 
     def _evict_stale_sessions(self) -> None:
         # Active subagents refresh last_event via PreToolUse on the parent session.

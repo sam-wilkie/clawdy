@@ -388,8 +388,9 @@ def display_state_to_v1_payload(state: dict) -> str:
     # confused, "low_battery" and the "happy" oneshot read as idle.
     WORKING_ANIMS = {"typing", "building", "debugger", "wizard", "conducting", "beacon"}
     working = sum(1 for a in anims if a in WORKING_ANIMS)
-    if "alert" in anims:
+    if "alert" in anims or "waiting_reply" in anims:
         # "needs your input" is the most actionable signal — outrank busy work.
+        # The end-of-turn "waiting_reply" reads the same, as it did before the split.
         status = "confused"
     elif working > 0:
         status = f"working_{min(working, 3)}"

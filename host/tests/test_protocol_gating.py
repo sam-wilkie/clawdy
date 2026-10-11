@@ -339,3 +339,90 @@ def test_bg_is_pet_only_and_survives_downgrade_without_breaking_v2():
     v2 = downgrade_display_state(state, 2)
     assert v2["products"][0]["bg"] == 2
     assert v2["products"][0]["anim"] == "conducting"
+
+
+# --- End-of-turn "waiting_reply": only the Electron desktop pet has the art ---
+#
+# The daemon reports an end-of-turn wait (Stop / idle_prompt) as "waiting_reply"
+# and a blocked wait (PermissionRequest / AskUserQuestion) as "alert". Firmware
+# and the SDL2 simulator have no "waiting_reply" sprite (v2/v3 firmware drops a
+# slot it does not know), so every transport except the desktop pet gets "alert".
+
+
+def make_daemon_with_pet(**versions):
+    """Like make_daemon, plus a v3 "sim" transport that is the desktop pet."""
+    d, t = make_daemon(**versions)
+    pet = MockTransport()
+    pet.desktop_pet = True
+    d._transports["sim"] = pet
+    d._transport_queues["sim"] = asyncio.Queue()
+    d._transport_versions["sim"] = SIM_PROTOCOL_VERSION
+    t["sim"] = pet
+    return d, t
+
+
+async def _start_turn(d, sid="aaa"):
+    await d._handle_message({"event": "session_start", "session_id": sid})
+    await d._handle_message({"event": "tool_use", "session_id": sid, "tool_name": "Bash"})
+
+
+@pytest.mark.asyncio
+async def test_stop_sends_waiting_reply_to_pet_and_alert_to_ble():
+    d, t = make_daemon_with_pet(ble=3, ble_old=2)
+    await _start_turn(d)
+    await d._handle_message(dict(STOP_MSG))
+
+    pet = sessions_of(t["sim"])[-1]
+    assert pet["anims"] == ["waiting_reply"]
+    assert pet["products"][0]["anim"] == "waiting_reply"
+    for name in ("ble", "ble_old"):
+        assert sessions_of(t[name])[-1]["anims"] == ["alert"], name
+        assert not any("waiting_reply" in p for p in t[name].written), name
+
+
+@pytest.mark.asyncio
+async def test_sdl_simulator_gets_alert_not_waiting_reply():
+    """A "sim" transport that is NOT the desktop pet (the SDL2 window) shares
+    the firmware's sprite set, so it gets alert in anims and products."""
+    d, t = make_daemon(sim=SIM_PROTOCOL_VERSION)
+    await _start_turn(d)
+    await d._handle_message(dict(STOP_MSG))
+    last = sessions_of(t["sim"])[-1]
+    assert last["anims"] == ["alert"]
+    assert last["products"][0]["anim"] == "alert"
+    assert not any("waiting_reply" in p for p in t["sim"].written)
+
+
+@pytest.mark.asyncio
+async def test_idle_prompt_sends_waiting_reply_to_pet_only():
+    d, t = make_daemon_with_pet(ble=3)
+    await _start_turn(d)
+    await d._handle_message({"event": "add", "hook": "Notification", "session_id": "aaa",
+                             "project": "p", "message": "Claude is waiting for your input"})
+    assert sessions_of(t["sim"])[-1]["anims"] == ["waiting_reply"]
+    assert sessions_of(t["ble"])[-1]["anims"] == ["alert"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("blocking", [
+    {"event": "permission", "session_id": "aaa", "tool_name": "Bash"},
+    {"event": "tool_use", "session_id": "aaa", "tool_name": "AskUserQuestion"},
+])
+async def test_blocked_waits_send_alert_everywhere(blocking):
+    d, t = make_daemon_with_pet(ble=3)
+    await _start_turn(d)
+    await d._handle_message(dict(blocking))
+    assert sessions_of(t["sim"])[-1]["anims"] == ["alert"]
+    assert sessions_of(t["sim"])[-1]["products"][0]["anim"] == "alert"
+    assert sessions_of(t["ble"])[-1]["anims"] == ["alert"]
+
+
+@pytest.mark.asyncio
+async def test_v1_transport_reads_waiting_reply_as_needs_attention():
+    """v1 aggregates to one status; the end-of-turn wait maps like alert did."""
+    d, t = make_daemon(ble=1)
+    await _start_turn(d)
+    await d._handle_message(dict(STOP_MSG))
+    payloads = [json.loads(p) for p in t["ble"].written
+                if json.loads(p).get("action") == "set_status"]
+    assert payloads[-1] == {"action": "set_status", "status": "confused"}
