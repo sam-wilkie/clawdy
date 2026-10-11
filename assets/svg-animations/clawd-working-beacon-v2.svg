@@ -15,7 +15,7 @@
         25%  { transform: translate(0px, 1px); }
         75%  { transform: translate(0px, 0px); }
       }
-      /* Antenna tip blinks red <-> bright, ~2.5 Hz against the 8 fps grid */
+      /* Antenna tip blinks red to bright, ~2.5 Hz against the 8 fps grid */
       @keyframes tip {
         0%   { opacity: 1; }
         50%  { opacity: 0; }

@@ -133,7 +133,6 @@ export const register: Register = on => {
       description: 'Muestra a Clawd en un panel lateral',
       argumentHint: '[animación|auto|style v1|v2]',
     })
-    void $.ui.open({ id: PANE, title: 'Margarita', columns: paneColumns(await read($, style)) })
     await touch($, s => ({ ...s, phase: 'idle' as const, tool: '', subagents: [] }))
 
     if (!isTicking) {

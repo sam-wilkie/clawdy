@@ -18,8 +18,9 @@ export const V2_SCALE = 2 / 3
 // pane width and the fixed row count track the shrunk art.
 const scaledWidth = (pixels: number): number => Math.max(1, Math.round(pixels * V2_SCALE))
 const scaledTextRows = (pixels: number): number => Math.max(1, Math.round((pixels / 2) * V2_SCALE))
-// Timer period: the finest frame step (10 fps = 100 ms) needs a tick at most every 125 ms.
-export const TICK_MS = 125
+// Timer period: 40 ms (25 Hz) so the loop always lands on time for 10-12 fps frames and spaces
+// them evenly. A tick only redraws when the v2 frame changed, so the extra ticks are cheap.
+export const TICK_MS = 40
 // The v1 pose functions still advance once per 450 ms, as before.
 export const V1_TICK_MS = 450
 
