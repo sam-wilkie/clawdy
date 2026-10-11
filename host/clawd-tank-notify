@@ -149,7 +149,30 @@ def _print_decision(decision) -> None:
     sys.stdout.flush()
 
 
-def send_to_daemon(payload: dict):
+def _translate_payload(payload: dict, source: str):
+    """Pick the hook translator for the originating CLI.
+
+    ``source`` comes from the ``--source`` flag the installed hook passes
+    (``claude`` by default, ``codex`` or ``kiro`` for the other agents). Each
+    translator emits the SAME normalized daemon message schema; they differ only
+    in event vocabulary, tool-name aliases, and session-id namespacing. Returns
+    None for an irrelevant hook event.
+    """
+    if source == "kiro":
+        from clawd_tank_daemon.kiro_protocol import (
+            kiro_hook_payload_to_daemon_message,
+        )
+        return kiro_hook_payload_to_daemon_message(payload)
+    if source == "codex":
+        from clawd_tank_daemon.codex_protocol import (
+            codex_hook_payload_to_daemon_message,
+        )
+        return codex_hook_payload_to_daemon_message(payload)
+    from clawd_tank_daemon.protocol import hook_payload_to_daemon_message
+    return hook_payload_to_daemon_message(payload)
+
+
+def send_to_daemon(payload: dict, source: str = "claude"):
     """Send a JSON message to the daemon.
 
     POSIX connects straight to the Unix socket. Windows has no AF_UNIX: the
@@ -161,9 +184,7 @@ def send_to_daemon(payload: dict):
     for an explicit decision, None for everything else (and for every message
     that does not wait).
     """
-    from clawd_tank_daemon.protocol import hook_payload_to_daemon_message
-
-    msg = hook_payload_to_daemon_message(payload)
+    msg = _translate_payload(payload, source)
     if msg is None:
         return None  # Irrelevant hook event
     wait = msg.get("wait") is True
@@ -206,7 +227,19 @@ def send_to_daemon(payload: dict):
     return decision
 
 
+def _parse_source(argv) -> str:
+    """Read the originating CLI from the first positional arg, matching the
+    embedded NOTIFY_SCRIPT in clawd_tank_menubar/hooks.py: the installed hook
+    passes "codex" or "kiro" as argv[1], and no arg at all means Claude Code.
+    Unknown values fall back to ``claude``."""
+    known = ("claude", "codex", "kiro")
+    value = argv[0] if argv else "claude"
+    return value if value in known else "claude"
+
+
 def main():
+    source = _parse_source(sys.argv[1:])
+
     # Read hook payload from stdin
     try:
         raw = sys.stdin.read()
@@ -222,7 +255,7 @@ def main():
         start_daemon()
 
     # Forward to daemon; a permission decision (if any) is the only stdout.
-    _print_decision(send_to_daemon(payload))
+    _print_decision(send_to_daemon(payload, source))
 
 
 if __name__ == "__main__":

@@ -30,6 +30,10 @@ class FakeView:
         self.renders: list[TrayState] = []
         self.alerts: list[tuple[str, str]] = []
         self.quit_called = False
+        # Folder picker: tests set folder_to_return (None == user cancelled) and
+        # read folder_prompts to assert the controller asked.
+        self.folder_to_return: str | None = None
+        self.folder_prompts: list[str] = []
 
     def render(self, state: TrayState) -> None:
         self.renders.append(state)
@@ -39,6 +43,10 @@ class FakeView:
 
     def quit(self) -> None:
         self.quit_called = True
+
+    def choose_folder(self, title: str):
+        self.folder_prompts.append(title)
+        return self.folder_to_return
 
 
 class FakeClient:
@@ -924,3 +932,55 @@ def test_start_still_starts_the_daemon_when_refreshing_the_mod_raises(prefs_path
     controller._daemon_thread.join(timeout=2)
 
     assert ran == [True]
+
+
+# --- Kiro hooks (per-workspace, folder-picked) -------------------------------
+
+
+def _redirect_hooks_paths(monkeypatch, tmp_path):
+    """Point the notify-script paths at tmp so install_notify_script() is safe
+    to run in a test. Kiro hooks themselves go into the picked workspace folder,
+    which the test supplies directly."""
+    notify_dir = tmp_path / "clawd-dir"
+    monkeypatch.setattr(hooks, "CLAWD_DIR", notify_dir)
+    monkeypatch.setattr(hooks, "NOTIFY_SCRIPT_PATH", notify_dir / "clawd-tank-notify")
+
+
+def test_install_kiro_hooks_cancelled_does_nothing(prefs_path, tmp_path, monkeypatch):
+    _redirect_hooks_paths(monkeypatch, tmp_path)
+    controller, view = make_controller(prefs_path)
+    view.folder_to_return = None  # user cancels the picker
+
+    controller.install_kiro_hooks()
+
+    assert view.folder_prompts, "controller should have asked for a folder"
+    assert view.alerts == []  # nothing installed, no alert
+
+
+def test_install_kiro_hooks_writes_file_and_alerts(prefs_path, tmp_path, monkeypatch):
+    _redirect_hooks_paths(monkeypatch, tmp_path)
+    workspace = tmp_path / "my-project"
+    workspace.mkdir()
+    controller, view = make_controller(prefs_path)
+    view.folder_to_return = str(workspace)
+
+    controller.install_kiro_hooks()
+
+    # The hook file landed in the chosen workspace.
+    assert hooks.kiro_hooks_path(workspace).exists()
+    assert hooks.are_kiro_hooks_installed(workspace)
+    # A success alert was shown.
+    assert len(view.alerts) == 1
+    assert "Installed" in view.alerts[0][0]
+
+
+def test_install_kiro_hooks_write_failure_alerts(prefs_path, tmp_path, monkeypatch):
+    _redirect_hooks_paths(monkeypatch, tmp_path)
+    controller, view = make_controller(prefs_path)
+    view.folder_to_return = str(tmp_path / "ws")
+    monkeypatch.setattr(hooks, "install_kiro_hooks", lambda ws: False)
+
+    controller.install_kiro_hooks()
+
+    assert len(view.alerts) == 1
+    assert "Not Installed" in view.alerts[0][0]

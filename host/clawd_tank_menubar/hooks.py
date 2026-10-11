@@ -453,8 +453,72 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
         return None
 
 
+    # Kiro IDE reuses Claude's event vocabulary (hook_event_name, session_id,
+    # cwd, tool_name). Only the session-id namespace, the tool-name aliases and
+    # the card name differ, and Kiro has no PermissionRequest/Subagent hooks.
+    # Keep this in sync with clawd_tank_daemon/kiro_protocol.py.
+    KIRO_SESSION_PREFIX = "kiro:"
+    KIRO_DISPLAY_NAME = "Kiro"
+    KIRO_TOOL_ALIASES = {
+        "fs_write": "Write", "str_replace": "Edit", "fs_append": "Edit",
+        "create_artifact": "Write", "createHook": "Write",
+        "semantic_rename": "Edit", "smart_relocate": "Edit",
+        "read_file": "Read", "read_code": "Read", "list_directory": "Read",
+        "grep_search": "Grep", "file_search": "Glob",
+        "execute_pwsh": "Bash", "control_pwsh_process": "Bash",
+        "get_process_output": "Bash", "list_processes": "Bash",
+        "web_fetch": "WebFetch", "remote_web_search": "WebSearch",
+        "invoke_sub_agent": "Agent",
+    }
+
+
+    def _kiro_tool(raw):
+        if not raw:
+            return ""
+        if raw.startswith("mcp__"):
+            return raw
+        if "::" in raw:
+            return "mcp__" + raw.replace("::", "__")
+        return KIRO_TOOL_ALIASES.get(raw, raw)
+
+
+    def kiro_hook_to_message(hook):
+        """Convert a Kiro IDE hook payload to a daemon message (namespaced)."""
+        event_name = hook.get("hook_event_name", "")
+        raw_sid = hook.get("session_id", "")
+        session_id = (KIRO_SESSION_PREFIX + raw_sid) if raw_sid else raw_sid
+        cwd = hook.get("cwd", "")
+        project = Path(cwd).name if cwd else ""
+        pid = None  # Kiro has no claude.exe-style long-lived PID to resolve.
+
+        if event_name == "SessionStart":
+            msg = {"event": "session_start", "session_id": session_id, "project": project, "pid": pid}
+            source = hook.get("source")
+            if source is not None:
+                msg["source"] = source
+            return msg
+        if event_name == "PreToolUse":
+            return {"event": "tool_use", "session_id": session_id, "tool_name": _kiro_tool(hook.get("tool_name", "")), "project": project, "pid": pid}
+        if event_name == "PostToolUse":
+            return {"event": "tool_done", "session_id": session_id, "tool_name": _kiro_tool(hook.get("tool_name", "")), "project": project, "pid": pid}
+        if event_name == "Stop":
+            return {"event": "add", "hook": "Stop", "session_id": session_id, "project": KIRO_DISPLAY_NAME, "message": "Esperando tu respuesta", "pid": pid}
+        if event_name == "UserPromptSubmit":
+            return {"event": "dismiss", "hook": "UserPromptSubmit", "session_id": session_id, "pid": pid}
+        if event_name == "SessionEnd":
+            msg = {"event": "dismiss", "hook": "SessionEnd", "session_id": session_id, "pid": pid}
+            reason = hook.get("reason")
+            if reason is not None:
+                msg["reason"] = reason
+            return msg
+        return None
+
+
+    _AGENT_TRANSLATORS = {"codex": codex_hook_to_message, "kiro": kiro_hook_to_message}
+
+
     def main():
-        # The agent is the first CLI arg ("codex"); default is Claude Code.
+        # The agent is the first CLI arg ("codex"/"kiro"); default is Claude Code.
         agent = sys.argv[1] if len(sys.argv) > 1 else "claude"
         try:
             raw = sys.stdin.read()
@@ -464,7 +528,8 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
         except json.JSONDecodeError:
             sys.exit(1)
 
-        msg = codex_hook_to_message(payload) if agent == "codex" else hook_to_message(payload)
+        translator = _AGENT_TRANSLATORS.get(agent, hook_to_message)
+        msg = translator(payload)
         if msg is None:
             sys.exit(0)
 
@@ -1012,6 +1077,91 @@ def uninstall_codex_hooks() -> bool:
         return True
     _write_json_atomic(CODEX_HOOKS_PATH, data)
     logger.info("Uninstalled Codex hooks from %s", CODEX_HOOKS_PATH)
+    return True
+
+
+# --- Kiro IDE / Kiro CLI hooks ------------------------------------------------
+#
+# Kiro reuses Claude's event vocabulary and the SAME notify script handles it;
+# the trailing " kiro" argument selects the Kiro translator (namespaced session
+# ids + Kiro tool aliases). Unlike Claude (~/.claude/settings.json) and Codex
+# (~/.codex/hooks.json), Kiro Agent Hooks are discovered ONLY per workspace at
+# <workspace>/.kiro/hooks/*.json — there is no global ~/.kiro/hooks yet
+# (kirodotdev/Kiro#5440, #9075). So these functions take the workspace folder
+# and write a single file we fully own, clawdy.json, which install overwrites and
+# uninstall deletes outright — no need to merge with user hooks, since each hook
+# lives in its own file. The same file is read by both the IDE and the CLI's v3
+# engine (the v2 engine does not read standalone hook files).
+KIRO_HOOKS_DIRNAME = ".kiro/hooks"
+KIRO_HOOKS_FILENAME = "clawdy.json"
+KIRO_HOOK_COMMAND = HOOK_COMMAND + " kiro"
+
+# Only the triggers the Kiro translator (kiro_protocol / NOTIFY_SCRIPT) maps to a
+# daemon message. Kiro has no PermissionRequest/StopFailure/Notification/
+# PreCompact/Subagent events, so registering them would be dead config.
+KIRO_TRIGGERS = ("SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop")
+
+
+def build_kiro_hooks_file(command: str) -> dict:
+    """The contents of our <workspace>/.kiro/hooks/clawdy.json: one v1 hook file
+    holding a command hook per Kiro trigger the daemon reacts to."""
+    return {
+        "version": "v1",
+        "hooks": [
+            {
+                "name": f"Clawdy: {trigger}",
+                "trigger": trigger,
+                "action": {"type": "command", "command": command},
+            }
+            for trigger in KIRO_TRIGGERS
+        ],
+    }
+
+
+def kiro_hooks_path(workspace) -> Path:
+    """Path to our Kiro hook file inside `workspace`."""
+    return Path(workspace) / KIRO_HOOKS_DIRNAME / KIRO_HOOKS_FILENAME
+
+
+def install_kiro_hooks(workspace) -> bool:
+    """Write our Kiro hook file into `workspace`/.kiro/hooks/clawdy.json.
+
+    We own the whole file, so install just (re)writes it; the user's own hooks
+    live in other files and are never touched. Returns True on success, False if
+    the file could not be written."""
+    path = kiro_hooks_path(workspace)
+    try:
+        _write_json_atomic(path, build_kiro_hooks_file(KIRO_HOOK_COMMAND))
+    except OSError:
+        logger.warning("Could not install Kiro hooks at %s", path)
+        return False
+    logger.info("Installed Kiro hooks: %s", path)
+    return True
+
+
+def are_kiro_hooks_installed(workspace) -> bool:
+    """True if our Kiro hook file exists in `workspace` and carries the current
+    command (so a changed interpreter/install path is treated as outdated)."""
+    path = kiro_hooks_path(workspace)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return False
+    expected = build_kiro_hooks_file(KIRO_HOOK_COMMAND)
+    return data == expected
+
+
+def uninstall_kiro_hooks(workspace) -> bool:
+    """Delete our Kiro hook file from `workspace`. We own the whole file, so this
+    removes only our hooks. Idempotent; True when our file is gone (including when
+    it was never there)."""
+    path = kiro_hooks_path(workspace)
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        logger.warning("Could not uninstall Kiro hooks at %s", path)
+        return False
+    logger.info("Uninstalled Kiro hooks from %s", path)
     return True
 
 

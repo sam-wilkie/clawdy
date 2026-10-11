@@ -147,6 +147,10 @@ class WindowsTrayView:
                 checked=has_state(lambda s: s.hooks_installed),
             ),
             pystray.MenuItem(
+                "Install Kiro Hooks (choose folder)...",
+                lambda item: controller.install_kiro_hooks(),
+            ),
+            pystray.MenuItem(
                 "Claude Code Mod (panel)",
                 lambda item: controller.toggle_claude_mod(),
                 checked=has_state(lambda s: s.claude_mod_enabled),
@@ -221,6 +225,34 @@ class WindowsTrayView:
     def alert(self, title: str, message: str) -> None:
         if self._icon is not None:
             self._icon.notify(message, title)
+
+    def choose_folder(self, title: str) -> Optional[str]:
+        """Native folder picker via tkinter (stdlib, always present). Runs its
+        own short-lived hidden root so it does not disturb the tray event loop.
+        Returns the chosen path, or None if cancelled or the dialog is
+        unavailable."""
+        try:
+            import tkinter
+            from tkinter import filedialog
+        except Exception:
+            logger.warning("tkinter unavailable; cannot show the folder picker")
+            return None
+        root = None
+        try:
+            root = tkinter.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            path = filedialog.askdirectory(title=title, mustexist=True)
+            return path or None
+        except Exception:
+            logger.exception("Folder picker failed")
+            return None
+        finally:
+            if root is not None:
+                try:
+                    root.destroy()
+                except Exception:
+                    pass
 
     def quit(self) -> None:
         self._stopping.set()

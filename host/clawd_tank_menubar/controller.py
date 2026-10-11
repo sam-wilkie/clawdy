@@ -82,6 +82,11 @@ class TrayView(Protocol):
 
     def quit(self) -> None: ...
 
+    def choose_folder(self, title: str) -> Optional[str]:
+        """Show a native folder picker and return the chosen absolute path, or
+        None if the user cancels. Used by the per-workspace Kiro hook installer."""
+        ...
+
 
 def _default_sim_process_factory(on_window_event, start_pinned, desk=False):
     from clawd_tank_daemon.sim_process import SimProcessManager
@@ -475,6 +480,39 @@ class ClawdTankController(DaemonObserver):
                 ),
             )
         self._render()
+
+    def install_kiro_hooks(self) -> None:
+        """Install Clawdy hooks into a Kiro workspace the user picks.
+
+        Kiro Agent Hooks are per-workspace (no global ~/.kiro/hooks), so unlike
+        the Claude installer this cannot target one global file: it asks the view
+        for a project folder and writes <folder>/.kiro/hooks/clawdy.json there.
+        The hooks drive both the Kiro IDE and the Kiro CLI (v3 engine). The notify
+        script is (re)installed first, same as the Claude path.
+        """
+        folder = self._view.choose_folder(
+            "Choose a Kiro project folder to install Clawdy hooks into"
+        )
+        if not folder:
+            return  # user cancelled
+        hooks.install_notify_script()
+        if not hooks.install_kiro_hooks(folder):
+            self._view.alert(
+                title="Kiro Hooks Not Installed",
+                message=(
+                    f"Could not write hooks into {folder}. Check the folder is "
+                    "writable and try again."
+                ),
+            )
+            return
+        self._view.alert(
+            title="Kiro Hooks Installed",
+            message=(
+                "Clawdy hooks were added to this project's .kiro/hooks/clawdy.json. "
+                "They work in both the Kiro IDE and the Kiro CLI (v3 engine). "
+                "Restart your Kiro session in that folder for the hooks to take effect."
+            ),
+        )
 
     def toggle_claude_mod(self) -> None:
         """Turn the Margarita side panel in Claude Code on or off. The choice is

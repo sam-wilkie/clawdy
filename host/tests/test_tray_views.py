@@ -150,11 +150,13 @@ def _win_item(view, text):
     return next(i for i in _win_items(view) if i.text == text)
 
 
-def test_windows_menu_lists_the_mod_item_right_after_the_hooks_item(windows_view):
+def test_windows_menu_lists_the_mod_item_right_after_the_kiro_hooks_item(windows_view):
+    # Order: Install Claude Code Hooks -> Install Kiro Hooks -> Claude Code Mod.
     view = windows_view.WindowsTrayView()
     view.build(_Controller())
     texts = [i.text for i in _win_items(view)]
-    assert texts.index(LABEL) == texts.index(HOOKS_LABEL) + 1
+    assert texts.index(KIRO_HOOKS_LABEL) == texts.index(HOOKS_LABEL) + 1
+    assert texts.index(LABEL) == texts.index(KIRO_HOOKS_LABEL) + 1
 
 
 def test_windows_mod_item_is_checked_from_the_rendered_state(windows_view):
@@ -176,6 +178,25 @@ def test_windows_clicking_the_mod_item_toggles_through_the_controller(windows_vi
     item = _win_item(view, LABEL)
     item.action(item)
     assert controller.calls == ["toggle_claude_mod"]
+
+
+KIRO_HOOKS_LABEL = "Install Kiro Hooks (choose folder)..."
+
+
+def test_windows_menu_has_the_kiro_hooks_item_after_claude_hooks(windows_view):
+    view = windows_view.WindowsTrayView()
+    view.build(_Controller())
+    texts = [i.text for i in _win_items(view)]
+    assert texts.index(KIRO_HOOKS_LABEL) == texts.index(HOOKS_LABEL) + 1
+
+
+def test_windows_clicking_kiro_hooks_calls_the_controller(windows_view):
+    view = windows_view.WindowsTrayView()
+    controller = _Controller()
+    view.build(controller)
+    item = _win_item(view, KIRO_HOOKS_LABEL)
+    item.action(item)
+    assert controller.calls == ["install_kiro_hooks"]
 
 
 def test_mac_alert_brings_the_menu_bar_app_to_the_front_first(mac_view, monkeypatch):

@@ -125,6 +125,13 @@ class RumpsTrayView:
         )
         self._hooks_item.state = controller.hooks_installed
 
+        # Kiro hooks: per-workspace, so this is an action (pick a folder), not a
+        # global toggle like the Claude hooks above.
+        self._kiro_hooks_item = rumps.MenuItem(
+            "Install Kiro Hooks (choose folder)...",
+            callback=lambda _sender: controller.install_kiro_hooks(),
+        )
+
         # Claude Code mod: the Margarita side panel inside Claude Code
         self._claude_mod_item = rumps.MenuItem(
             "Claude Code Mod (panel)",
@@ -159,6 +166,7 @@ class RumpsTrayView:
             self._session_timeout_menu,
             None,
             self._hooks_item,
+            self._kiro_hooks_item,
             self._claude_mod_item,
             self._login_item,
             None,
@@ -255,6 +263,32 @@ class RumpsTrayView:
     def alert(self, title: str, message: str) -> None:
         _bring_to_front()
         rumps.alert(title=title, message=message)
+
+    def choose_folder(self, title: str) -> Optional[str]:
+        """Native macOS folder picker (NSOpenPanel). Returns the chosen path, or
+        None if the user cancels or AppKit is unavailable."""
+        _bring_to_front()
+        try:
+            from AppKit import NSOpenPanel
+        except Exception:
+            logger.warning("AppKit unavailable; cannot show the folder picker")
+            return None
+        try:
+            panel = NSOpenPanel.openPanel()
+            panel.setCanChooseDirectories_(True)
+            panel.setCanChooseFiles_(False)
+            panel.setAllowsMultipleSelection_(False)
+            panel.setMessage_(title)
+            # NSModalResponseOK == 1
+            if panel.runModal() != 1:
+                return None
+            urls = panel.URLs()
+            if not urls or urls.count() == 0:
+                return None
+            return urls.objectAtIndex_(0).path()
+        except Exception:
+            logger.exception("Folder picker failed")
+            return None
 
     def quit(self) -> None:
         rumps.quit_application()

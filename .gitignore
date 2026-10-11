@@ -80,3 +80,11 @@ website/
 
 # Electron desktop pet dependencies
 desktop/node_modules/
+
+# Clawdy Kiro hooks — generated per-machine by the tray/menubar app ("Install
+# Kiro Hooks"). The command inside embeds an absolute path to this machine's
+# notify handler (the packaged margarita-notify.exe, or the dev venv's python),
+# so it must not be committed: another clone would point at a path that doesn't
+# exist. Each user regenerates it locally. The rest of .kiro/ is left to the
+# project to track as it sees fit.
+.kiro/hooks/clawdy.json
