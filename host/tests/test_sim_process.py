@@ -78,8 +78,8 @@ def test_on_window_event_callback():
     assert events[0]["event"] == "window_hidden"
 
 
-async def _spawned_args(mgr):
-    """Run start() with the process spawn and port probe faked; return the argv."""
+async def _spawned_args(mgr, pet=None):
+    """Run start() with the process spawn and port probe faked; return (argv, env)."""
     captured = {}
 
     class _Proc:
@@ -88,6 +88,7 @@ async def _spawned_args(mgr):
 
     async def fake_exec(*args, **kw):
         captured["args"] = list(args)
+        captured["env"] = kw.get("env")
         return _Proc()
 
     async def not_in_use():
@@ -95,21 +96,58 @@ async def _spawned_args(mgr):
 
     mgr._is_port_in_use = not_in_use
     mgr._find_binary = lambda: "sim.exe"
+    mgr._find_desktop_pet = lambda: pet
     with patch("asyncio.create_subprocess_exec", fake_exec):
         await mgr.start()
-    return captured["args"]
+    return captured["args"], captured["env"]
 
 
 @pytest.mark.asyncio
 async def test_normal_spawn_args_are_unchanged():
-    args = await _spawned_args(SimProcessManager(port=1234))
+    args, env = await _spawned_args(SimProcessManager(port=1234))
     assert args == ["sim.exe", "--listen", "1234", "--hidden"]
-    args = await _spawned_args(SimProcessManager(port=1234, start_pinned=True))
+    assert env is None
+    args, _ = await _spawned_args(SimProcessManager(port=1234, start_pinned=True))
     assert args == ["sim.exe", "--listen", "1234", "--hidden", "--pinned"]
 
 
 @pytest.mark.asyncio
 async def test_desk_spawn_adds_desk_and_starts_visible():
-    args = await _spawned_args(SimProcessManager(port=1234, desk=True))
+    args, _ = await _spawned_args(SimProcessManager(port=1234, desk=True))
     assert args == ["sim.exe", "--listen", "1234", "--desk"]
     assert "--hidden" not in args and "--pinned" not in args
+
+
+@pytest.mark.asyncio
+async def test_desk_mode_prefers_the_electron_pet_on_the_same_port():
+    pet = ["electron.exe", "/repo/desktop"]
+    args, env = await _spawned_args(SimProcessManager(port=1234, desk=True), pet=pet)
+    assert args == pet
+    assert env["CLAWDY_PORT"] == "1234"
+
+
+@pytest.mark.asyncio
+async def test_normal_mode_never_uses_the_electron_pet():
+    args, _ = await _spawned_args(SimProcessManager(port=1234), pet=["electron.exe", "/d"])
+    assert args[0] == "sim.exe"
+
+
+def test_find_desktop_pet_reads_the_electron_binary(tmp_path, monkeypatch):
+    edir = tmp_path / "node_modules" / "electron"
+    (edir / "dist").mkdir(parents=True)
+    (edir / "path.txt").write_text("electron.exe", encoding="utf-8")
+    (edir / "dist" / "electron.exe").write_text("")
+    (tmp_path / "main.js").write_text("")
+    monkeypatch.setenv("CLAWDY_DESKTOP_DIR", str(tmp_path))
+    monkeypatch.delenv("CLAWDY_DESKTOP_PET", raising=False)
+    assert SimProcessManager()._find_desktop_pet() == [
+        str(edir / "dist" / "electron.exe"), str(tmp_path)]
+    monkeypatch.setenv("CLAWDY_DESKTOP_PET", "0")
+    assert SimProcessManager()._find_desktop_pet() is None
+
+
+def test_find_desktop_pet_none_without_dependencies(tmp_path, monkeypatch):
+    (tmp_path / "main.js").write_text("")
+    monkeypatch.setenv("CLAWDY_DESKTOP_DIR", str(tmp_path))
+    monkeypatch.delenv("CLAWDY_DESKTOP_PET", raising=False)
+    assert SimProcessManager()._find_desktop_pet() is None

@@ -48,6 +48,30 @@ class SimProcessManager:
         #    so the bare name still resolves the .exe there.
         return shutil.which("clawd-tank-sim")
 
+    def _find_desktop_pet(self) -> Optional[list]:
+        """Return [electron_exe, app_dir] for the Electron desktop pet, or None.
+
+        Looked up in CLAWDY_DESKTOP_DIR, else the repo's desktop/ folder (a source
+        checkout; frozen builds do not ship it). Needs its dependencies installed
+        (pnpm install), which leaves the Electron binary name in
+        node_modules/electron/path.txt. CLAWDY_DESKTOP_PET=0 forces the SDL2 window.
+        """
+        if os.environ.get("CLAWDY_DESKTOP_PET") == "0":
+            return None
+        app_dir = os.environ.get("CLAWDY_DESKTOP_DIR") or os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "desktop",
+        )
+        electron_dir = os.path.join(app_dir, "node_modules", "electron")
+        try:
+            with open(os.path.join(electron_dir, "path.txt"), encoding="utf-8") as fh:
+                exe = os.path.join(electron_dir, "dist", fh.read().strip())
+        except OSError:
+            return None
+        if not os.path.isfile(exe) or not os.path.isfile(os.path.join(app_dir, "main.js")):
+            return None
+        return [exe, app_dir]
+
     async def _is_port_in_use(self) -> bool:
         try:
             _, writer = await asyncio.wait_for(asyncio.open_connection("127.0.0.1", self._port), timeout=1.0)
@@ -107,10 +131,17 @@ class SimProcessManager:
                 return None
 
         binary = self._find_binary()
-        if not binary:
+        pet = self._find_desktop_pet() if self._desk else None
+        env = None
+        if pet:
+            # Desk mode with the Electron pet (desktop/): it speaks the same TCP
+            # protocol as the simulator, so the SimClient below drives it unchanged.
+            args = list(pet)
+            env = {**os.environ, "CLAWDY_PORT": str(self._port)}
+        elif not binary:
             logger.error("clawd-tank-sim binary not found")
             return None
-        if self._desk:
+        elif self._desk:
             # Desk pet: a visible, transparent, always-on-top crab-only window
             # (the simulator defaults --desk to scale 2 and pins it itself).
             args = [binary, "--listen", str(self._port), "--desk"]
@@ -118,12 +149,13 @@ class SimProcessManager:
             args = [binary, "--listen", str(self._port), "--hidden"]
             if self._start_pinned:
                 args.append("--pinned")
-        logger.info("Starting simulator: %s", " ".join(args))
+        logger.info("Starting %s: %s", "desktop pet" if pet else "simulator", " ".join(args))
         self._process = await asyncio.create_subprocess_exec(
             *args,
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=env,
         )
         asyncio.create_task(self._log_stream(self._process.stdout, logging.INFO))
         asyncio.create_task(self._log_stream(self._process.stderr, logging.WARNING))
