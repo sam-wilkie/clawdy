@@ -325,3 +325,255 @@ def test_notify_script_stays_quiet_when_the_endpoint_file_is_unusable():
             finally:
                 os.unlink(script_path)
             assert result.returncode == 0, f"endpoint {content!r}: {result.stderr}"
+
+
+# --- PermissionRequest: wait for the desk window's decision -------------------
+#
+# Both hook copies (the embedded NOTIFY_SCRIPT, which is what gets installed and
+# frozen into margarita-notify.exe, and the standalone host/clawd-tank-notify)
+# must send the message with wait + tool_summary, then keep the connection open
+# and print the decision for Claude Code. Only an explicit allow/deny may reach
+# stdout; every other outcome prints nothing so Claude Code asks in the terminal.
+
+STANDALONE_PATH = Path(__file__).resolve().parent.parent / "clawd-tank-notify"
+
+ALLOW_JSON = {"hookSpecificOutput": {"hookEventName": "PermissionRequest",
+                                     "decision": {"behavior": "allow"}}}
+DENY_JSON = {"hookSpecificOutput": {"hookEventName": "PermissionRequest",
+                                    "decision": {"behavior": "deny",
+                                                 "message": "Denied from Margarita desk window"}}}
+
+_PERMISSION_HOOK = {
+    "hook_event_name": "PermissionRequest",
+    "session_id": "sw",
+    "tool_name": "Bash",
+    "cwd": "/x/proj",
+    "tool_input": {"command": "rm -rf build\necho done"},
+}
+
+
+def _run_permission_script(variant, reply_mode, wait_seconds="3", tmp_dir=None):
+    """Run a hook copy against a fake daemon that answers per `reply_mode`.
+
+    Returns (completed process, message the server received or {}, elapsed s).
+    `variant` is "embedded" or "standalone". reply_mode is the raw bytes to send
+    back, "noreply" (hold the connection open silently), or "close" (hang up).
+    """
+    import time as _time
+
+    received = {}
+    if variant == "standalone":
+        home = tempfile.mkdtemp(prefix="ct_", dir=None if WINDOWS else "/tmp")
+        clawd = Path(home) / ".clawd-tank"
+        clawd.mkdir()
+        (clawd / "daemon.pid").write_text(str(os.getpid()))  # a live process
+        sock_path = str(clawd / ("endpoint.json" if WINDOWS else "sock"))
+    else:
+        home = None
+        sock_path = _make_sock_path()
+    srv, token = _listen(sock_path)
+
+    def server():
+        try:
+            conn, _ = srv.accept()
+            conn.settimeout(5.0)
+            buf = b""
+            wanted = 2 if WINDOWS else 1
+            while buf.count(b"\n") < wanted:
+                chunk = conn.recv(4096)
+                if not chunk:
+                    break
+                buf += chunk
+            lines = buf.decode("utf-8").splitlines()
+            if WINDOWS:
+                if not lines or lines.pop(0) != token:
+                    conn.close()
+                    return
+            if lines:
+                received.update(json.loads(lines[0]))
+            if reply_mode == "close":
+                conn.close()
+                return
+            if reply_mode == "noreply":
+                try:
+                    conn.settimeout(8.0)
+                    conn.recv(1)  # returns when the script hangs up
+                except OSError:
+                    pass
+                conn.close()
+                return
+            conn.sendall(reply_mode)
+            try:
+                conn.settimeout(8.0)
+                conn.recv(1)
+            except OSError:
+                pass
+            conn.close()
+        except (socket.timeout, OSError):
+            pass
+        finally:
+            srv.close()
+            try:
+                os.unlink(sock_path)
+            except (FileNotFoundError, PermissionError):
+                pass
+
+    t = threading.Thread(target=server)
+    t.start()
+
+    env = os.environ.copy()
+    env["CLAWD_PERMISSION_WAIT"] = str(wait_seconds)
+    script_path = None
+    try:
+        if variant == "standalone":
+            argv = [sys.executable, str(STANDALONE_PATH)]
+            env["HOME"] = home
+            env["USERPROFILE"] = home
+        else:
+            with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False,
+                                             encoding="utf-8") as f:
+                f.write(NOTIFY_SCRIPT)
+                script_path = f.name
+            argv = [sys.executable, script_path]
+            env["CLAWD_TANK_SOCKET"] = sock_path
+        started = _time.monotonic()
+        proc = subprocess.run(
+            argv, input=json.dumps(_PERMISSION_HOOK).encode("utf-8"),
+            env=env, timeout=15.0, capture_output=True,
+        )
+        elapsed = _time.monotonic() - started
+    finally:
+        if script_path:
+            os.unlink(script_path)
+    t.join(timeout=12.0)
+    if home:
+        import shutil
+        shutil.rmtree(home, ignore_errors=True)
+    return proc, received, elapsed
+
+
+VARIANTS = ["embedded", "standalone"]
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_permission_hook_sends_wait_and_summary(variant):
+    proc, msg, _ = _run_permission_script(variant, b'{"decision":"none"}\n')
+    assert msg.get("event") == "permission"
+    assert msg.get("wait") is True
+    assert msg.get("tool_name") == "Bash"
+    assert msg.get("tool_summary") == "rm -rf build echo done"
+    assert "tool_input" not in msg
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_permission_hook_prints_allow_json(variant):
+    proc, _, _ = _run_permission_script(variant, b'{"decision":"allow"}\n')
+    assert proc.returncode == 0
+    out = proc.stdout.decode("utf-8")
+    assert json.loads(out) == ALLOW_JSON
+    assert len(out.strip().splitlines()) == 1
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_permission_hook_prints_deny_json_with_message(variant):
+    proc, _, _ = _run_permission_script(variant, b'{"decision":"deny"}\n')
+    assert proc.returncode == 0
+    assert json.loads(proc.stdout.decode("utf-8")) == DENY_JSON
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+@pytest.mark.parametrize("reply_mode", [
+    b'{"decision":"none"}\n',
+    b'garbage\n',
+    b'\n',
+    b'[]\n',
+    b'{"decision":"maybe"}\n',
+    b'{"decision":"ALLOW"}\n',
+    b'{"decision":true}\n',
+    b'{"decision":"allow"}',          # no newline: not a complete reply
+    b'{"allow":true}\n',
+    b'x' * 20000,                     # oversized junk
+    "close",
+], ids=["none", "garbage", "blank", "list", "maybe", "upper", "bool",
+        "unterminated", "wrong-key", "oversized", "closed-early"])
+def test_permission_hook_prints_nothing_for_anything_but_allow_or_deny(variant, reply_mode):
+    proc, msg, _ = _run_permission_script(variant, reply_mode)
+    assert msg.get("wait") is True
+    assert proc.returncode == 0
+    assert proc.stdout == b""
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_permission_hook_gives_up_silently_when_the_daemon_never_answers(variant):
+    proc, _, elapsed = _run_permission_script(variant, "noreply", wait_seconds="0.6")
+    assert proc.returncode == 0
+    assert proc.stdout == b""
+    assert 0.5 <= elapsed < 6
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_permission_hook_default_wait_is_sixty_seconds(variant):
+    """The default wait is 60 s; CLAWD_PERMISSION_WAIT (a test knob) may only shorten it, never
+    stretch it past the limit the installed hook timeout is sized for."""
+    import re
+    if variant == "embedded":
+        assert re.search(r"^PERMISSION_WAIT_SECONDS = 60$", NOTIFY_SCRIPT, re.M)
+    else:
+        from tests.test_notify_standalone import _load_notify_script
+        assert _load_notify_script().PERMISSION_WAIT_SECONDS == 60
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_permission_hook_with_no_daemon_prints_nothing(variant, tmp_path):
+    """Connect failure: silent, exit 0, never an allow."""
+    env = os.environ.copy()
+    env["CLAWD_PERMISSION_WAIT"] = "1"
+    if variant == "standalone":
+        home = tempfile.mkdtemp(prefix="ct_", dir=None if WINDOWS else "/tmp")
+        (Path(home) / ".clawd-tank").mkdir()
+        (Path(home) / ".clawd-tank" / "daemon.pid").write_text(str(os.getpid()))
+        env["HOME"] = home
+        env["USERPROFILE"] = home
+        argv = [sys.executable, str(STANDALONE_PATH)]
+    else:
+        script = tmp_path / "hook.py"
+        script.write_text(NOTIFY_SCRIPT, encoding="utf-8")
+        env["CLAWD_TANK_SOCKET"] = str(tmp_path / "missing.sock")
+        argv = [sys.executable, str(script)]
+    proc = subprocess.run(argv, input=json.dumps(_PERMISSION_HOOK).encode("utf-8"),
+                          env=env, timeout=15.0, capture_output=True)
+    assert proc.returncode == 0
+    assert proc.stdout == b""
+
+
+def test_embedded_summary_matches_protocol_summary():
+    """The embedded script cannot import protocol.py; its summary builder must
+    agree with permission_tool_summary on awkward input."""
+    from clawd_tank_daemon.protocol import permission_tool_summary
+    namespace = {"__name__": "embedded_copy"}
+    exec(compile(NOTIFY_SCRIPT, "<notify>", "exec"), namespace)
+    cases = [
+        ("Bash", {"command": "a\tb\x1b[0m\r\nc" + "z" * 300}),
+        ("Edit", {"file_path": "/p/é.py", "new_string": "x"}),
+        ("Write", {"file_path": "/p/w.py"}),
+        ("Read", {"file_path": 5}),
+        ("WebFetch", {"url": "http://x"}),
+        ("Bash", None),
+        ("Bash", {"command": "   "}),
+        ("", {}),
+    ]
+    for tool, tool_input in cases:
+        assert namespace["_tool_summary"](tool, tool_input) == permission_tool_summary(tool, tool_input)
+
+
+_PERMISSION_CROSS_CHECK = dict(_PERMISSION_HOOK)
+
+
+def test_embedded_permission_message_matches_protocol_converter():
+    """Cross-check for the new wait/tool_summary fields (the generic cross-check
+    above sends a payload without tool_input, which would not exercise them)."""
+    proc, script_msg, _ = _run_permission_script("embedded", b'{"decision":"none"}\n')
+    proto_msg = hook_payload_to_daemon_message(_PERMISSION_CROSS_CHECK)
+    script_msg.pop("pid", None)
+    proto_msg = {k: v for k, v in proto_msg.items() if k != "pid"}
+    assert script_msg == proto_msg

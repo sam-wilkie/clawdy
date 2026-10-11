@@ -14,6 +14,47 @@ ASK_USER_QUESTION_TOOL = "AskUserQuestion"
 # project triggered it. Change this one line to rename the crab in the UI.
 DISPLAY_NAME = "Margarita"
 
+# How long a PermissionRequest hook waits for the desk window's decision before
+# giving up and letting Claude Code ask in the terminal. The installed hook
+# timeout (hooks.PERMISSION_HOOK_TIMEOUT_SECONDS) must stay above this.
+PERMISSION_WAIT_SECONDS = 60
+
+# Longest tool summary sent to the desk window (ellipsis included).
+PERMISSION_SUMMARY_MAX = 120
+
+# Tools whose summary is the file they act on rather than a command.
+_FILE_PATH_TOOLS = frozenset({"Edit", "Write", "Read"})
+
+
+def permission_tool_summary(tool_name, tool_input) -> str:
+    """One short, single-line description of what a tool wants to do, for the
+    permission bubble: the command for Bash, the file path for Edit/Write/Read,
+    the tool name otherwise. Control characters and newlines become spaces (the
+    text is shown on a device and must not carry escape sequences) and the
+    result is cut to PERMISSION_SUMMARY_MAX characters with an ellipsis.
+
+    Keep in sync with the copy in hooks.NOTIFY_SCRIPT (it is stdlib-only and
+    cannot import this module).
+    """
+    name = tool_name if isinstance(tool_name, str) else ""
+    text = ""
+    if isinstance(tool_input, dict):
+        if name == "Bash":
+            value = tool_input.get("command")
+        elif name in _FILE_PATH_TOOLS:
+            value = tool_input.get("file_path")
+        else:
+            value = None
+        if isinstance(value, str):
+            text = value
+    if not text.strip():
+        text = name
+    text = "".join(c if c.isprintable() else " " for c in text)
+    text = " ".join(text.split())
+    if len(text) > PERMISSION_SUMMARY_MAX:
+        text = text[:PERMISSION_SUMMARY_MAX - 1] + "…"
+    return text
+
 
 def hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
     """Convert a Claude Code hook stdin payload to a daemon message.
@@ -63,6 +104,12 @@ def hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
             "tool_name": hook.get("tool_name", ""),
             "project": project,
             "pid": pid,
+            # The hook stays connected and waits for a decision from the desk
+            # window; the summary is all of tool_input the daemon ever sees.
+            "wait": True,
+            "tool_summary": permission_tool_summary(
+                hook.get("tool_name", ""), hook.get("tool_input")
+            ),
         }
 
     if event_name == "PostToolUseFailure":
@@ -197,6 +244,21 @@ def daemon_message_to_ble_payload(msg: dict) -> Optional[str]:
             "action": "dismiss",
             "id": msg.get("session_id", ""),
         })
+
+    # Permission bubble traffic. The daemon queues these for simulator
+    # transports only; a BLE device has no bubble and must never get them.
+    if event == "permission_request":
+        return json.dumps({
+            "action": "permission_request",
+            "id": msg.get("id", ""),
+            "nonce": msg.get("nonce", ""),
+            "project": msg.get("project", ""),
+            "tool": msg.get("tool", ""),
+            "summary": msg.get("summary", ""),
+        })
+
+    if event == "permission_clear":
+        return json.dumps({"action": "permission_clear", "id": msg.get("id", "")})
 
     if event == "clear":
         return json.dumps({"action": "clear"})

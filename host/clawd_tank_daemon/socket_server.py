@@ -39,6 +39,67 @@ else:
 MAX_LINE_BYTES = 64 * 1024
 
 
+class WaitReply:
+    """The answer channel of one waiting client (a message with "wait": true).
+
+    The handler gets this as its second argument and the connection stays open
+    until the handler returns: send() writes one JSON line back, and
+    `disconnected` is set the moment the client closes its end, so a handler
+    that is waiting on somebody else can stop waiting for a gone client.
+    """
+
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        self._reader = reader
+        self._writer = writer
+        self.disconnected = asyncio.Event()
+        self._watcher: asyncio.Task | None = None
+
+    def _start_watching(self) -> None:
+        self._watcher = asyncio.ensure_future(self._watch())
+
+    async def _watch(self) -> None:
+        # The client sent its one line and now only listens, so anything this
+        # read returns other than EOF is junk to discard. read() == b"" is EOF.
+        try:
+            while await self._reader.read(1024):
+                pass
+        except (ConnectionError, OSError, ValueError):
+            pass
+        self.disconnected.set()
+
+    async def send(self, obj: dict) -> bool:
+        """Write `obj` as one JSON line. False when the client is already gone
+        or the write failed; never raises."""
+        if self.disconnected.is_set() or self._writer.is_closing():
+            return False
+        try:
+            self._writer.write(json.dumps(obj).encode("utf-8") + b"\n")
+            await self._writer.drain()
+            return True
+        except (ConnectionError, OSError):
+            return False
+
+    def _stop_watching(self) -> None:
+        if self._watcher is not None:
+            self._watcher.cancel()
+
+
+async def _dispatch(on_message, msg, reader: asyncio.StreamReader,
+                    writer: asyncio.StreamWriter) -> None:
+    """Hand one parsed message to the daemon. A message that asks to wait
+    (wait is exactly True) also gets a WaitReply, and this does not return until
+    on_message does; everything else is delivered exactly as before."""
+    if not isinstance(msg, dict) or msg.get("wait") is not True:
+        await on_message(msg)
+        return
+    reply = WaitReply(reader, writer)
+    reply._start_watching()
+    try:
+        await on_message(msg, reply)
+    finally:
+        reply._stop_watching()
+
+
 def _resolve_socket_path(socket_path: Path | None) -> Path:
     """Read SOCKET_PATH at construction time, not as a default argument bound at
     import time, so tests can redirect it away from the live daemon's file."""
@@ -75,7 +136,7 @@ class UnixSocketServer:
             if line:
                 try:
                     msg = json.loads(line.decode("utf-8"))
-                    await self._on_message(msg)
+                    await _dispatch(self._on_message, msg, reader, writer)
                 except json.JSONDecodeError:
                     logger.error("Received malformed JSON: %r", line[:200])
         except TimeoutError:
@@ -141,7 +202,7 @@ class TcpSocketServer:
             if line:
                 try:
                     msg = json.loads(line.decode("utf-8"))
-                    await self._on_message(msg)
+                    await _dispatch(self._on_message, msg, reader, writer)
                 except json.JSONDecodeError:
                     logger.error("Received malformed JSON: %r", line[:200])
         except TimeoutError:

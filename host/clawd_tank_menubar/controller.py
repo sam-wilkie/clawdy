@@ -61,6 +61,9 @@ class TrayState:
     hooks_installed: bool
     login_enabled: bool
     claude_mod_enabled: bool
+    # Floating desk pet: the simulator runs as a transparent crab-only window.
+    # Implies sim_enabled; the window/pin items do not apply while it is on.
+    sim_desk: bool = False
 
 
 class TrayView(Protocol):
@@ -80,10 +83,12 @@ class TrayView(Protocol):
     def quit(self) -> None: ...
 
 
-def _default_sim_process_factory(on_window_event, start_pinned):
+def _default_sim_process_factory(on_window_event, start_pinned, desk=False):
     from clawd_tank_daemon.sim_process import SimProcessManager
 
-    return SimProcessManager(on_window_event=on_window_event, start_pinned=start_pinned)
+    return SimProcessManager(
+        on_window_event=on_window_event, start_pinned=start_pinned, desk=desk
+    )
 
 
 class ClawdTankController(DaemonObserver):
@@ -114,6 +119,8 @@ class ClawdTankController(DaemonObserver):
         self._sim_enabled = bool(prefs.get("sim_enabled", True))
         self._sim_window_visible = bool(prefs.get("sim_window_visible", True))
         self._sim_pinned = bool(prefs.get("sim_always_on_top", True))
+        # Desk pet only counts while the simulator itself is enabled.
+        self._sim_desk = bool(prefs.get("sim_desk_mode", False)) and self._sim_enabled
         self._brightness = DEFAULT_BRIGHTNESS
         self._session_timeout_seconds = DEFAULT_SESSION_TIMEOUT_SECONDS
 
@@ -160,6 +167,10 @@ class ClawdTankController(DaemonObserver):
     @property
     def sim_pinned(self) -> bool:
         return self._sim_pinned
+
+    @property
+    def sim_desk(self) -> bool:
+        return self._sim_desk
 
     @property
     def hooks_installed(self) -> bool:
@@ -216,6 +227,7 @@ class ClawdTankController(DaemonObserver):
             hooks_installed=self._hooks_installed,
             login_enabled=self._login_enabled,
             claude_mod_enabled=self._claude_mod_enabled,
+            sim_desk=self._sim_desk,
         )
         self._view.render(state)
 
@@ -261,6 +273,7 @@ class ClawdTankController(DaemonObserver):
             )
 
         if prefs.get("sim_enabled", True):
+            # _sim_desk was derived from the same preferences in __init__.
             self._start_simulator()
 
     def quit(self) -> None:
@@ -344,7 +357,13 @@ class ClawdTankController(DaemonObserver):
 
     def toggle_sim_enabled(self) -> None:
         self._sim_enabled = not self._sim_enabled
-        save_preferences(self._prefs_path, updates={"sim_enabled": self._sim_enabled})
+        updates = {"sim_enabled": self._sim_enabled}
+        if not self._sim_enabled and self._sim_desk:
+            # One simulator process serves both modes: switching it off ends
+            # the desk pet too, and enabling it again gives the normal window.
+            self._sim_desk = False
+            updates["sim_desk_mode"] = False
+        save_preferences(self._prefs_path, updates=updates)
 
         if self._sim_enabled:
             self._start_simulator()
@@ -352,7 +371,35 @@ class ClawdTankController(DaemonObserver):
             self._stop_simulator()
         self._render()
 
+    def toggle_sim_desk(self) -> None:
+        """Floating desk pet on/off.
+
+        The desk pet is the simulator run with --desk, and there is a single
+        simulator process (one TCP port), so the two modes are exclusive:
+        - ON: persist sim_desk_mode, enable the simulator if needed and (re)start
+          it with --desk. A normal simulator window already running is replaced.
+        - OFF: persist sim_desk_mode=False and stop AND disable the simulator
+          (sim_enabled=False). It does not fall back to the normal window, even
+          if the user had it enabled before; Simulator > Enabled brings that back.
+        """
+        self._sim_desk = not self._sim_desk
+        if self._sim_desk:
+            self._sim_enabled = True
+            save_preferences(
+                self._prefs_path, updates={"sim_desk_mode": True, "sim_enabled": True}
+            )
+            self._restart_simulator()
+        else:
+            self._sim_enabled = False
+            save_preferences(
+                self._prefs_path, updates={"sim_desk_mode": False, "sim_enabled": False}
+            )
+            self._stop_simulator()
+        self._render()
+
     def toggle_sim_window(self) -> None:
+        if self._sim_desk:
+            return  # the desk window is always shown; the item is greyed out
         self._sim_window_visible = not self._sim_window_visible
         save_preferences(
             self._prefs_path, updates={"sim_window_visible": self._sim_window_visible}
@@ -365,6 +412,8 @@ class ClawdTankController(DaemonObserver):
         self._render()
 
     def toggle_sim_pinned(self) -> None:
+        if self._sim_desk:
+            return  # the desk window is always on top by itself
         self._sim_pinned = not self._sim_pinned
         save_preferences(self._prefs_path, updates={"sim_always_on_top": self._sim_pinned})
         if self._sim_process and self._loop:
@@ -375,7 +424,7 @@ class ClawdTankController(DaemonObserver):
 
     def _on_sim_window_event(self, event: dict) -> None:
         """Handle events from the simulator process (e.g. window_hidden)."""
-        if event.get("event") == "window_hidden":
+        if event.get("event") == "window_hidden" and not self._sim_desk:
             self._sim_window_visible = False
             save_preferences(self._prefs_path, updates={"sim_window_visible": False})
             self._render()
@@ -513,11 +562,14 @@ class ClawdTankController(DaemonObserver):
         self._sim_process = self._sim_process_factory(
             on_window_event=self._on_sim_window_event,
             start_pinned=prefs.get("sim_always_on_top", True),
+            desk=self._sim_desk,
         )
         self._transport_status["sim"] = False
+        sim_process = self._sim_process
+        desk = self._sim_desk
 
         async def _do_start():
-            client = await self._sim_process.start()
+            client = await sim_process.start()
             if client:
                 await self._daemon.add_transport("sim", client)
                 # Wait for the sender task to establish the TCP connection.
@@ -527,6 +579,10 @@ class ClawdTankController(DaemonObserver):
                     if client.is_connected:
                         break
                     await asyncio.sleep(0.1)
+                if desk:
+                    # Never started hidden; always on top comes from --desk.
+                    await sim_process.show_window()
+                    return
                 cur_prefs = load_preferences(self._prefs_path)
                 if cur_prefs.get("sim_window_visible", True):
                     await self._sim_process.show_window()
@@ -536,6 +592,21 @@ class ClawdTankController(DaemonObserver):
 
         if self._loop and self._daemon:
             asyncio.run_coroutine_threadsafe(_do_start(), self._loop)
+
+    def _restart_simulator(self) -> None:
+        """Stop the current simulator (if any), then start a fresh one, in order
+        on the daemon loop so the new process never races for the TCP port."""
+        old = self._sim_process
+        self._sim_process = None
+
+        async def _do_stop_old():
+            await self._daemon.remove_transport("sim")
+            if old:
+                await old.stop()
+
+        if self._loop and self._daemon:
+            asyncio.run_coroutine_threadsafe(_do_stop_old(), self._loop).result(timeout=8)
+        self._start_simulator()
 
     def _stop_simulator(self) -> None:
         """Stop the simulator process and remove it as a transport."""

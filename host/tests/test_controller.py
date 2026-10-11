@@ -77,9 +77,10 @@ class FakeDaemon:
 
 
 class FakeSimProcess:
-    def __init__(self, on_window_event=None, start_pinned=False):
+    def __init__(self, on_window_event=None, start_pinned=False, desk=False):
         self.on_window_event = on_window_event
         self.start_pinned = start_pinned
+        self.desk = desk
         self.calls: list[tuple] = []
         self.killed = False
         self.stopped = False
@@ -269,6 +270,143 @@ def test_toggle_sim_window_and_pinned_update_preferences_and_render(prefs_path):
     last = view.renders[-1]
     assert last.sim_window_visible is False
     assert last.sim_pinned is True
+
+
+# --- Floating desk pet ---------------------------------------------------------
+
+
+def _desk_setup(prefs_path, loop_thread, *, sim_enabled):
+    sims = []
+
+    def factory(**kw):
+        sp = FakeSimProcess(**kw)
+        sims.append(sp)
+        return sp
+
+    controller, view = make_controller(prefs_path, sim_factory=factory)
+    daemon = FakeDaemon()
+    controller._daemon = daemon
+    controller._loop = loop_thread
+    controller._sim_enabled = sim_enabled
+    controller._sim_desk = False
+    return controller, view, daemon, sims
+
+
+def test_desk_on_with_sim_disabled_enables_sim_and_starts_it_in_desk_mode(prefs_path, loop_thread):
+    controller, view, daemon, sims = _desk_setup(prefs_path, loop_thread, sim_enabled=False)
+
+    controller.toggle_sim_desk()
+
+    assert _wait_until(lambda: ("add_transport", "sim") in daemon.calls)
+    prefs = load_preferences(prefs_path)
+    assert prefs["sim_desk_mode"] is True
+    assert prefs["sim_enabled"] is True
+    assert len(sims) == 1 and sims[0].desk is True
+    assert ("start",) in sims[0].calls
+    assert view.renders[-1].sim_desk is True and view.renders[-1].sim_enabled is True
+    # The desk window is always shown and always on top by itself: the generic
+    # pin command must not be sent.
+    assert _wait_until(lambda: ("show_window",) in sims[0].calls)
+    assert ("set_pinned", True) not in sims[0].calls
+
+
+def test_desk_on_while_normal_sim_runs_restarts_it_in_desk_mode(prefs_path, loop_thread):
+    controller, view, daemon, sims = _desk_setup(prefs_path, loop_thread, sim_enabled=True)
+    normal = FakeSimProcess()
+    controller._sim_process = normal
+    controller._transport_status["sim"] = True
+
+    controller.toggle_sim_desk()
+
+    assert _wait_until(lambda: normal.stopped)
+    assert _wait_until(lambda: len(sims) == 1 and ("start",) in sims[0].calls)
+    assert sims[0].desk is True
+    assert _wait_until(lambda: ("add_transport", "sim") in daemon.calls)
+    assert daemon.calls.index(("remove_transport", "sim")) < daemon.calls.index(("add_transport", "sim"))
+    assert controller._sim_process is sims[0]
+
+
+def test_desk_off_persists_false_and_stops_and_disables_the_simulator(prefs_path, loop_thread):
+    controller, view, daemon, sims = _desk_setup(prefs_path, loop_thread, sim_enabled=True)
+    controller._sim_desk = True
+    fake = FakeSimProcess(desk=True)
+    controller._sim_process = fake
+    controller._transport_status["sim"] = True
+
+    controller.toggle_sim_desk()
+
+    assert _wait_until(lambda: fake.stopped)
+    assert ("remove_transport", "sim") in daemon.calls
+    prefs = load_preferences(prefs_path)
+    assert prefs["sim_desk_mode"] is False
+    assert prefs["sim_enabled"] is False
+    assert view.renders[-1].sim_desk is False and view.renders[-1].sim_enabled is False
+    assert sims == []
+
+
+def test_disabling_the_simulator_also_leaves_desk_mode(prefs_path, loop_thread):
+    controller, view, daemon, sims = _desk_setup(prefs_path, loop_thread, sim_enabled=True)
+    controller._sim_desk = True
+    controller._sim_process = FakeSimProcess(desk=True)
+
+    controller.toggle_sim_enabled()
+
+    assert load_preferences(prefs_path)["sim_desk_mode"] is False
+    assert view.renders[-1].sim_desk is False
+
+
+def test_normal_enable_starts_without_desk_flag(prefs_path, loop_thread):
+    controller, view, daemon, sims = _desk_setup(prefs_path, loop_thread, sim_enabled=False)
+
+    controller.toggle_sim_enabled()
+
+    assert _wait_until(lambda: len(sims) == 1)
+    assert sims[0].desk is False
+    assert _wait_until(lambda: ("set_pinned", True) in sims[0].calls)
+
+
+def test_desk_mode_is_restored_from_preferences(prefs_path, tmp_path):
+    prefs_path.write_text(json.dumps({"sim_desk_mode": True, "sim_enabled": True}))
+    controller, _view = make_controller(prefs_path)
+    assert controller.sim_desk is True
+    controller2, _ = make_controller(tmp_path / "none.json")
+    assert controller2.sim_desk is False
+
+
+def test_start_launches_the_simulator_in_desk_mode_from_saved_preference(prefs_path, monkeypatch):
+    prefs_path.write_text(json.dumps({"sim_desk_mode": True, "sim_enabled": True,
+                                      "ble_enabled": False}))
+    controller, _view = make_controller(prefs_path)
+    started = []
+    monkeypatch.setattr(controller, "_start_simulator", lambda: started.append(controller.sim_desk))
+    monkeypatch.setattr(controller, "refresh_claude_mod", lambda: None)
+
+    class _D:
+        def __init__(self, **kw):
+            pass
+
+        async def run(self):
+            pass
+
+    monkeypatch.setattr("clawd_tank_menubar.controller.ClawdDaemon", _D)
+    controller.start()
+    assert started == [True]
+
+
+def test_desk_ignores_window_and_pin_toggles_and_window_hidden_events(prefs_path, loop_thread):
+    controller, view, daemon, sims = _desk_setup(prefs_path, loop_thread, sim_enabled=True)
+    controller._sim_desk = True
+    fake = FakeSimProcess(desk=True)
+    controller._sim_process = fake
+    controller._sim_window_visible = True
+
+    controller.toggle_sim_window()
+    controller.toggle_sim_pinned()
+    controller._on_sim_window_event({"event": "window_hidden"})
+
+    assert controller._sim_window_visible is True
+    time.sleep(0.1)
+    assert fake.calls == []
 
 
 # --- Session timeout ---------------------------------------------------------

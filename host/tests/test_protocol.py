@@ -1,3 +1,4 @@
+import pytest
 import json
 from clawd_tank_daemon.protocol import (
     hook_payload_to_daemon_message,
@@ -724,3 +725,64 @@ def test_permission_and_tool_failed_produce_no_ble_payload():
     assert daemon_message_to_ble_payload(
         {"event": "tool_failed", "session_id": "s", "tool_name": "Read"}
     ) is None
+
+
+# --- PermissionRequest wait contract (desk-window decision) -------------------
+
+
+def _perm(tool_name="Bash", tool_input=None, **extra):
+    hook = {
+        "hook_event_name": "PermissionRequest",
+        "session_id": "p1",
+        "tool_name": tool_name,
+        "cwd": "/x/proj",
+    }
+    if tool_input is not None:
+        hook["tool_input"] = tool_input
+    hook.update(extra)
+    return hook_payload_to_daemon_message(hook)
+
+
+def test_permission_request_asks_the_daemon_to_wait():
+    msg = _perm(tool_input={"command": "ls"})
+    assert msg["wait"] is True
+    assert msg["event"] == "permission"
+    assert "tool_input" not in msg
+
+
+def test_permission_summary_for_bash_is_the_command():
+    assert _perm("Bash", {"command": "git status"})["tool_summary"] == "git status"
+
+
+@pytest.mark.parametrize("tool", ["Edit", "Write", "Read"])
+def test_permission_summary_for_file_tools_is_the_file_path(tool):
+    msg = _perm(tool, {"file_path": "/x/proj/a.py", "content": "secret body"})
+    assert msg["tool_summary"] == "/x/proj/a.py"
+
+
+def test_permission_summary_falls_back_to_tool_name():
+    assert _perm("WebFetch", {"url": "http://x"})["tool_summary"] == "WebFetch"
+    assert _perm("Bash", {})["tool_summary"] == "Bash"
+    assert _perm("Bash")["tool_summary"] == "Bash"
+    assert _perm("Bash", "not-a-dict")["tool_summary"] == "Bash"
+    assert _perm("Edit", {"file_path": 7})["tool_summary"] == "Edit"
+
+
+def test_permission_summary_strips_control_characters_and_newlines():
+    msg = _perm("Bash", {"command": "echo a\nrm -rf /\r\n\tb\x00\x1b[31mc"})
+    summary = msg["tool_summary"]
+    assert "\n" not in summary and "\r" not in summary and "\t" not in summary
+    assert "\x00" not in summary and "\x1b" not in summary
+    assert summary.startswith("echo a rm -rf /")
+
+
+def test_permission_summary_is_truncated_with_an_ellipsis():
+    summary = _perm("Bash", {"command": "x" * 500})["tool_summary"]
+    assert len(summary) == 120
+    assert summary.endswith("\u2026")
+    exact = _perm("Bash", {"command": "y" * 120})["tool_summary"]
+    assert exact == "y" * 120
+
+
+def test_permission_request_message_has_no_ble_payload():
+    assert daemon_message_to_ble_payload(_perm("Bash", {"command": "ls"})) is None

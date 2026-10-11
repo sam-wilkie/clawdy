@@ -658,3 +658,91 @@ def test_uninstall_removes_stale_variants_of_our_command(settings_path, stale):
     ]}}))
     assert uninstall_hooks() is True
     assert _read(settings_path) == {"hooks": {"SessionStart": [_group(_USER_CMD)]}}
+
+
+# --- PermissionRequest hook waits for the desk window: it needs a longer timeout ---
+
+
+def _our_permission_hooks(settings: dict) -> list[dict]:
+    return [
+        h
+        for g in settings["hooks"]["PermissionRequest"]
+        for h in g.get("hooks", [])
+        if isinstance(h, dict) and hooks.HOOK_COMMAND in h.get("command", "")
+    ]
+
+
+def test_permission_hook_timeout_exceeds_the_wait():
+    from clawd_tank_daemon.protocol import PERMISSION_WAIT_SECONDS
+    assert hooks.PERMISSION_HOOK_TIMEOUT_SECONDS == 70
+    assert hooks.PERMISSION_HOOK_TIMEOUT_SECONDS > PERMISSION_WAIT_SECONDS
+
+
+def test_install_gives_our_permission_request_hook_a_timeout_of_70(settings_path):
+    install_hooks()
+    ours = _our_permission_hooks(_read(settings_path))
+    assert len(ours) == 1
+    assert ours[0]["timeout"] == 70
+
+
+def test_only_the_permission_request_hook_has_a_timeout(settings_path):
+    install_hooks()
+    for event, groups in _read(settings_path)["hooks"].items():
+        for group in groups:
+            for h in group["hooks"]:
+                if event == "PermissionRequest":
+                    assert h["timeout"] == 70
+                else:
+                    assert "timeout" not in h, event
+
+
+def test_old_permission_hook_without_timeout_is_outdated_and_replaced(settings_path):
+    install_hooks()
+    settings = _read(settings_path)
+    for h in _our_permission_hooks(settings):
+        del h["timeout"]
+    settings_path.write_text(json.dumps(settings))
+
+    assert are_hooks_installed() is False  # the menu bar app re-runs install_hooks()
+    install_hooks()
+    settings = _read(settings_path)
+    ours = _our_permission_hooks(settings)
+    assert len(ours) == 1, "old entry must be replaced, not duplicated"
+    assert ours[0]["timeout"] == 70
+    assert are_hooks_installed() is True
+
+
+def test_old_permission_hook_with_wrong_timeout_is_replaced(settings_path):
+    install_hooks()
+    settings = _read(settings_path)
+    for h in _our_permission_hooks(settings):
+        h["timeout"] = 30
+    settings_path.write_text(json.dumps(settings))
+    assert are_hooks_installed() is False
+    install_hooks()
+    assert [h["timeout"] for h in _our_permission_hooks(_read(settings_path))] == [70]
+
+
+def test_foreign_permission_request_hook_survives_the_timeout_upgrade(settings_path):
+    foreign = {"hooks": [{"type": "command", "command": "/opt/other-tool/hook.sh", "timeout": 5}]}
+    old_ours = {"hooks": [{"type": "command", "command": hooks.HOOK_COMMAND}]}
+    settings_path.write_text(json.dumps({"hooks": {"PermissionRequest": [foreign, old_ours]}}))
+    install_hooks()
+    groups = _read(settings_path)["hooks"]["PermissionRequest"]
+    assert foreign in groups, "user's PermissionRequest hook was changed or removed"
+    assert [h["timeout"] for h in _our_permission_hooks(_read(settings_path))] == [70]
+    install_hooks()  # idempotent
+    again = _read(settings_path)["hooks"]["PermissionRequest"]
+    assert again == groups
+
+
+def test_uninstall_removes_our_permission_request_hook_with_its_timeout(settings_path):
+    foreign = {"hooks": [{"type": "command", "command": "/opt/other-tool/hook.sh"}]}
+    settings_path.write_text(json.dumps({"hooks": {"PermissionRequest": [foreign]}}))
+    install_hooks()
+    hooks.uninstall_hooks()
+    assert _read(settings_path)["hooks"]["PermissionRequest"] == [foreign]
+
+
+def test_notify_script_version_was_bumped_for_the_permission_wait():
+    assert "NOTIFY_SCRIPT_VERSION: 2026-10-10-permission-wait" in hooks.NOTIFY_SCRIPT

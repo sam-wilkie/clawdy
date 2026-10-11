@@ -300,3 +300,54 @@ async def test_read_config_with_background_reader():
         config = await client.read_config()
         assert config["brightness"] == 128
         await client.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_permission_decision_is_not_swallowed_by_a_pending_config_read():
+    """A decision that lands while read_config waits for its reply must still reach
+    the event callback, and must not be mistaken for the config response."""
+    events = []
+
+    async def handler(reader, writer):
+        await reader.readline()  # the read_config request
+        writer.write(b'{"event":"permission_decision","id":"i","nonce":"n","decision":"allow"}\n')
+        await writer.drain()
+        await asyncio.sleep(0.05)
+        writer.write(b'{"brightness":77}\n')
+        await writer.drain()
+        await asyncio.sleep(0.5)
+        writer.close()
+
+    server, port = await start_mock_server(handler)
+    async with server:
+        client = SimClient(port=port, on_event_cb=events.append)
+        await client.connect()
+        config = await client.read_config()
+        assert config == {"brightness": 77}
+        assert [e["event"] for e in events] == ["permission_decision"]
+        assert events[0]["decision"] == "allow"
+        await client.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_failing_event_callback_does_not_kill_the_reader():
+    seen = []
+
+    def cb(event):
+        seen.append(event["event"])
+        raise RuntimeError("boom")
+
+    async def handler(reader, writer):
+        await asyncio.sleep(0.05)
+        writer.write(b'{"event":"permission_decision"}\n{"event":"window_hidden"}\n')
+        await writer.drain()
+        await asyncio.sleep(0.3)
+        writer.close()
+
+    server, port = await start_mock_server(handler)
+    async with server:
+        client = SimClient(port=port, on_event_cb=cb)
+        await client.connect()
+        await asyncio.sleep(0.2)
+        assert seen == ["permission_decision", "window_hidden"]
+        await client.disconnect()

@@ -12,6 +12,8 @@ DEFAULTS = {
     "sim_enabled": True,
     "sim_window_visible": True,
     "sim_always_on_top": True,
+    # Floating desk pet: the simulator runs with --desk (see controller.toggle_sim_desk).
+    "sim_desk_mode": False,
     # Opt-in: the Margarita side panel inside Claude Code (see hooks.install_mod).
     "claude_mod_enabled": False,
 }

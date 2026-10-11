@@ -138,18 +138,32 @@ class SimClient:
                     data = json.loads(line.decode("utf-8").strip())
                 except json.JSONDecodeError:
                     continue
+                # A permission decision is an event, never a config reply: it
+                # must reach the callback even while read_config is waiting.
+                if isinstance(data, dict) and data.get("event") == "permission_decision":
+                    self._dispatch_event(data)
+                    continue
                 # Config responses go to the waiting future
                 if self._config_response and not self._config_response.done():
                     self._config_response.set_result(data)
                     continue
                 # Events go to callback
-                if self._on_event_cb and "event" in data:
-                    self._on_event_cb(data)
+                if isinstance(data, dict) and "event" in data:
+                    self._dispatch_event(data)
         except (ConnectionResetError, BrokenPipeError, OSError):
             pass
         except asyncio.CancelledError:
             return
         self._handle_disconnect()
+
+    def _dispatch_event(self, data: dict) -> None:
+        """Deliver an inbound event; a failing callback must not end the reader."""
+        if not self._on_event_cb:
+            return
+        try:
+            self._on_event_cb(data)
+        except Exception:
+            logger.exception("Simulator event callback failed")
 
     def _handle_disconnect(self) -> None:
         """Clean up state and notify on disconnect."""

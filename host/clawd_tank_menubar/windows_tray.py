@@ -100,13 +100,15 @@ class WindowsTrayView:
                 "Show Window",
                 lambda item: controller.toggle_sim_window(),
                 checked=has_state(lambda s: s.sim_window_visible),
-                enabled=has_state(lambda s: s.sim_enabled),
+                # Greyed out in desk mode: the desk window is always shown.
+                enabled=has_state(lambda s: s.sim_enabled and not s.sim_desk),
             ),
             pystray.MenuItem(
                 "Always on Top",
                 lambda item: controller.toggle_sim_pinned(),
                 checked=has_state(lambda s: s.sim_pinned),
-                enabled=has_state(lambda s: s.sim_enabled),
+                # Greyed out in desk mode: the desk window pins itself.
+                enabled=has_state(lambda s: s.sim_enabled and not s.sim_desk),
             ),
         )
         brightness_menu = pystray.Menu(*[
@@ -130,6 +132,11 @@ class WindowsTrayView:
         menu = pystray.Menu(
             pystray.MenuItem(lambda item: self._ble_label(), ble_menu),
             pystray.MenuItem(lambda item: self._sim_label(), sim_menu),
+            pystray.MenuItem(
+                "Floating desk pet",
+                lambda item: controller.toggle_sim_desk(),
+                checked=has_state(lambda s: s.sim_desk),
+            ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Brightness", brightness_menu),
             pystray.MenuItem("Session Timeout", timeout_menu),
@@ -180,6 +187,10 @@ class WindowsTrayView:
     def _sim_status_text(self) -> str:
         if not self._state or not self._state.sim_enabled:
             return "Status: Disabled"
+        if self._state.sim_desk:
+            return "Status: Floating desk pet" + (
+                "" if self._state.sim_connected else " (connecting...)"
+            )
         return "Status: Running" if self._state.sim_connected else "Status: Connecting..."
 
     def _ble_label(self) -> str:
@@ -192,6 +203,9 @@ class WindowsTrayView:
     def _sim_label(self) -> str:
         if not self._state or not self._state.sim_enabled:
             return "Simulator — Disabled"
+        if self._state.sim_desk:
+            dot = "\U0001F7E2" if self._state.sim_connected else "\U0001F7E1"
+            return f"Simulator {dot} Floating desk pet"
         if self._state.sim_connected:
             return "Simulator \U0001F7E2 Running"
         return "Simulator \U0001F7E1 Connecting..."

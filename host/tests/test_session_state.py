@@ -1856,3 +1856,369 @@ async def test_liveness_checker_polls_every_few_seconds():
 
     assert delays == [daemon_mod.PID_LIVENESS_INTERVAL_SECS]
     assert daemon_mod.PID_LIVENESS_INTERVAL_SECS <= 5
+
+
+# --- PermissionRequest wait: desk-window decision ----------------------------
+
+
+import clawd_tank_daemon.daemon as daemon_mod
+from clawd_tank_daemon.protocol import daemon_message_to_ble_payload
+
+
+class FakeTransport:
+    """Stands in for a connected transport; permission traffic goes through the
+    per-transport queue, never through write_notification."""
+
+    def __init__(self, connected=True):
+        self.is_connected = connected
+        self.written = []
+
+    async def write_notification(self, payload):
+        self.written.append(payload)
+        return True
+
+
+class FakeReply:
+    """The socket server's WaitReply, minus the socket."""
+
+    def __init__(self):
+        self.sent = []
+        self.disconnected = asyncio.Event()
+
+    async def send(self, obj):
+        if self.disconnected.is_set():
+            return False
+        self.sent.append(obj)
+        return True
+
+
+def make_sim_daemon(with_ble=False):
+    d = make_daemon()
+    d._transports["sim"] = FakeTransport()
+    d._transport_queues["sim"] = asyncio.Queue()
+    if with_ble:
+        d._transports["ble"] = FakeTransport()
+        d._transport_queues["ble"] = asyncio.Queue()
+    return d
+
+
+def _perm_msg(sid="s1", tool="Bash", summary="ls -la"):
+    return {"event": "permission", "session_id": sid, "tool_name": tool,
+            "project": "proj", "wait": True, "tool_summary": summary}
+
+
+def _drain(q):
+    items = []
+    while not q.empty():
+        items.append(q.get_nowait())
+    return items
+
+
+def _payloads(q, action=None):
+    out = []
+    for item in _drain(q):
+        raw = daemon_message_to_ble_payload(item)
+        if raw is None:
+            continue
+        data = json.loads(raw)
+        if action is None or data.get("action") == action:
+            out.append(data)
+    return out
+
+
+async def _start_wait(d, reply, msg=None):
+    """Run _handle_message for a waiting permission and return (task, request)."""
+    task = asyncio.ensure_future(d._handle_message(msg or _perm_msg(), reply))
+    for _ in range(50):
+        await asyncio.sleep(0)
+        if d._pending_permissions:
+            break
+    request = None
+    for p in _payloads(d._transport_queues["sim"], "permission_request"):
+        request = p
+    return task, request
+
+
+def _decision(req, answer="allow", **override):
+    ev = {"event": "permission_decision", "id": req["id"], "nonce": req["nonce"],
+          "decision": answer}
+    ev.update(override)
+    return ev
+
+
+@pytest.mark.asyncio
+async def test_permission_wait_without_sim_replies_none_immediately():
+    d = make_daemon()
+    _add_session(d, "s1", {"state": "working", "last_event": time.time(), "tool_name": "Bash"})
+    reply = FakeReply()
+    await asyncio.wait_for(d._handle_message(_perm_msg(), reply), timeout=1)
+    assert reply.sent == [{"decision": "none"}]
+    assert d._session_states["s1"]["state"] == "waiting"
+    assert d._pending_permissions == {}
+
+
+@pytest.mark.asyncio
+async def test_permission_wait_with_only_ble_or_disconnected_sim_replies_none():
+    d = make_daemon()
+    d._transports["ble"] = FakeTransport()
+    d._transport_queues["ble"] = asyncio.Queue()
+    d._transports["sim"] = FakeTransport(connected=False)
+    d._transport_queues["sim"] = asyncio.Queue()
+    reply = FakeReply()
+    await asyncio.wait_for(d._handle_message(_perm_msg(), reply), timeout=1)
+    assert reply.sent == [{"decision": "none"}]
+    assert _payloads(d._transport_queues["ble"], "permission_request") == []
+    assert _payloads(d._transport_queues["sim"], "permission_request") == []
+
+
+@pytest.mark.asyncio
+async def test_permission_without_wait_flag_keeps_old_behavior():
+    d = make_sim_daemon()
+    _add_session(d, "s1", {"state": "working", "last_event": time.time(), "tool_name": "Bash"})
+    await d._handle_message({"event": "permission", "session_id": "s1", "tool_name": "Bash"})
+    assert d._session_states["s1"]["state"] == "waiting"
+    assert d._pending_permissions == {}
+    assert _payloads(d._transport_queues["sim"], "permission_request") == []
+
+
+@pytest.mark.asyncio
+async def test_permission_wait_enqueues_request_only_to_sim():
+    d = make_sim_daemon(with_ble=True)
+    reply = FakeReply()
+    task, req = await _start_wait(d, reply)
+    try:
+        assert req is not None
+        assert req["action"] == "permission_request"
+        assert req["project"] == "proj" and req["tool"] == "Bash"
+        assert req["summary"] == "ls -la"
+        assert len(req["id"]) == 32 and len(req["nonce"]) == 16
+        assert req["id"] != req["nonce"]
+        # BLE got nothing permission-related, and no raw write carries the nonce.
+        assert _payloads(d._transport_queues["ble"], "permission_request") == []
+        assert all("permission" not in w for w in d._transports["ble"].written)
+        assert all("nonce" not in w for w in d._transports["sim"].written)
+        assert reply.sent == []
+    finally:
+        d._cancel_all_permissions()
+        await task
+
+
+@pytest.mark.asyncio
+async def test_valid_decision_resolves_the_wait():
+    d = make_sim_daemon()
+    reply = FakeReply()
+    task, req = await _start_wait(d, reply)
+    d.handle_sim_event(_decision(req, "allow"))
+    await asyncio.wait_for(task, timeout=1)
+    assert reply.sent == [{"decision": "allow"}]
+    assert d._pending_permissions == {}
+
+
+@pytest.mark.asyncio
+async def test_deny_decision_resolves_as_deny():
+    d = make_sim_daemon()
+    reply = FakeReply()
+    task, req = await _start_wait(d, reply)
+    d.handle_sim_event(_decision(req, "deny"))
+    await asyncio.wait_for(task, timeout=1)
+    assert reply.sent == [{"decision": "deny"}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("bad", [
+    {"nonce": "0" * 16},
+    {"id": "f" * 32},
+    {"decision": "none"},
+    {"decision": "ALLOW"},
+    {"decision": None},
+    {"nonce": None},
+    {"id": ["x"]},
+])
+async def test_invalid_decision_is_ignored(bad):
+    d = make_sim_daemon()
+    reply = FakeReply()
+    task, req = await _start_wait(d, reply)
+    try:
+        d.handle_sim_event(_decision(req, "allow", **bad))
+        await asyncio.sleep(0.05)
+        assert not task.done() and reply.sent == []
+        assert len(d._pending_permissions) == 1
+    finally:
+        d._cancel_all_permissions()
+        await task
+
+
+@pytest.mark.asyncio
+async def test_second_answer_is_ignored():
+    d = make_sim_daemon()
+    reply = FakeReply()
+    task, req = await _start_wait(d, reply)
+    d.handle_sim_event(_decision(req, "allow"))
+    d.handle_sim_event(_decision(req, "deny"))
+    await asyncio.wait_for(task, timeout=1)
+    assert reply.sent == [{"decision": "allow"}]
+
+
+@pytest.mark.asyncio
+async def test_two_concurrent_requests_are_routed_by_id():
+    d = make_sim_daemon()
+    r1, r2 = FakeReply(), FakeReply()
+    t1, req1 = await _start_wait(d, r1, _perm_msg("s1"))
+    t2 = asyncio.ensure_future(d._handle_message(_perm_msg("s2", summary="rm x"), r2))
+    for _ in range(50):
+        await asyncio.sleep(0)
+        if len(d._pending_permissions) == 2:
+            break
+    req2 = _payloads(d._transport_queues["sim"], "permission_request")[-1]
+    assert req1["id"] != req2["id"] and req2["summary"] == "rm x"
+    # A decision carrying request 2's nonce but request 1's id resolves nothing.
+    d.handle_sim_event(_decision(req1, "allow", nonce=req2["nonce"]))
+    await asyncio.sleep(0.02)
+    assert r1.sent == [] and r2.sent == []
+    d.handle_sim_event(_decision(req2, "deny"))
+    await asyncio.wait_for(t2, timeout=1)
+    assert r2.sent == [{"decision": "deny"}] and r1.sent == []
+    d.handle_sim_event(_decision(req1, "allow"))
+    await asyncio.wait_for(t1, timeout=1)
+    assert r1.sent == [{"decision": "allow"}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cleanup_msg", [
+    {"event": "tool_use", "session_id": "s1", "tool_name": "Bash"},
+    {"event": "tool_done", "session_id": "s1", "tool_name": "Bash"},
+    {"event": "add", "hook": "Stop", "session_id": "s1", "project": "p", "message": "x"},
+    {"event": "dismiss", "hook": "UserPromptSubmit", "session_id": "s1"},
+    {"event": "dismiss", "hook": "SessionEnd", "session_id": "s1"},
+])
+async def test_later_activity_of_the_same_session_cancels_the_request(cleanup_msg):
+    d = make_sim_daemon()
+    reply = FakeReply()
+    task, req = await _start_wait(d, reply)
+    await d._handle_message(dict(cleanup_msg))
+    await asyncio.wait_for(task, timeout=1)
+    assert reply.sent == [{"decision": "none"}]
+    assert d._pending_permissions == {}
+    clears = _payloads(d._transport_queues["sim"], "permission_clear")
+    assert clears == [{"action": "permission_clear", "id": req["id"]}]
+    # A late decision for the cancelled request is dead.
+    d.handle_sim_event(_decision(req, "allow"))
+    assert d._pending_permissions == {}
+
+
+@pytest.mark.asyncio
+async def test_activity_of_another_session_does_not_cancel():
+    d = make_sim_daemon()
+    reply = FakeReply()
+    task, req = await _start_wait(d, reply)
+    try:
+        await d._handle_message({"event": "tool_use", "session_id": "other", "tool_name": "Bash"})
+        await asyncio.sleep(0.02)
+        assert not task.done() and len(d._pending_permissions) == 1
+    finally:
+        d._cancel_all_permissions()
+        await task
+
+
+@pytest.mark.asyncio
+async def test_hook_eof_cancels_the_request():
+    d = make_sim_daemon()
+    reply = FakeReply()
+    task, req = await _start_wait(d, reply)
+    reply.disconnected.set()
+    await asyncio.wait_for(task, timeout=1)
+    assert d._pending_permissions == {}
+    assert reply.sent == []  # nobody to answer
+    clears = _payloads(d._transport_queues["sim"], "permission_clear")
+    assert clears == [{"action": "permission_clear", "id": req["id"]}]
+
+
+@pytest.mark.asyncio
+async def test_daemon_side_timeout_replies_none_and_clears(monkeypatch):
+    monkeypatch.setattr(daemon_mod, "PERMISSION_DAEMON_WAIT_SECONDS", 0.05)
+    d = make_sim_daemon()
+    reply = FakeReply()
+    task, req = await _start_wait(d, reply)
+    await asyncio.wait_for(task, timeout=1)
+    assert reply.sent == [{"decision": "none"}]
+    assert d._pending_permissions == {}
+    clears = _payloads(d._transport_queues["sim"], "permission_clear")
+    assert clears == [{"action": "permission_clear", "id": req["id"]}]
+
+
+def test_daemon_wait_is_shorter_than_the_hook_wait():
+    from clawd_tank_daemon.protocol import PERMISSION_WAIT_SECONDS
+    assert PERMISSION_WAIT_SECONDS == 60
+    assert daemon_mod.PERMISSION_DAEMON_WAIT_SECONDS == PERMISSION_WAIT_SECONDS - 5
+
+
+@pytest.mark.asyncio
+async def test_shutdown_resolves_pending_requests_as_none():
+    d = make_sim_daemon()
+    reply = FakeReply()
+    task, req = await _start_wait(d, reply)
+    d._cancel_all_permissions()
+    await asyncio.wait_for(task, timeout=1)
+    assert reply.sent == [{"decision": "none"}]
+    assert d._pending_permissions == {}
+
+
+@pytest.mark.asyncio
+async def test_permission_summary_and_nonce_are_not_logged(caplog):
+    import logging
+    d = make_sim_daemon()
+    reply = FakeReply()
+    with caplog.at_level(logging.DEBUG):
+        task, req = await _start_wait(d, reply, _perm_msg(summary="SECRET-COMMAND-TEXT"))
+        d.handle_sim_event(_decision(req, "allow", nonce="0" * 16))
+        d.handle_sim_event(_decision(req, "allow"))
+        await asyncio.wait_for(task, timeout=1)
+    assert "SECRET-COMMAND-TEXT" not in caplog.text
+    assert req["nonce"] not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_sim_events_other_than_decisions_are_ignored():
+    d = make_sim_daemon()
+    d.handle_sim_event({"event": "window_hidden"})
+    d.handle_sim_event({"event": "permission_decision"})
+    d.handle_sim_event({})
+
+
+@pytest.mark.asyncio
+async def test_headless_sim_client_delivers_events_to_the_daemon():
+    d = ClawdDaemon(sim_only=True, sim_port=19999)
+    assert d._transports["sim"]._on_event_cb == d.handle_sim_event
+
+
+@pytest.mark.asyncio
+async def test_add_transport_chains_the_existing_event_callback():
+    seen = []
+
+    class StubSim:
+        is_connected = False
+
+        def __init__(self):
+            self._on_event_cb = seen.append
+
+        async def ensure_connected(self):
+            await asyncio.sleep(3600)
+
+        async def disconnect(self):
+            pass
+
+    d = make_daemon()
+    client = StubSim()
+    await d.add_transport("sim", client)
+    try:
+        client._on_event_cb({"event": "window_hidden"})
+        assert seen == [{"event": "window_hidden"}]  # menu-bar handler still runs
+        reply = FakeReply()
+        d._transports["sim"] = FakeTransport()  # make the sim look connected
+        task, req = await _start_wait(d, reply)
+        client._on_event_cb(_decision(req, "allow"))
+        await asyncio.wait_for(task, timeout=1)
+        assert reply.sent == [{"decision": "allow"}]
+    finally:
+        d._transports["sim"] = client
+        await d.remove_transport("sim")

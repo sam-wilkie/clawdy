@@ -76,3 +76,40 @@ def test_on_window_event_callback():
     mgr._handle_sim_event({"event": "window_hidden"})
     assert len(events) == 1
     assert events[0]["event"] == "window_hidden"
+
+
+async def _spawned_args(mgr):
+    """Run start() with the process spawn and port probe faked; return the argv."""
+    captured = {}
+
+    class _Proc:
+        stdout = stderr = None
+        returncode = None
+
+    async def fake_exec(*args, **kw):
+        captured["args"] = list(args)
+        return _Proc()
+
+    async def not_in_use():
+        return False
+
+    mgr._is_port_in_use = not_in_use
+    mgr._find_binary = lambda: "sim.exe"
+    with patch("asyncio.create_subprocess_exec", fake_exec):
+        await mgr.start()
+    return captured["args"]
+
+
+@pytest.mark.asyncio
+async def test_normal_spawn_args_are_unchanged():
+    args = await _spawned_args(SimProcessManager(port=1234))
+    assert args == ["sim.exe", "--listen", "1234", "--hidden"]
+    args = await _spawned_args(SimProcessManager(port=1234, start_pinned=True))
+    assert args == ["sim.exe", "--listen", "1234", "--hidden", "--pinned"]
+
+
+@pytest.mark.asyncio
+async def test_desk_spawn_adds_desk_and_starts_visible():
+    args = await _spawned_args(SimProcessManager(port=1234, desk=True))
+    assert args == ["sim.exe", "--listen", "1234", "--desk"]
+    assert "--hidden" not in args and "--pinned" not in args

@@ -91,6 +91,13 @@ class RumpsTrayView:
             self._sim_pinned_toggle,
         ])
 
+        # Floating desk pet (simulator --desk). Only verified on Windows.
+        self._sim_desk_item = rumps.MenuItem(
+            "Floating desk pet (untested on macOS)",
+            callback=lambda _sender: controller.toggle_sim_desk(),
+        )
+        self._sim_desk_item.state = controller.sim_desk
+
         # Brightness slider - rumps MenuItem with custom NSView
         self._brightness_slider = create_slider_menu_item(
             "Brightness", min_val=0, max_val=255, initial=102,
@@ -146,6 +153,7 @@ class RumpsTrayView:
         self._app.menu = [
             self._ble_menu,
             self._sim_menu,
+            self._sim_desk_item,
             None,
             self._brightness_item,
             self._session_timeout_menu,
@@ -210,8 +218,15 @@ class RumpsTrayView:
             else:
                 self._sim_menu.title = "Simulator \U0001F7E1 Connecting..."
                 self._sim_status.title = "Status: Connecting..."
-            self._sim_window_toggle.set_callback(self._on_toggle_sim_window)
-            self._sim_pinned_toggle.set_callback(self._on_toggle_sim_pinned)
+            if state.sim_desk:  # the desk window is always shown and on top
+                self._sim_menu.title = "Simulator \U0001F7E2 Floating desk pet"
+                self._sim_status.title = "Status: Floating desk pet"
+                self._sim_window_toggle.set_callback(None)
+                self._sim_pinned_toggle.set_callback(None)
+            else:
+                self._sim_window_toggle.set_callback(self._on_toggle_sim_window)
+                self._sim_pinned_toggle.set_callback(self._on_toggle_sim_pinned)
+        self._sim_desk_item.state = state.sim_desk
         self._sim_enabled_toggle.state = state.sim_enabled
         self._sim_window_toggle.state = state.sim_window_visible
         self._sim_pinned_toggle.state = state.sim_pinned

@@ -14,7 +14,11 @@ import tempfile
 import textwrap
 from pathlib import Path
 
-from clawd_tank_daemon.protocol import ASK_USER_QUESTION_TOOL, DISPLAY_NAME
+from clawd_tank_daemon.protocol import (
+    ASK_USER_QUESTION_TOOL,
+    DISPLAY_NAME,
+    PERMISSION_WAIT_SECONDS,
+)
 
 logger = logging.getLogger("clawd-tank.hooks")
 
@@ -26,6 +30,12 @@ NOTIFY_SCRIPT_PATH = CLAWD_DIR / (
     "clawd-tank-notify.py" if sys.platform == "win32" else "clawd-tank-notify"
 )
 CLAUDE_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
+
+# Claude Code kills a hook that runs longer than its timeout (default 60 s). Our
+# PermissionRequest hook waits up to PERMISSION_WAIT_SECONDS for the desk window,
+# so its entry carries a larger timeout; no other hook of ours waits.
+PERMISSION_HOOK_TIMEOUT_SECONDS = 70
+assert PERMISSION_HOOK_TIMEOUT_SECONDS > PERMISSION_WAIT_SECONDS
 
 # Windows runs the Python bridge through an explicit interpreter, so it needs the
 # .py suffix; macOS and Linux run a plain sh script and need no Python at all.
@@ -50,7 +60,7 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
     it to the daemon: a Unix socket on POSIX, an authenticated loopback TCP
     connection on Windows. No external dependencies.
     """
-    # NOTIFY_SCRIPT_VERSION: 2026-10-08-display-name
+    # NOTIFY_SCRIPT_VERSION: 2026-10-10-permission-wait
 
     import json
     import os
@@ -58,10 +68,23 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
     import socket
     import subprocess
     import sys
+    import time
     from pathlib import Path
 
     # Fixed name on every notification card (protocol.DISPLAY_NAME).
     DISPLAY_NAME = __DISPLAY_NAME__
+
+    # A PermissionRequest hook waits this long for the desk window's decision
+    # (protocol.PERMISSION_WAIT_SECONDS; the installed hook timeout is larger).
+    PERMISSION_WAIT_SECONDS = 60
+    # CLAWD_PERMISSION_WAIT may only shorten the wait (tests, debugging).
+    PERMISSION_WAIT_ENV = "CLAWD_PERMISSION_WAIT"
+    PERMISSION_DENY_MESSAGE = "Denied from Margarita desk window"
+    # Longest reply line read from the daemon; anything longer is junk.
+    _MAX_REPLY_BYTES = 4096
+    # protocol.PERMISSION_SUMMARY_MAX and _FILE_PATH_TOOLS.
+    _SUMMARY_MAX = 120
+    _FILE_PATH_TOOLS = ("Edit", "Write", "Read")
 
     # POSIX: the Unix socket itself. Windows: the file the daemon publishes its
     # loopback port and shared secret in.
@@ -198,6 +221,82 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
         return start
 
 
+    def _tool_summary(tool_name, tool_input):
+        """Short single-line description of what a tool wants to do, for the
+        permission bubble: the command for Bash, the file path for Edit/Write/Read,
+        the tool name otherwise. Control characters become spaces; the result is cut
+        to _SUMMARY_MAX characters with an ellipsis.
+
+        Mirrors clawd_tank_daemon/protocol.py:permission_tool_summary - keep in sync.
+        """
+        name = tool_name if isinstance(tool_name, str) else ""
+        text = ""
+        if isinstance(tool_input, dict):
+            if name == "Bash":
+                value = tool_input.get("command")
+            elif name in _FILE_PATH_TOOLS:
+                value = tool_input.get("file_path")
+            else:
+                value = None
+            if isinstance(value, str):
+                text = value
+        if not text.strip():
+            text = name
+        text = "".join(c if c.isprintable() else " " for c in text)
+        text = " ".join(text.split())
+        if len(text) > _SUMMARY_MAX:
+            text = text[:_SUMMARY_MAX - 1] + "\\u2026"
+        return text
+
+
+    def _permission_wait_seconds():
+        try:
+            value = float(os.environ.get(PERMISSION_WAIT_ENV, ""))
+        except ValueError:
+            return PERMISSION_WAIT_SECONDS
+        return value if 0 < value <= PERMISSION_WAIT_SECONDS else PERMISSION_WAIT_SECONDS
+
+
+    def _read_decision(sock, wait_seconds):
+        """Read the daemon's one reply line and return "allow" or "deny"; None for
+        anything else (no answer in time, EOF, junk, any error). Never raises and
+        never returns allow unless the daemon said exactly that."""
+        try:
+            deadline = time.monotonic() + wait_seconds
+            buf = b""
+            while b"\\n" not in buf:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return None
+                sock.settimeout(remaining)
+                chunk = sock.recv(_MAX_REPLY_BYTES)
+                if not chunk:
+                    return None
+                buf += chunk
+                if len(buf) > _MAX_REPLY_BYTES:
+                    return None
+            reply = json.loads(buf.split(b"\\n", 1)[0].decode("utf-8"))
+            decision = reply.get("decision") if isinstance(reply, dict) else None
+            return decision if decision in ("allow", "deny") else None
+        except Exception:
+            return None
+
+
+    def _print_decision(decision):
+        """Print the PermissionRequest hook output Claude Code understands. The
+        only thing this script ever writes to stdout."""
+        if decision == "allow":
+            outcome = {"behavior": "allow"}
+        elif decision == "deny":
+            outcome = {"behavior": "deny", "message": PERMISSION_DENY_MESSAGE}
+        else:
+            return
+        sys.stdout.write(json.dumps({"hookSpecificOutput": {
+            "hookEventName": "PermissionRequest", "decision": outcome,
+        }}, separators=(",", ":")) + "\\n")
+        sys.stdout.flush()
+
+
     def hook_to_message(hook):
         """Convert a Claude Code hook payload to a daemon message."""
         event_name = hook.get("hook_event_name", "")
@@ -220,7 +319,15 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
             return {"event": "tool_done", "session_id": session_id, "tool_name": hook.get("tool_name", ""), "project": project, "pid": pid}
 
         if event_name == "PermissionRequest":
-            return {"event": "permission", "session_id": session_id, "tool_name": hook.get("tool_name", ""), "project": project, "pid": pid}
+            return {
+                "event": "permission",
+                "session_id": session_id,
+                "tool_name": hook.get("tool_name", ""),
+                "project": project,
+                "pid": pid,
+                "wait": True,
+                "tool_summary": _tool_summary(hook.get("tool_name", ""), hook.get("tool_input")),
+            }
 
         if event_name == "PostToolUseFailure":
             return {"event": "tool_failed", "session_id": session_id, "tool_name": hook.get("tool_name", ""), "project": project, "pid": pid}
@@ -361,6 +468,10 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
         if msg is None:
             sys.exit(0)
 
+        # A message that asks to wait keeps its connection open for the reply.
+        wait = msg.get("wait") is True
+        decision = None
+
         # Windows has no AF_UNIX: connect to the loopback port the daemon
         # published and present its shared secret as the first line.
         if sys.platform == "win32":
@@ -377,13 +488,22 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
             else:
                 sock.connect(SOCKET_PATH)
             sock.sendall(json.dumps(msg).encode("utf-8") + b"\\n")
+            if wait:
+                decision = _read_decision(sock, _permission_wait_seconds())
         # The last two cover a torn or stale endpoint file and can only be
         # raised on the Windows branch, so POSIX behaviour is unchanged.
         except (ConnectionRefusedError, FileNotFoundError, socket.timeout,
                 json.JSONDecodeError, KeyError):
             sys.exit(0)
+        except Exception:
+            # A waiting hook must never fail loudly or allow anything: Claude
+            # Code then asks in the terminal. Other messages keep raising.
+            if wait:
+                sys.exit(0)
+            raise
         finally:
             sock.close()
+        _print_decision(decision)
 
 
     if __name__ == "__main__":
@@ -747,7 +867,11 @@ def build_hooks_config(command: str) -> dict:
         ],
         # Claude is blocked waiting for the user to approve a tool → waiting/alert.
         "PermissionRequest": [
-            {"hooks": [{"type": "command", "command": command}]}
+            {"hooks": [{
+                "type": "command",
+                "command": command,
+                "timeout": PERMISSION_HOOK_TIMEOUT_SECONDS,
+            }]}
         ],
         # A tool genuinely errored (not a non-zero shell exit) → confused.
         "PostToolUseFailure": [
@@ -1103,14 +1227,29 @@ def _command_is_current(command) -> bool:
     return command == HOOK_COMMAND or command.startswith(HOOK_COMMAND + " ")
 
 
-def _group_runs_current_command(entry: dict) -> bool:
-    """True if a hook group contains a hook that runs the current notify command."""
+def _group_runs_current_command(entry: dict, timeout=None) -> bool:
+    """True if a hook group contains a hook that runs the current notify command.
+    With `timeout`, that hook must also carry exactly that timeout, so an entry installed before the
+    timeout existed counts as outdated."""
     if not isinstance(entry, dict):
         return False
     hooks_list = entry.get("hooks")
     if not isinstance(hooks_list, list):
         return False
-    return any(isinstance(h, dict) and _command_is_current(h.get("command", "")) for h in hooks_list)
+    return any(
+        isinstance(h, dict)
+        and _command_is_current(h.get("command", ""))
+        and (timeout is None or h.get("timeout") == timeout)
+        for h in hooks_list
+    )
+
+
+def _timeout_of(entry: dict):
+    """The timeout our config puts on this group's hook, None when it sets none."""
+    for h in entry.get("hooks", []):
+        if isinstance(h, dict):
+            return h.get("timeout")
+    return None
 
 
 def _is_our_managed_group(entry: dict) -> bool:
@@ -1125,12 +1264,13 @@ def _is_our_managed_group(entry: dict) -> bool:
     return all(isinstance(h, dict) and _command_is_ours(h.get("command", "")) for h in hooks_list)
 
 
-def _our_hook_present(existing_entries, our_matcher) -> bool:
-    """True if some existing group with the same matcher already runs the current command."""
+def _our_hook_present(existing_entries, our_matcher, timeout=None) -> bool:
+    """True if some existing group with the same matcher already runs the current
+    command (and, when `timeout` is given, with that timeout)."""
     if not isinstance(existing_entries, list):
         return False
     for entry in existing_entries:
-        if _matcher_of(entry) == our_matcher and _group_runs_current_command(entry):
+        if _matcher_of(entry) == our_matcher and _group_runs_current_command(entry, timeout):
             return True
     return False
 
@@ -1414,7 +1554,7 @@ def are_hooks_installed() -> bool:
         expected_matchers = {_matcher_of(e) for e in our_entries}
         # (a) every expected event+matcher must be present
         for our_entry in our_entries:
-            if not _our_hook_present(existing, _matcher_of(our_entry)):
+            if not _our_hook_present(existing, _matcher_of(our_entry), _timeout_of(our_entry)):
                 return False
         # (b) no leftover Clawd Tank group under a matcher we no longer use —
         # otherwise a superseded group would persist forever (install never re-runs).

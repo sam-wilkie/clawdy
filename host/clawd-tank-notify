@@ -16,6 +16,14 @@ from pathlib import Path
 # Ensure clawd_tank_daemon package is importable
 sys.path.insert(0, str(Path(__file__).parent))
 
+from clawd_tank_daemon.protocol import PERMISSION_WAIT_SECONDS  # noqa: E402
+
+# CLAWD_PERMISSION_WAIT may only shorten the wait (tests, debugging).
+PERMISSION_WAIT_ENV = "CLAWD_PERMISSION_WAIT"
+PERMISSION_DENY_MESSAGE = "Denied from Margarita desk window"
+# Longest reply line read from the daemon; anything longer is junk.
+MAX_REPLY_BYTES = 4096
+
 CLAWD_DIR = Path.home() / ".clawd-tank"
 PID_PATH = CLAWD_DIR / "daemon.pid"
 # POSIX: the Unix socket itself. Windows has no AF_UNIX, so this is the file the
@@ -93,18 +101,73 @@ def start_daemon() -> None:
     print("Warning: daemon may not have started", file=sys.stderr)
 
 
-def send_to_daemon(payload: dict) -> None:
+def _permission_wait_seconds() -> float:
+    try:
+        value = float(os.environ.get(PERMISSION_WAIT_ENV, ""))
+    except ValueError:
+        return PERMISSION_WAIT_SECONDS
+    return value if 0 < value <= PERMISSION_WAIT_SECONDS else PERMISSION_WAIT_SECONDS
+
+
+def _read_decision(sock: socket.socket, wait_seconds: float):
+    """Read the daemon's one reply line and return "allow" or "deny"; None for
+    anything else (no answer in time, EOF, junk, any error). Never raises and
+    never returns allow unless the daemon said exactly that."""
+    try:
+        deadline = time.monotonic() + wait_seconds
+        buf = b""
+        while b"\n" not in buf:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return None
+            sock.settimeout(remaining)
+            chunk = sock.recv(MAX_REPLY_BYTES)
+            if not chunk:
+                return None
+            buf += chunk
+            if len(buf) > MAX_REPLY_BYTES:
+                return None
+        reply = json.loads(buf.split(b"\n", 1)[0].decode("utf-8"))
+        decision = reply.get("decision") if isinstance(reply, dict) else None
+        return decision if decision in ("allow", "deny") else None
+    except Exception:
+        return None
+
+
+def _print_decision(decision) -> None:
+    """Print the PermissionRequest hook output Claude Code understands. The only
+    thing this script ever writes to stdout."""
+    if decision == "allow":
+        outcome = {"behavior": "allow"}
+    elif decision == "deny":
+        outcome = {"behavior": "deny", "message": PERMISSION_DENY_MESSAGE}
+    else:
+        return
+    sys.stdout.write(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "PermissionRequest", "decision": outcome,
+    }}, separators=(",", ":")) + "\n")
+    sys.stdout.flush()
+
+
+def send_to_daemon(payload: dict):
     """Send a JSON message to the daemon.
 
     POSIX connects straight to the Unix socket. Windows has no AF_UNIX: the
     daemon publishes a loopback port and a shared secret in SOCKET_PATH, and the
     secret goes out as the first line to authorise the connection.
+
+    A message that asks to wait ("wait": true, PermissionRequest) keeps the
+    connection open for the daemon's one-line reply: returns "allow" or "deny"
+    for an explicit decision, None for everything else (and for every message
+    that does not wait).
     """
     from clawd_tank_daemon.protocol import hook_payload_to_daemon_message
 
     msg = hook_payload_to_daemon_message(payload)
     if msg is None:
-        return  # Irrelevant hook event
+        return None  # Irrelevant hook event
+    wait = msg.get("wait") is True
+    decision = None
 
     if sys.platform == "win32":
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -121,6 +184,8 @@ def send_to_daemon(payload: dict) -> None:
         # Messages are newline-delimited so the server can use readline()
         # for a reliable message boundary.
         sock.sendall(json.dumps(msg).encode("utf-8") + b"\n")
+        if wait:
+            decision = _read_decision(sock, _permission_wait_seconds())
     # json.JSONDecodeError and KeyError cover a torn or stale endpoint file and
     # can only arise on the Windows branch, so the POSIX failure set is unchanged.
     except (ConnectionRefusedError, FileNotFoundError, socket.timeout,
@@ -129,8 +194,16 @@ def send_to_daemon(payload: dict) -> None:
         # Exit 0: notifications are best-effort; a non-zero exit would
         # surface a noisy error in Claude Code for a non-critical failure.
         sys.exit(0)
+    except Exception as e:
+        # A waiting hook must never fail loudly or allow anything: Claude Code
+        # then asks in the terminal. Other messages keep raising.
+        if wait:
+            print(f"Permission wait failed: {e}", file=sys.stderr)
+            sys.exit(0)
+        raise
     finally:
         sock.close()
+    return decision
 
 
 def main():
@@ -148,8 +221,8 @@ def main():
     if not is_daemon_running():
         start_daemon()
 
-    # Forward to daemon
-    send_to_daemon(payload)
+    # Forward to daemon; a permission decision (if any) is the only stdout.
+    _print_decision(send_to_daemon(payload))
 
 
 if __name__ == "__main__":

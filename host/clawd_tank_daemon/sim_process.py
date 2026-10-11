@@ -17,12 +17,13 @@ SIM_BINARY = "clawd-tank-sim.exe" if sys.platform == "win32" else "clawd-tank-si
 
 class SimProcessManager:
     def __init__(self, port: int = SIM_DEFAULT_PORT, on_window_event: Optional[Callable] = None,
-                 start_pinned: bool = False):
+                 start_pinned: bool = False, desk: bool = False):
         self._port = port
         self._process: Optional[asyncio.subprocess.Process] = None
         self._client: Optional[SimClient] = None
         self._on_window_event = on_window_event
         self._start_pinned = start_pinned
+        self._desk = desk
 
     def _find_binary(self) -> Optional[str]:
         # 1. Contents/Resources/ (inside .app bundle — helper binaries belong here,
@@ -109,9 +110,14 @@ class SimProcessManager:
         if not binary:
             logger.error("clawd-tank-sim binary not found")
             return None
-        args = [binary, "--listen", str(self._port), "--hidden"]
-        if self._start_pinned:
-            args.append("--pinned")
+        if self._desk:
+            # Desk pet: a visible, transparent, always-on-top crab-only window
+            # (the simulator defaults --desk to scale 2 and pins it itself).
+            args = [binary, "--listen", str(self._port), "--desk"]
+        else:
+            args = [binary, "--listen", str(self._port), "--hidden"]
+            if self._start_pinned:
+                args.append("--pinned")
         logger.info("Starting simulator: %s", " ".join(args))
         self._process = await asyncio.create_subprocess_exec(
             *args,

@@ -1,12 +1,15 @@
 """Clawd Tank daemon — bridges Claude Code hooks to ESP32 via BLE."""
 
 import asyncio
+import hmac
 import json
 import logging
 import os
+import secrets
 import signal
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Optional, Protocol, runtime_checkable
 
@@ -14,6 +17,7 @@ from .ble_client import ClawdBleClient
 from .process_utils import pid_alive, terminate_pid
 from .protocol import (
     ASK_USER_QUESTION_TOOL,
+    PERMISSION_WAIT_SECONDS,
     daemon_message_to_ble_payload,
     display_state_to_ble_payload,
     display_state_to_v1_payload,
@@ -67,6 +71,14 @@ PHASE1_ANIM_FALLBACKS = {
 # The simulator compiles the same firmware sources, so it speaks the latest
 # protocol. It has no version characteristic to read.
 SIM_PROTOCOL_VERSION = 3
+
+# How long the daemon holds a permission request open for the desk window. It is
+# shorter than the hook's own wait so the daemon always answers (or cleans up)
+# before the hook gives up on its side.
+PERMISSION_DAEMON_WAIT_SECONDS = PERMISSION_WAIT_SECONDS - 5
+PERMISSION_DECISIONS = ("allow", "deny")
+# Defensive caps on what is shown in the bubble (the hook already truncates).
+_PERMISSION_FIELD_MAX = {"project": 64, "tool": 64, "summary": 120}
 
 
 def downgrade_display_state(state: dict, version: int) -> dict:
@@ -223,12 +235,16 @@ class ClawdDaemon:
                     port=sim_port,
                     on_disconnect_cb=lambda: self._on_transport_disconnect("sim"),
                     on_connect_cb=lambda: self._on_transport_connect("sim"),
+                    on_event_cb=self.handle_sim_event,
                 )
                 self._transports["sim"] = sim
                 self._transport_queues["sim"] = asyncio.Queue()
         # Menu bar mode (headless=False): transports added later via add_transport()
 
         self._sender_tasks: dict[str, asyncio.Task] = {}
+        # Permission requests waiting on a desk-window decision, by request id:
+        # {id, nonce, session_id, future, created}. Routing is strictly by id.
+        self._pending_permissions: dict[str, dict] = {}
         self._socket = SocketServer(on_message=self._handle_message)
         self._active_notifications: dict[str, dict] = {}
         self._last_usage_key: Optional[tuple] = None
@@ -271,11 +287,22 @@ class ClawdDaemon:
         self._session_staleness_timeout: float = 600.0
         # _evict_stale_sessions() removed — Task 6 startup prune covers this.
 
-    async def _handle_message(self, msg: dict) -> None:
-        """Handle a message from clawd-tank-notify via the socket."""
+    async def _handle_message(self, msg: dict, reply=None) -> None:
+        """Handle a message from clawd-tank-notify via the socket.
+
+        `reply` is only given for a message that asked to wait ("wait": true); it
+        is the socket server WaitReply for that client."""
         event = msg.get("event")
         session_id = msg.get("session_id", "")
         hook = msg.get("hook", "")
+        # Activity from a session means whatever it was blocked on is resolved
+        # (answered in the terminal, turn ended, ...): drop its open requests.
+        if session_id and (
+            event in ("tool_use", "tool_done")
+            or (event == "add" and hook == "Stop")
+            or (event == "dismiss" and hook in ("UserPromptSubmit", "SessionEnd"))
+        ):
+            self._cancel_session_permissions(session_id)
         # Store project name on session if provided
         project = msg.get("project", "")
         if project and session_id and session_id in self._session_states:
@@ -401,6 +428,139 @@ class ClawdDaemon:
 
         if changed:
             self._persist_sessions()
+
+        if event == "permission" and msg.get("wait") is True and reply is not None:
+            await self._wait_for_permission(msg, reply)
+
+    # --- Permission bubble (desk window decides, hook waits) -----------------
+
+    def _connected_sim_names(self) -> list[str]:
+        """Simulator transports that are up and have a queue. Only these may
+        show the bubble; BLE devices never see permission traffic."""
+        return [
+            name for name, t in self._transports.items()
+            if name.startswith("sim") and t.is_connected and name in self._transport_queues
+        ]
+
+    def _enqueue_to_sims(self, item: dict) -> None:
+        for name in self._connected_sim_names():
+            self._transport_queues[name].put_nowait(item)
+
+    async def _wait_for_permission(self, msg: dict, reply) -> None:
+        """Ask the desk window to approve a tool and answer the waiting hook.
+
+        Ends with at most one reply: "allow" or "deny" only for an explicit valid
+        decision, "none" for every other outcome (no simulator, timeout, hook
+        hung up, cleanup, shutdown)."""
+        if not self._connected_sim_names():
+            await reply.send({"decision": "none"})
+            return
+        request_id = uuid.uuid4().hex
+        nonce = secrets.token_hex(8)
+        future = asyncio.get_running_loop().create_future()
+        self._pending_permissions[request_id] = {
+            "id": request_id,
+            "nonce": nonce,
+            "session_id": msg.get("session_id", ""),
+            "future": future,
+            "created": time.monotonic(),
+        }
+        fields = {
+            "project": msg.get("project"),
+            "tool": msg.get("tool_name"),
+            "summary": msg.get("tool_summary"),
+        }
+        request = {
+            "event": "permission_request",
+            "id": request_id,
+            "nonce": nonce,
+            **{
+                key: (value if isinstance(value, str) else "")[:_PERMISSION_FIELD_MAX[key]]
+                for key, value in fields.items()
+            },
+        }
+        self._enqueue_to_sims(request)
+        logger.info("Permission request %s opened", request_id[:8])
+
+        hook_gone = asyncio.ensure_future(reply.disconnected.wait())
+        decision = "none"
+        try:
+            done, _ = await asyncio.wait(
+                {future, hook_gone},
+                timeout=PERMISSION_DAEMON_WAIT_SECONDS,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if future in done:
+                decision = future.result()
+        finally:
+            hook_gone.cancel()
+            # No-op when a decision already closed the request; otherwise the
+            # hook hung up, we timed out or were cancelled: close it as "none".
+            self._finish_permission(request_id, "none")
+        await reply.send({"decision": decision})
+
+    def _finish_permission(self, request_id: str, decision: str) -> bool:
+        """Close a pending request with `decision`. First close wins; returns
+        False when it was already closed. A "none" outcome also tells the desk
+        window to take its bubble down."""
+        record = self._pending_permissions.pop(request_id, None)
+        if record is None:
+            return False
+        if not record["future"].done():
+            record["future"].set_result(decision)
+        if decision == "none":
+            self._enqueue_to_sims({"event": "permission_clear", "id": request_id})
+        logger.info("Permission request %s closed: %s", request_id[:8], decision)
+        return True
+
+    def _cancel_session_permissions(self, session_id: str) -> None:
+        for request_id, record in list(self._pending_permissions.items()):
+            if record["session_id"] == session_id:
+                self._finish_permission(request_id, "none")
+
+    def _cancel_all_permissions(self) -> None:
+        for request_id in list(self._pending_permissions):
+            self._finish_permission(request_id, "none")
+
+    def handle_sim_event(self, event: dict) -> None:
+        """Inbound event from a simulator connection. Only a permission decision
+        matters here; it counts only when its id is still pending AND its nonce
+        matches, so a stale or forged answer resolves nothing. Nothing from the
+        event is logged beyond the fact that it was rejected."""
+        if not isinstance(event, dict) or event.get("event") != "permission_decision":
+            return
+        request_id = event.get("id")
+        nonce = event.get("nonce")
+        decision = event.get("decision")
+        record = self._pending_permissions.get(request_id) if isinstance(request_id, str) else None
+        if (
+            record is None
+            or not isinstance(nonce, str)
+            or not hmac.compare_digest(nonce.encode("utf-8"), record["nonce"].encode("utf-8"))
+            or not isinstance(decision, str)
+            or decision not in PERMISSION_DECISIONS
+        ):
+            logger.warning("Ignored a permission decision that matches no pending request")
+            return
+        self._finish_permission(request_id, decision)
+
+    def _wire_sim_events(self, client) -> None:
+        """Make a simulator client deliver its events to handle_sim_event, after
+        any callback it already has (the menu bar window-hidden handler)."""
+        if not hasattr(client, "_on_event_cb") or getattr(client, "_permission_wired", False):
+            return
+        previous = client._on_event_cb
+
+        def deliver(event: dict) -> None:
+            if previous is not None:
+                try:
+                    previous(event)
+                except Exception:
+                    logger.exception("Simulator event handler failed")
+            self.handle_sim_event(event)
+
+        client._on_event_cb = deliver
+        client._permission_wired = True
 
     def _compute_display_state(self) -> dict:
         """Derive the display state from all active session states."""
@@ -907,6 +1067,11 @@ class ClawdDaemon:
                     if transport.is_connected:
                         await self._post_connect_sync(transport, name)
                 continue
+            if (
+                msg.get("event") in ("permission_request", "permission_clear")
+                and not name.startswith("sim")
+            ):
+                continue  # the bubble exists on the simulator only
             try:
                 payload = daemon_message_to_ble_payload(msg)
             except ValueError:
@@ -938,6 +1103,7 @@ class ClawdDaemon:
     async def _shutdown(self) -> None:
         logger.info("Shutting down...")
         self._running = False
+        self._cancel_all_permissions()
         self._shutdown_event.set()
 
         if hasattr(self, '_staleness_task'):
@@ -1002,6 +1168,7 @@ class ClawdDaemon:
                 pass
         client._on_connect_cb = lambda: self._on_transport_connect(name)
         client._on_disconnect_cb = lambda: self._on_transport_disconnect(name)
+        self._wire_sim_events(client)
         self._transports[name] = client
         self._transport_queues[name] = asyncio.Queue()
         self._sender_tasks[name] = asyncio.create_task(self._transport_sender(name))

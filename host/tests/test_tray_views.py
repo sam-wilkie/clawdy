@@ -22,7 +22,7 @@ def _state(**overrides) -> TrayState:
         icon="connected", ble_enabled=True, ble_connected=True, sim_enabled=True,
         sim_connected=True, sim_window_visible=True, sim_pinned=True, brightness=102,
         brightness_enabled=True, session_timeout_seconds=300, hooks_installed=True,
-        login_enabled=False, claude_mod_enabled=False,
+        login_enabled=False, claude_mod_enabled=False, sim_desk=False,
     )
     values.update(overrides)
     return TrayState(**values)
@@ -32,6 +32,7 @@ class _Controller:
     """Just what the views read at build time, plus a record of clicks."""
 
     ble_enabled = sim_enabled = sim_window_visible = sim_pinned = True
+    sim_desk = False
     session_timeout_seconds = 300
     hooks_installed = True
     login_enabled = False
@@ -190,3 +191,46 @@ def test_mac_alert_brings_the_menu_bar_app_to_the_front_first(mac_view, monkeypa
     view.alert(title="Claude Code Mod Enabled", message="Restart your sessions")
 
     assert calls == ["front", ("alert", "Claude Code Mod Enabled")]
+
+
+DESK = "Floating desk pet"
+
+
+def _sim_entry(view):
+    return next(i for i in view._icon.menu.items
+                if isinstance(i, _FakeMenuItem) and callable(i.text) and i.text(i).startswith("Simulator"))
+
+
+def test_windows_desk_item_sits_right_after_the_simulator_entry(windows_view):
+    view = windows_view.WindowsTrayView()
+    view.build(_Controller())
+    items = [i for i in view._icon.menu.items if isinstance(i, _FakeMenuItem)]
+    texts = [i.text(i) if callable(i.text) else i.text for i in items]
+    sim_idx = next(n for n, t in enumerate(texts) if t.startswith("Simulator"))
+    assert texts[sim_idx + 1] == DESK
+
+
+def test_windows_desk_item_follows_state_and_toggles_through_controller(windows_view):
+    view = windows_view.WindowsTrayView()
+    controller = _Controller()
+    view.build(controller)
+    item = _win_item(view, DESK)
+    assert item.checked(item) is False
+    view.render(_state(sim_desk=True))
+    assert item.checked(item) is True
+    item.action(item)
+    assert controller.calls == ["toggle_sim_desk"]
+
+
+def test_windows_simulator_label_and_window_items_follow_desk_mode(windows_view):
+    view = windows_view.WindowsTrayView()
+    view.build(_Controller())
+    view.render(_state(sim_desk=True))
+    assert "Floating desk pet" in view._sim_label()
+    assert "Floating desk pet" in view._sim_status_text()
+    entries = {e.text: e for e in _sim_entry(view).action.items
+               if isinstance(e, _FakeMenuItem) and isinstance(e.text, str)}
+    assert entries["Show Window"].enabled(entries["Show Window"]) is False
+    assert entries["Always on Top"].enabled(entries["Always on Top"]) is False
+    view.render(_state(sim_desk=False))
+    assert entries["Show Window"].enabled(entries["Show Window"]) is True
