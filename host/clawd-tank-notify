@@ -20,7 +20,7 @@ from clawd_tank_daemon.protocol import PERMISSION_WAIT_SECONDS  # noqa: E402
 
 # CLAWD_PERMISSION_WAIT may only shorten the wait (tests, debugging).
 PERMISSION_WAIT_ENV = "CLAWD_PERMISSION_WAIT"
-PERMISSION_DENY_MESSAGE = "Denied from Margarita desk window"
+PERMISSION_DENY_MESSAGE = "Denied from Clawdy desk window"
 # Longest reply line read from the daemon; anything longer is junk.
 MAX_REPLY_BYTES = 4096
 
@@ -246,9 +246,11 @@ def main():
         if not raw.strip():
             sys.exit(0)
         payload = json.loads(raw)
-    except json.JSONDecodeError as e:
-        print(f"Invalid JSON from hook: {e}", file=sys.stderr)
-        sys.exit(1)
+    except json.JSONDecodeError:
+        # Stdin that is not JSON has nothing to forward. Exit 0 (silent) rather
+        # than 1: this is a fire-and-forget notifier, and a non-zero exit makes
+        # Codex report "Hook failed, exited with code 1" for no benefit.
+        sys.exit(0)
 
     # Ensure daemon is running
     if not is_daemon_running():

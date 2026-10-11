@@ -60,7 +60,9 @@ def sandbox_home(tmp_path_factory, monkeypatch):
     monkeypatch.setattr(hooks, "HOOKS_CONFIG", hooks.build_hooks_config(command))
     # Codex hooks derive from the same sandboxed command + a hooks.json under the
     # sandbox home, so they move with everything else.
-    codex_command = command + " codex"
+    codex_command = hooks.build_codex_hook_command(
+        hooks.sys.platform, getattr(hooks.sys, "frozen", False),
+        hooks.sys.executable, script)
     monkeypatch.setattr(hooks, "CODEX_HOOKS_PATH", home / ".codex" / "hooks.json")
     monkeypatch.setattr(hooks, "CODEX_HOOK_COMMAND", codex_command)
     monkeypatch.setattr(hooks, "CODEX_HOOKS_CONFIG", hooks.build_codex_hooks_config(codex_command))

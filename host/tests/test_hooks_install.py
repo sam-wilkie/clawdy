@@ -340,6 +340,14 @@ def test_unfrozen_windows_command_names_interpreter_and_script():
     assert cmd == '"C:\\py\\python.exe" "C:\\Users\\me\\.clawd-tank\\clawd-tank-notify.py"'
 
 
+def test_windows_hooks_use_console_python_when_tray_uses_pythonw():
+    cmd = hooks.build_hook_command(
+        platform="win32", frozen=False, executable="C:\\py\\pythonw.exe",
+        script_path="C:\\Users\\me\\.clawd-tank\\clawd-tank-notify.py",
+    )
+    assert cmd == '"C:\\py\\python.exe" "C:\\Users\\me\\.clawd-tank\\clawd-tank-notify.py"'
+
+
 def test_posix_command_is_the_script_path_even_when_frozen():
     cmd = hooks.build_hook_command(
         platform="darwin", frozen=True, executable="/Applications/X.app/Contents/MacOS/X",
@@ -674,15 +682,15 @@ def _our_permission_hooks(settings: dict) -> list[dict]:
 
 def test_permission_hook_timeout_exceeds_the_wait():
     from clawd_tank_daemon.protocol import PERMISSION_WAIT_SECONDS
-    assert hooks.PERMISSION_HOOK_TIMEOUT_SECONDS == 70
+    assert hooks.PERMISSION_HOOK_TIMEOUT_SECONDS == 25
     assert hooks.PERMISSION_HOOK_TIMEOUT_SECONDS > PERMISSION_WAIT_SECONDS
 
 
-def test_install_gives_our_permission_request_hook_a_timeout_of_70(settings_path):
+def test_install_gives_our_permission_request_hook_a_timeout_of_25(settings_path):
     install_hooks()
     ours = _our_permission_hooks(_read(settings_path))
     assert len(ours) == 1
-    assert ours[0]["timeout"] == 70
+    assert ours[0]["timeout"] == 25
 
 
 def test_only_the_permission_request_hook_has_a_timeout(settings_path):
@@ -691,7 +699,7 @@ def test_only_the_permission_request_hook_has_a_timeout(settings_path):
         for group in groups:
             for h in group["hooks"]:
                 if event == "PermissionRequest":
-                    assert h["timeout"] == 70
+                    assert h["timeout"] == 25
                 else:
                     assert "timeout" not in h, event
 
@@ -708,7 +716,7 @@ def test_old_permission_hook_without_timeout_is_outdated_and_replaced(settings_p
     settings = _read(settings_path)
     ours = _our_permission_hooks(settings)
     assert len(ours) == 1, "old entry must be replaced, not duplicated"
-    assert ours[0]["timeout"] == 70
+    assert ours[0]["timeout"] == 25
     assert are_hooks_installed() is True
 
 
@@ -720,7 +728,7 @@ def test_old_permission_hook_with_wrong_timeout_is_replaced(settings_path):
     settings_path.write_text(json.dumps(settings))
     assert are_hooks_installed() is False
     install_hooks()
-    assert [h["timeout"] for h in _our_permission_hooks(_read(settings_path))] == [70]
+    assert [h["timeout"] for h in _our_permission_hooks(_read(settings_path))] == [25]
 
 
 def test_foreign_permission_request_hook_survives_the_timeout_upgrade(settings_path):
@@ -730,7 +738,7 @@ def test_foreign_permission_request_hook_survives_the_timeout_upgrade(settings_p
     install_hooks()
     groups = _read(settings_path)["hooks"]["PermissionRequest"]
     assert foreign in groups, "user's PermissionRequest hook was changed or removed"
-    assert [h["timeout"] for h in _our_permission_hooks(_read(settings_path))] == [70]
+    assert [h["timeout"] for h in _our_permission_hooks(_read(settings_path))] == [25]
     install_hooks()  # idempotent
     again = _read(settings_path)["hooks"]["PermissionRequest"]
     assert again == groups
@@ -744,5 +752,6 @@ def test_uninstall_removes_our_permission_request_hook_with_its_timeout(settings
     assert _read(settings_path)["hooks"]["PermissionRequest"] == [foreign]
 
 
-def test_notify_script_version_was_bumped_for_the_permission_wait():
-    assert "NOTIFY_SCRIPT_VERSION: 2026-10-10-permission-wait" in hooks.NOTIFY_SCRIPT
+def test_notify_script_carries_a_version_marker():
+    import re
+    assert re.search(r"NOTIFY_SCRIPT_VERSION: \d{4}-\d{2}-\d{2}-", hooks.NOTIFY_SCRIPT)

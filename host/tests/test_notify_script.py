@@ -257,6 +257,8 @@ _CROSS_CHECK_HOOKS = [
     {"hook_event_name": "PreCompact", "session_id": "s", "cwd": "/x/proj"},
     {"hook_event_name": "Stop", "session_id": "s", "cwd": "/x/proj"},
     {"hook_event_name": "StopFailure", "session_id": "s", "cwd": "/x/proj", "error": "boom"},
+    {"hook_event_name": "StopFailure", "session_id": "s", "cwd": "/x/proj", "error": "billing_error"},
+    {"hook_event_name": "StopFailure", "session_id": "s", "cwd": "/x/proj", "error": "rate_limit"},
     {"hook_event_name": "Notification", "notification_type": "idle_prompt",
      "session_id": "s", "cwd": "/x/proj", "message": "m"},
     {"hook_event_name": "UserPromptSubmit", "session_id": "s", "cwd": "/x/proj"},
@@ -327,6 +329,26 @@ def test_notify_script_stays_quiet_when_the_endpoint_file_is_unusable():
             assert result.returncode == 0, f"endpoint {content!r}: {result.stderr}"
 
 
+def test_notify_script_exits_zero_on_non_json_stdin():
+    """Stdin that is not JSON must make the hook a silent no-op (exit 0), not a
+    failure: a non-zero exit makes Codex report 'Hook failed, exited with code 1'
+    for a fire-and-forget notifier that has nothing to forward anyway."""
+    for raw in ("not json at all", "<<<garbage>>>", "{unterminated"):
+        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False,
+                                         encoding="utf-8") as f:
+            f.write(NOTIFY_SCRIPT)
+            script_path = f.name
+        try:
+            result = subprocess.run(
+                [sys.executable, script_path, "codex"],
+                input=raw.encode("utf-8"),
+                timeout=5.0, capture_output=True,
+            )
+        finally:
+            os.unlink(script_path)
+        assert result.returncode == 0, f"input {raw!r}: rc={result.returncode} {result.stderr}"
+
+
 # --- PermissionRequest: wait for the desk window's decision -------------------
 #
 # Both hook copies (the embedded NOTIFY_SCRIPT, which is what gets installed and
@@ -341,7 +363,7 @@ ALLOW_JSON = {"hookSpecificOutput": {"hookEventName": "PermissionRequest",
                                      "decision": {"behavior": "allow"}}}
 DENY_JSON = {"hookSpecificOutput": {"hookEventName": "PermissionRequest",
                                     "decision": {"behavior": "deny",
-                                                 "message": "Denied from Margarita desk window"}}}
+                                                 "message": "Denied from Clawdy desk window"}}}
 
 _PERMISSION_HOOK = {
     "hook_event_name": "PermissionRequest",
@@ -517,10 +539,10 @@ def test_permission_hook_default_wait_is_sixty_seconds(variant):
     stretch it past the limit the installed hook timeout is sized for."""
     import re
     if variant == "embedded":
-        assert re.search(r"^PERMISSION_WAIT_SECONDS = 60$", NOTIFY_SCRIPT, re.M)
+        assert re.search(r"^PERMISSION_WAIT_SECONDS = 15$", NOTIFY_SCRIPT, re.M)
     else:
         from tests.test_notify_standalone import _load_notify_script
-        assert _load_notify_script().PERMISSION_WAIT_SECONDS == 60
+        assert _load_notify_script().PERMISSION_WAIT_SECONDS == 15
 
 
 @pytest.mark.parametrize("variant", VARIANTS)

@@ -32,9 +32,10 @@ NOTIFY_SCRIPT_PATH = CLAWD_DIR / (
 CLAUDE_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
 
 # Claude Code kills a hook that runs longer than its timeout (default 60 s). Our
-# PermissionRequest hook waits up to PERMISSION_WAIT_SECONDS for the desk window,
-# so its entry carries a larger timeout; no other hook of ours waits.
-PERMISSION_HOOK_TIMEOUT_SECONDS = 70
+# PermissionRequest hook waits up to PERMISSION_WAIT_SECONDS for the pet, so its
+# entry carries a larger timeout; no other hook of ours waits. Kept comfortably
+# above the wait so the daemon/hook always resolve before Claude kills the hook.
+PERMISSION_HOOK_TIMEOUT_SECONDS = 25
 assert PERMISSION_HOOK_TIMEOUT_SECONDS > PERMISSION_WAIT_SECONDS
 
 # Windows runs the Python bridge through an explicit interpreter, so it needs the
@@ -60,7 +61,7 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
     it to the daemon: a Unix socket on POSIX, an authenticated loopback TCP
     connection on Windows. No external dependencies.
     """
-    # NOTIFY_SCRIPT_VERSION: 2026-10-10-permission-wait
+    # NOTIFY_SCRIPT_VERSION: 2026-10-11-subagent-agent-id
 
     import json
     import os
@@ -74,12 +75,12 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
     # Fixed name on every notification card (protocol.DISPLAY_NAME).
     DISPLAY_NAME = __DISPLAY_NAME__
 
-    # A PermissionRequest hook waits this long for the desk window's decision
+    # A PermissionRequest hook waits this long for the pet's Allow/Deny
     # (protocol.PERMISSION_WAIT_SECONDS; the installed hook timeout is larger).
-    PERMISSION_WAIT_SECONDS = 60
+    PERMISSION_WAIT_SECONDS = 15
     # CLAWD_PERMISSION_WAIT may only shorten the wait (tests, debugging).
     PERMISSION_WAIT_ENV = "CLAWD_PERMISSION_WAIT"
-    PERMISSION_DENY_MESSAGE = "Denied from Margarita desk window"
+    PERMISSION_DENY_MESSAGE = "Denied from Clawdy desk window"
     # Longest reply line read from the daemon; anything longer is junk.
     _MAX_REPLY_BYTES = 4096
     # protocol.PERMISSION_SUMMARY_MAX and _FILE_PATH_TOOLS.
@@ -297,6 +298,24 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
         sys.stdout.flush()
 
 
+    # Mirrors protocol.classify_exhaustion (this script cannot import it).
+    def _classify_exhaustion(hook):
+        fields = ("error", "stop_reason", "error_type", "error_details")
+        text = " ".join(str(hook.get(f) or "") for f in fields).lower()
+        if any(m in text for m in ("credit", "quota", "billing", "insufficient")):
+            return "Out of credits"
+        if any(m in text for m in ("usage limit", "usage_limit", "rate_limit")):
+            return "Usage limit reached"
+        return None
+
+    # Mirrors protocol._with_agent_id: hooks fired inside a subagent carry its
+    # agent_id (under the parent session_id); the main agent's never do.
+    def _with_agent_id(msg, hook):
+        agent_id = hook.get("agent_id")
+        if agent_id:
+            msg["agent_id"] = agent_id
+        return msg
+
     def hook_to_message(hook):
         """Convert a Claude Code hook payload to a daemon message."""
         event_name = hook.get("hook_event_name", "")
@@ -313,13 +332,13 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
             return msg
 
         if event_name == "PreToolUse":
-            return {"event": "tool_use", "session_id": session_id, "tool_name": hook.get("tool_name", ""), "project": project, "pid": pid}
+            return _with_agent_id({"event": "tool_use", "session_id": session_id, "tool_name": hook.get("tool_name", ""), "project": project, "pid": pid}, hook)
 
         if event_name == "PostToolUse":
-            return {"event": "tool_done", "session_id": session_id, "tool_name": hook.get("tool_name", ""), "project": project, "pid": pid}
+            return _with_agent_id({"event": "tool_done", "session_id": session_id, "tool_name": hook.get("tool_name", ""), "project": project, "pid": pid}, hook)
 
         if event_name == "PermissionRequest":
-            return {
+            return _with_agent_id({
                 "event": "permission",
                 "session_id": session_id,
                 "tool_name": hook.get("tool_name", ""),
@@ -327,10 +346,10 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
                 "pid": pid,
                 "wait": True,
                 "tool_summary": _tool_summary(hook.get("tool_name", ""), hook.get("tool_input")),
-            }
+            }, hook)
 
         if event_name == "PostToolUseFailure":
-            return {"event": "tool_failed", "session_id": session_id, "tool_name": hook.get("tool_name", ""), "project": project, "pid": pid}
+            return _with_agent_id({"event": "tool_failed", "session_id": session_id, "tool_name": hook.get("tool_name", ""), "project": project, "pid": pid}, hook)
 
         if event_name == "PreCompact":
             return {"event": "compact", "session_id": session_id, "pid": pid}
@@ -347,14 +366,18 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
 
         if event_name == "StopFailure":
             message = hook.get("error", "") or hook.get("stop_reason", "") or "Error de API"
-            return {
+            exhausted = _classify_exhaustion(hook)
+            msg = {
                 "event": "add",
                 "hook": "StopFailure",
                 "session_id": session_id,
                 "project": DISPLAY_NAME,
-                "message": message,
+                "message": exhausted or message,
                 "pid": pid,
             }
+            if exhausted:
+                msg["exhausted"] = True
+            return msg
 
         if event_name == "Notification":
             if hook.get("notification_type") != "idle_prompt":
@@ -526,7 +549,10 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
                 sys.exit(0)
             payload = json.loads(raw)
         except json.JSONDecodeError:
-            sys.exit(1)
+            # A hook whose stdin is not JSON has nothing to forward. Exit 0 (silent)
+            # rather than 1: this is a fire-and-forget notifier, and a non-zero exit
+            # makes Codex report "Hook failed, exited with code 1" for no benefit.
+            sys.exit(0)
 
         translator = _AGENT_TRANSLATORS.get(agent, hook_to_message)
         msg = translator(payload)
@@ -725,6 +751,9 @@ STATUSLINE_BRIDGE_SCRIPT = textwrap.dedent('''\
                 args, shell=shell, input=raw, stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL, timeout=CHAIN_TIMEOUT_S,
                 env={**os.environ, GUARD_ENV: "1"},
+                # pythonw has no console: without this, bash.exe gets a fresh
+                # one that Windows Terminal (default terminal) opens as a tab.
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
             sys.stdout.buffer.write(proc.stdout)
             sys.stdout.buffer.flush()
@@ -860,6 +889,11 @@ def build_hook_command(platform: str, frozen: bool, executable: str, script_path
         if frozen:
             notify_exe = ntpath.join(ntpath.dirname(executable), NOTIFY_EXE_NAME)
             return f'"{notify_exe}"'
+        # The tray may run under pythonw, whose stdin/stdout are None. Hooks
+        # read a JSON payload from stdin and permission hooks write a reply,
+        # so they must use the console interpreter even for a hidden tray.
+        if ntpath.basename(executable).lower() == "pythonw.exe":
+            executable = ntpath.join(ntpath.dirname(executable), "python.exe")
         return f'"{executable}" "{script_path}"'
     return str(script_path)
 
@@ -969,7 +1003,29 @@ HOOKS_CONFIG = build_hooks_config(HOOK_COMMAND)
 # same ownership discipline as ~/.claude/settings.json rather than rewriting the
 # user's config.toml (which we never touch).
 CODEX_HOOKS_PATH = Path.home() / ".codex" / "hooks.json"
-CODEX_HOOK_COMMAND = HOOK_COMMAND + " codex"
+
+
+def build_codex_hook_command(platform: str, frozen: bool, executable, script_path) -> str:
+    """The Codex hook command. Codex on Windows runs hooks through `cmd /c` or
+    `powershell -Command`, and both exit 1 on the double-quoted form that
+    build_hook_command produces, so paths WITHOUT whitespace go unquoted. Paths
+    with whitespace keep the quoted form (known limitation: Codex fails them)."""
+    if platform == "win32":
+        if frozen:
+            target = ntpath.join(ntpath.dirname(executable), NOTIFY_EXE_NAME)
+            parts = [str(target)]
+        else:
+            if ntpath.basename(str(executable)).lower() == "pythonw.exe":
+                executable = ntpath.join(ntpath.dirname(str(executable)), "python.exe")
+            parts = [str(executable), str(script_path)]
+        if not any(c.isspace() for p in parts for c in p):
+            return " ".join(parts) + " codex"
+    return build_hook_command(platform, frozen, executable, script_path) + " codex"
+
+
+CODEX_HOOK_COMMAND = build_codex_hook_command(
+    sys.platform, getattr(sys, "frozen", False), sys.executable, NOTIFY_SCRIPT_PATH
+)
 
 
 def build_codex_hooks_config(command: str) -> dict:
@@ -1350,7 +1406,11 @@ def build_our_command_re(platform: str, script_path):
         return None
     return re.compile(
         '^(?:"[^"]+" "' + re.escape(str(script_path)) + '"'
-        r'|"[^"]*[\\/](?i:' + re.escape(NOTIFY_EXE_NAME) + ')")( |$)')
+        # Unquoted forms (Codex hooks, whose paths have no whitespace).
+        r'|[^\s"]+\.exe ' + re.escape(str(script_path)) +
+        r'|"[^"]*[\\/](?i:' + re.escape(NOTIFY_EXE_NAME) + ')"'
+        r'|[^\s"]*[\\/](?i:' + re.escape(NOTIFY_EXE_NAME) + ')'
+        r')( |$)')
 
 
 _OUR_COMMAND_RE = build_our_command_re(sys.platform, NOTIFY_SCRIPT_PATH)

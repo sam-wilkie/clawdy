@@ -160,7 +160,8 @@ async def test_v2_transport_gets_no_happy_oneshot_on_end_of_turn():
     await d._handle_message(dict(STOP_MSG))
 
     assert not any("happy" in p for p in t["ble"].written)
-    assert sessions_of(t["ble"])[-1]["anims"] == ["idle"]
+    # End of turn now rests in the waiting alert (Option B), not idle.
+    assert sessions_of(t["ble"])[-1]["anims"] == ["alert"]
 
 
 @pytest.mark.asyncio
@@ -173,9 +174,9 @@ async def test_mixed_transports_happy_oneshot_only_on_v3():
 
     await d._handle_message(dict(STOP_MSG))
 
-    assert [s["anims"] for s in sessions_of(t["sim"])] == [["happy"], ["idle"]]
+    assert [s["anims"] for s in sessions_of(t["sim"])] == [["happy"], ["alert"]]
     assert not any("happy" in p for p in t["ble"].written)
-    assert sessions_of(t["ble"])[-1]["anims"] == ["idle"]
+    assert sessions_of(t["ble"])[-1]["anims"] == ["alert"]
 
 
 @pytest.mark.asyncio
@@ -272,3 +273,69 @@ def test_simulator_is_treated_as_v3():
     d, _ = make_daemon()
     d._on_transport_connect("sim")
     assert d._transport_versions["sim"] == 3
+
+
+# --- Phase 2 products downgrade ---
+
+
+def test_ble_payload_strips_pet_only_fields_but_sim_keeps_them():
+    """agents/products are desktop-pet-only (Phase 1-2). The ESP firmware ignores
+    them AND its GATT char rejects a write past the MTU, so these fields must be
+    stripped for the BLE transport (which nearly doubled the JSON and broke writes
+    with WinError E_INVALIDARG). The 'sim' transport (the Electron pet) keeps them.
+    """
+    d, t = make_daemon(ble=3, sim=3)
+    _add_session(d, "c1", {"state": "working", "last_event": time.time()})
+    _add_session(d, "kiro:k1", {"state": "thinking", "last_event": time.time()})
+    state = d._compute_display_state()
+    assert "products" in state and "agents" in state  # present at source
+
+    ble = json.loads(d._set_sessions_payload_for("ble", state))
+    sim = json.loads(d._set_sessions_payload_for("sim", state))
+
+    # ESP: no pet-only fields, but still gets the per-slot anims/ids it reads.
+    assert "products" not in ble and "agents" not in ble
+    assert ble["anims"] and ble["ids"]
+    # Pet: keeps the per-product aggregation it renders.
+    assert "products" in sim and "agents" in sim
+
+
+def test_downgrade_rewrites_v2_only_names_inside_products():
+    """The per-product crabs (Phase 2) carry their own anim name, so a v2
+    transport must get those names downgraded too — otherwise its parser drops
+    the slot. v3 keeps them unchanged."""
+    state = {
+        "anims": ["hat_mishap"],
+        "ids": [1],
+        "agents": ["claude"],
+        "products": [{"agent": "claude", "count": 1, "anim": "hat_mishap"}],
+        "subagents": 0,
+    }
+    v2 = downgrade_display_state(state, 2)
+    assert v2["products"] == [{"agent": "claude", "count": 1, "anim": "confused"}]
+    assert v2["anims"] == ["confused"]
+    # Original is never mutated; v3 passes through unchanged.
+    assert state["products"][0]["anim"] == "hat_mishap"
+    assert downgrade_display_state(state, 3) is state
+
+
+def test_bg_is_pet_only_and_survives_downgrade_without_breaking_v2():
+    """products[].bg feeds the desktop pet only: BLE never sees it (payload stays
+    small), a v2 transport's per-slot anim names are still valid, and downgrading
+    keeps bg for the pet."""
+    d, _ = make_daemon(ble=2, sim=3)
+    _add_session(d, "c1", {"state": "idle", "last_event": time.time(), "subagents": {"a", "b"}})
+    state = d._compute_display_state()
+    assert state["products"][0]["bg"] == 2
+
+    ble = d._set_sessions_payload_for("ble", state)
+    assert "bg" not in ble and "products" not in ble
+    assert len(ble.encode()) < 200
+    assert json.loads(ble)["anims"] == ["conducting"]  # v2 knows conducting
+
+    sim = json.loads(d._set_sessions_payload_for("sim", state))
+    assert sim["products"][0]["bg"] == 2
+
+    v2 = downgrade_display_state(state, 2)
+    assert v2["products"][0]["bg"] == 2
+    assert v2["products"][0]["anim"] == "conducting"

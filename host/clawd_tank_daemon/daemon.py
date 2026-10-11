@@ -90,13 +90,57 @@ def downgrade_display_state(state: dict, version: int) -> dict:
     if version >= MIN_PROTOCOL_FOR_PHASE1_ANIMS or "anims" not in state:
         return state
     anims = [PHASE1_ANIM_FALLBACKS.get(a, a) for a in state["anims"]]
-    return {**state, "anims": anims}
+    downgraded = {**state, "anims": anims}
+    # The per-product crabs (Phase 2) carry their own anim name, so they need the
+    # same fallback or a v2 transport would receive a name its parser drops.
+    if "products" in state:
+        downgraded["products"] = [
+            {**p, "anim": PHASE1_ANIM_FALLBACKS.get(p["anim"], p["anim"])}
+            for p in state["products"]
+        ]
+    return downgraded
+
+
+# Tool events that, when tagged with an agent_id, belong to a subagent rather
+# than to the session's main agent (see _update_session_state).
+SUBAGENT_TOOL_EVENTS = ("tool_use", "tool_done", "tool_failed")
 
 
 def _tool_to_anim(tool_name: str) -> str:
     if tool_name and tool_name.startswith("mcp__"):
         return "beacon"
     return TOOL_ANIMATION_MAP.get(tool_name, "typing")
+
+
+def _state_to_anim(state: dict, has_subagents: bool, usage_low: bool) -> str:
+    """Animation name for one session's state.
+
+    The crab shows what the session itself is doing; its subagents are reported
+    by the HUD counter. 'conducting' is only for a session that is idle while its
+    subagents work, so the crab doesn't freeze on it while the main session keeps
+    thinking and running tools. Shared by the per-slot list and the per-product
+    aggregation so both pick the same animation for a given state.
+    """
+    s = state["state"]
+    if s == "waiting":
+        return "alert"
+    if s == "working":
+        return _tool_to_anim(state.get("tool_name", ""))
+    if s == "thinking":
+        return "thinking"
+    if s == "confused":
+        return "hat_mishap" if state.get("tool_name") in WEB_TOOLS else "confused"
+    if s == "error":
+        return "dizzy"
+    if s == "out_of_credits":
+        # Reuses the low-battery crab (v2 transports downgrade it to idle); the
+        # "Out of credits" card carries the actual message.
+        return "low_battery"
+    if has_subagents:
+        return "conducting"
+    if usage_low:
+        return "low_battery"
+    return "idle"
 
 
 # Which AI product a session belongs to, derived from the session-id prefix the
@@ -117,6 +161,73 @@ def _session_agent(session_id: str) -> str:
         if session_id.startswith(prefix):
             return agent
     return "claude"
+
+
+# Priority of each animation when several sessions of the SAME product are
+# collapsed into one per-product crab (Phase 2 xN grouping). The product crab
+# shows its most actionable session: "needs you" (alert) outranks active work,
+# which outranks thinking, which outranks error/confused states, which outrank
+# an idle-but-conducting crab, which outranks a plain resting crab. Any anim not
+# listed (future additions) sorts at 0, below everything explicit here.
+_ANIM_PRIORITY = {
+    "alert": 100,
+    # Active work — all equal; the specific tool anim is kept as-is.
+    "typing": 80, "building": 80, "debugger": 80, "wizard": 80,
+    "beacon": 80, "sweeping": 80,
+    "thinking": 60,
+    "hat_mishap": 40, "confused": 40, "dizzy": 40,
+    "conducting": 20,
+    "low_battery": 10,
+    "idle": 5,
+}
+
+
+def _aggregate_products(agents: list, anims: list, bgs: Optional[list] = None,
+                        exhausted: Optional[list] = None) -> list:
+    """Collapse parallel (agent, anim) slots into one entry per product.
+
+    Returns a list of {"agent", "count", "anim"} dicts, one per distinct
+    product, in first-seen order (so the layout stays stable as sessions come
+    and go). `count` is how many sessions that product has among these slots;
+    `anim` is the highest-priority animation across them (see _ANIM_PRIORITY),
+    i.e. the product crab reflects its most actionable session.
+
+    `bgs` (parallel to the slots) is how many subagents each session has running;
+    a product's "bg" is their sum, emitted only when > 0 so payloads without
+    subagents are unchanged. Only the desktop pet reads it (to show 'grooving'
+    while subagents work); it never alters `anim`, which hardware also sees.
+
+    `exhausted` (parallel to the slots) flags sessions in the out_of_credits
+    state, which `anim` reports as plain "low_battery" for hardware. A product
+    gets "exhausted": True (omitted otherwise, like "bg") only when one of its
+    sessions is out of credits AND the product's final `anim` is still
+    "low_battery": any more actionable sibling (alert, work, thinking, error,
+    subagents/conducting; all outrank low_battery in _ANIM_PRIORITY) keeps the
+    pet on that, and the broke crab returns once nothing else needs attention.
+    Only the desktop pet reads it; `anim` is never altered.
+    """
+    order = []
+    by_agent = {}
+    bgs = bgs if bgs is not None else [0] * len(agents)
+    exhausted = exhausted if exhausted is not None else [False] * len(agents)
+    broke = set()
+    for agent, anim, bg, spent in zip(agents, anims, bgs, exhausted):
+        if spent:
+            broke.add(agent)
+        entry = by_agent.get(agent)
+        if entry is None:
+            entry = {"agent": agent, "count": 0, "anim": anim}
+            by_agent[agent] = entry
+            order.append(agent)
+        entry["count"] += 1
+        if bg:
+            entry["bg"] = entry.get("bg", 0) + bg
+        if _ANIM_PRIORITY.get(anim, 0) > _ANIM_PRIORITY.get(entry["anim"], 0):
+            entry["anim"] = anim
+    for agent in broke:
+        if by_agent[agent]["anim"] == "low_battery":
+            by_agent[agent]["exhausted"] = True
+    return [by_agent[a] for a in order]
 
 
 PID_PATH = Path.home() / ".clawd-tank" / "daemon.pid"
@@ -392,6 +503,7 @@ class ClawdDaemon:
             event, hook, session_id,
             msg.get("agent_id", ""), msg.get("tool_name", ""),
             pid=msg.get("pid"),
+            exhausted=bool(msg.get("exhausted")),
         )
 
         # Store project name after session state is created
@@ -494,6 +606,9 @@ class ClawdDaemon:
             "event": "permission_request",
             "id": request_id,
             "nonce": nonce,
+            # Which product asked, so the desktop pet can show the bubble over
+            # that product's crab window. The SDL2 sim ignores this extra key.
+            "agent": _session_agent(msg.get("session_id", "")),
             **{
                 key: (value if isinstance(value, str) else "")[:_PERMISSION_FIELD_MAX[key]]
                 for key, value in fields.items()
@@ -596,34 +711,15 @@ class ClawdDaemon:
             len(s.get("subagents", set())) for s in self._session_states.values()
         )
 
+        usage_low = self._usage_is_low()
+
         for session_id, display_id in self._session_order[:4]:
             state = self._session_states.get(session_id)
             if state is None:
                 continue
-            session_subagents = state.get("subagents", set())
-
-            # The crab shows what the session itself is doing; its subagents are
-            # reported by the HUD counter. 'conducting' is only for a session
-            # that is idle while its subagents work, so the crab doesn't freeze
-            # on it while the main session keeps thinking and running tools.
-            if state["state"] == "waiting":
-                anims.append("alert")
-            elif state["state"] == "working":
-                anims.append(_tool_to_anim(state.get("tool_name", "")))
-            elif state["state"] == "thinking":
-                anims.append("thinking")
-            elif state["state"] == "confused":
-                anims.append(
-                    "hat_mishap" if state.get("tool_name") in WEB_TOOLS else "confused"
-                )
-            elif state["state"] == "error":
-                anims.append("dizzy")
-            elif session_subagents:
-                anims.append("conducting")
-            elif self._usage_is_low():
-                anims.append("low_battery")
-            else:
-                anims.append("idle")
+            anims.append(
+                _state_to_anim(state, bool(state.get("subagents")), usage_low)
+            )
             ids.append(display_id)
             # Parallel to anims/ids: which product this slot belongs to, so the
             # desktop pet can pick a per-product crab and group/count by product.
@@ -632,10 +728,30 @@ class ClawdDaemon:
         if not anims:
             return {"status": "sleeping"}
 
+        # Per-product aggregation (Phase 2 xN): one entry per product over ALL
+        # sessions, not just the 4 visible slots, so the count is the true total.
+        # The grouped view replaces the 4-slot cap, so there is no overflow here.
+        all_agents = []
+        all_anims = []
+        all_bgs = []
+        all_exhausted = []
+        for session_id, _ in self._session_order:
+            state = self._session_states.get(session_id)
+            if state is None:
+                continue
+            all_agents.append(_session_agent(session_id))
+            all_bgs.append(len(state.get("subagents", ())))
+            all_exhausted.append(state["state"] == "out_of_credits")
+            all_anims.append(
+                _state_to_anim(state, bool(state.get("subagents")), usage_low)
+            )
+        products = _aggregate_products(all_agents, all_anims, all_bgs, all_exhausted)
+
         result = {
             "anims": anims,
             "ids": ids,
             "agents": agents,
+            "products": products,
             "subagents": total_subagents,
         }
         if len(self._session_order) > 4:
@@ -679,9 +795,22 @@ class ClawdDaemon:
 
     def _set_sessions_payload_for(self, name: str, state: dict) -> str:
         """set_sessions payload for a v2+ transport, with any animation name its
-        protocol version does not know swapped for a fallback."""
+        protocol version does not know swapped for a fallback.
+
+        The desktop pet (the "sim" transport) consumes the per-product fields
+        (agents/products) added in Phases 1-2; the ESP32 firmware does NOT read
+        them (it uses anims/ids positionally) and its GATT characteristic rejects
+        a write larger than one ATT payload (MTU-3). Those fields nearly doubled
+        the JSON and pushed BLE writes past the MTU, so strip them for every
+        transport except the pet.
+        """
         version = self._transport_versions.get(name, 1)
-        return display_state_to_ble_payload(downgrade_display_state(state, version))
+        downgraded = downgrade_display_state(state, version)
+        if name != "sim":
+            downgraded = {
+                k: v for k, v in downgraded.items() if k not in ("agents", "products")
+            }
+        return display_state_to_ble_payload(downgraded)
 
     def _enter_state(
         self, session_id: str, state: str, tool_name: str, now: float, *, create: bool,
@@ -701,6 +830,7 @@ class ClawdDaemon:
     def _update_session_state(
         self, event: str, hook: str, session_id: str,
         agent_id: str = "", tool_name: str = "", pid: Optional[int] = None,
+        exhausted: bool = False,
     ) -> bool:
         """Update per-session state based on a received event.
 
@@ -717,6 +847,17 @@ class ClawdDaemon:
 
         if event == "session_start":
             self._session_states[session_id] = {"state": "registered", "last_event": now}
+        elif event in SUBAGENT_TOOL_EVENTS and agent_id and tool_name != ASK_USER_QUESTION_TOOL:
+            # A subagent's own tool call (Claude Code reports it under the PARENT
+            # session_id, tagged with the subagent's agent_id). It is background
+            # work, not the main agent's: leave state/tool_name alone so the main
+            # crab does not mimic the subagent's Bash/Edit, and let the per-product
+            # `bg` count (len(subagents)) drive the pet's 'grooving'. It still
+            # proves the session is alive, so refresh last_event (the monotonic
+            # stamp below), and never resurrect an ended session.
+            cur_s = self._session_states.get(session_id)
+            if cur_s is not None:
+                cur_s["last_event"] = now
         elif event == "tool_use":
             # AskUserQuestion blocks on a human choice — surface it as a distinct
             # "waiting" state (alert animation), not as ordinary work. PreToolUse is a
@@ -750,15 +891,28 @@ class ClawdDaemon:
         elif event == "add":
             self._session_states.setdefault(session_id, {"state": "idle", "last_event": now})
             if hook == "Stop":
-                self._session_states[session_id]["state"] = "idle"
+                # End of turn: the crab plays a brief happy oneshot (see
+                # end_of_turn below), then rests in "waiting" so the user sees it
+                # is waiting for their next prompt. This is the only "needs you"
+                # signal Kiro/Codex have (no idle_prompt Notification), so it must
+                # drive the alert state uniformly. UserPromptSubmit clears it.
+                # Exception: if subagents are still running, the turn's work is not
+                # really done — stay out of waiting so _compute_display_state can
+                # show "conducting" instead of a false "needs you" alert.
+                if self._session_states[session_id].get("subagents"):
+                    self._session_states[session_id]["state"] = "idle"
+                else:
+                    self._session_states[session_id]["state"] = "waiting"
             elif hook == "Notification":
-                # idle_prompt: the session is just waiting for the user, so it
-                # is idle, not confused. Drop the last tool so a stale web tool
-                # can't turn a later state into "hat_mishap".
-                self._session_states[session_id]["state"] = "idle"
+                # idle_prompt ("waiting for your input"): the session is blocked on
+                # the user, so surface the waiting alert. Drop the last tool so a
+                # stale web tool can't turn a later state into "hat_mishap".
+                self._session_states[session_id]["state"] = "waiting"
                 self._session_states[session_id]["tool_name"] = ""
             elif hook == "StopFailure":
-                self._session_states[session_id]["state"] = "error"
+                self._session_states[session_id]["state"] = (
+                    "out_of_credits" if exhausted else "error"
+                )
             self._session_states[session_id]["last_event"] = now
         elif event == "dismiss":
             if hook == "SessionEnd":

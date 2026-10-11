@@ -14,10 +14,12 @@ ASK_USER_QUESTION_TOOL = "AskUserQuestion"
 # project triggered it. Change this one line to rename the crab in the UI.
 DISPLAY_NAME = "Margarita"
 
-# How long a PermissionRequest hook waits for the desk window's decision before
-# giving up and letting Claude Code ask in the terminal. The installed hook
-# timeout (hooks.PERMISSION_HOOK_TIMEOUT_SECONDS) must stay above this.
-PERMISSION_WAIT_SECONDS = 60
+# How long a PermissionRequest hook waits for the pet's Allow/Deny before giving
+# up and letting Claude Code ask in the terminal. Kept short (15 s) so a user who
+# wants to answer in the terminal is not blocked long when they ignore the pet
+# bubble; still ample time to see and click it. The daemon waits 5 s less, and
+# the installed hook timeout (hooks.PERMISSION_HOOK_TIMEOUT_SECONDS) stays above.
+PERMISSION_WAIT_SECONDS = 15
 
 # Longest tool summary sent to the desk window (ellipsis included).
 PERMISSION_SUMMARY_MAX = 120
@@ -56,6 +58,19 @@ def permission_tool_summary(tool_name, tool_input) -> str:
     return text
 
 
+def _with_agent_id(msg: dict, hook: dict) -> dict:
+    """Tag `msg` with the hook's agent_id when the tool ran inside a subagent.
+
+    Claude Code puts agent_id on every hook fired in a subagent (the main agent's
+    own calls have none) but reports it under the PARENT session_id, so without
+    this the daemon cannot tell subagent work from the main agent's. The key is
+    omitted for the main agent so its messages stay byte-identical."""
+    agent_id = hook.get("agent_id")
+    if agent_id:
+        msg["agent_id"] = agent_id
+    return msg
+
+
 def hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
     """Convert a Claude Code hook stdin payload to a daemon message.
 
@@ -80,25 +95,25 @@ def hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
         return msg
 
     if event_name == "PreToolUse":
-        return {
+        return _with_agent_id({
             "event": "tool_use",
             "session_id": session_id,
             "tool_name": hook.get("tool_name", ""),
             "project": project,
             "pid": pid,
-        }
+        }, hook)
 
     if event_name == "PostToolUse":
-        return {
+        return _with_agent_id({
             "event": "tool_done",
             "session_id": session_id,
             "tool_name": hook.get("tool_name", ""),
             "project": project,
             "pid": pid,
-        }
+        }, hook)
 
     if event_name == "PermissionRequest":
-        return {
+        return _with_agent_id({
             "event": "permission",
             "session_id": session_id,
             "tool_name": hook.get("tool_name", ""),
@@ -110,16 +125,16 @@ def hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
             "tool_summary": permission_tool_summary(
                 hook.get("tool_name", ""), hook.get("tool_input")
             ),
-        }
+        }, hook)
 
     if event_name == "PostToolUseFailure":
-        return {
+        return _with_agent_id({
             "event": "tool_failed",
             "session_id": session_id,
             "tool_name": hook.get("tool_name", ""),
             "project": project,
             "pid": pid,
-        }
+        }, hook)
 
     if event_name == "PreCompact":
         return {
@@ -148,7 +163,10 @@ def hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
         if not project:
             project = "unknown"
         message = hook.get("error", "") or hook.get("stop_reason", "") or "Error de API"
-        return {
+        exhausted = classify_exhaustion(hook)
+        if exhausted:
+            message = exhausted
+        out = {
             "event": "add",
             "hook": "StopFailure",
             "session_id": session_id,
@@ -156,6 +174,9 @@ def hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
             "message": message,
             "pid": pid,
         }
+        if exhausted:
+            out["exhausted"] = True
+        return out
 
     if event_name == "Notification":
         if hook.get("notification_type") != "idle_prompt":
@@ -213,6 +234,28 @@ def hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
     return None
 
 
+# Substrings (matched case-insensitively) of a StopFailure's error fields that
+# mean the account ran out of credits / quota. "rate_limit" is Claude Code's
+# error-type token for hitting a usage cap; free text like "Rate limit reached"
+# is deliberately NOT matched (a transient 429 is not exhaustion).
+_EXHAUSTION_FIELDS = ("error", "stop_reason", "error_type", "error_details")
+_BILLING_MARKERS = ("credit", "quota", "billing", "insufficient")
+_LIMIT_MARKERS = ("usage limit", "usage_limit", "rate_limit")
+
+
+def classify_exhaustion(hook: dict) -> Optional[str]:
+    """Card text if a StopFailure payload reports exhausted credits/quota/usage.
+
+    Returns "Out of credits" for billing-style errors, "Usage limit reached" for
+    usage-cap errors, or None when the failure is something else."""
+    text = " ".join(str(hook.get(f) or "") for f in _EXHAUSTION_FIELDS).lower()
+    if any(m in text for m in _BILLING_MARKERS):
+        return "Out of credits"
+    if any(m in text for m in _LIMIT_MARKERS):
+        return "Usage limit reached"
+    return None
+
+
 def daemon_message_to_ble_payload(msg: dict) -> Optional[str]:
     """Convert a daemon message to a JSON string for BLE GATT write.
 
@@ -252,6 +295,9 @@ def daemon_message_to_ble_payload(msg: dict) -> Optional[str]:
             "action": "permission_request",
             "id": msg.get("id", ""),
             "nonce": msg.get("nonce", ""),
+            # Which product asked, so the desktop pet shows the bubble over that
+            # product's crab window. The SDL2 sim ignores this extra key.
+            "agent": msg.get("agent", ""),
             "project": msg.get("project", ""),
             "tool": msg.get("tool", ""),
             "summary": msg.get("summary", ""),

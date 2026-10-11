@@ -494,6 +494,44 @@ def test_stop_failure_stop_reason_fallback():
     assert msg["message"] == "max_turns"
 
 
+# --- StopFailure: credit / quota exhaustion ---
+
+@pytest.mark.parametrize("hook_fields", [
+    {"error": "billing_error"},
+    {"error": "unknown", "error_details": "Your credit balance is too low"},
+    {"error": "Insufficient quota"},
+    {"stop_reason": "usage_limit_reached"},
+    {"error": "You have hit your usage limit"},
+    {"error_type": "BILLING"},
+    {"error": "rate_limit"},
+])
+def test_stop_failure_credit_exhaustion_is_detected(hook_fields):
+    hook = {"hook_event_name": "StopFailure", "session_id": "s", "cwd": "/tmp/p", **hook_fields}
+    msg = hook_payload_to_daemon_message(hook)
+    assert msg["hook"] == "StopFailure"
+    assert msg["exhausted"] is True
+    assert msg["message"] in ("Out of credits", "Usage limit reached")
+    assert len(daemon_message_to_ble_payload(msg).encode()) < 256
+
+
+def test_stop_failure_billing_says_out_of_credits():
+    hook = {"hook_event_name": "StopFailure", "session_id": "s", "error": "billing_error"}
+    assert hook_payload_to_daemon_message(hook)["message"] == "Out of credits"
+
+
+@pytest.mark.parametrize("err", ["server_error", "overloaded", "max_turns", "boom", ""])
+def test_stop_failure_other_errors_not_exhausted(err):
+    hook = {"hook_event_name": "StopFailure", "session_id": "s", "error": err}
+    msg = hook_payload_to_daemon_message(hook)
+    assert "exhausted" not in msg
+
+
+def test_stop_failure_exhausted_ble_payload_still_alerts():
+    msg = {"event": "add", "hook": "StopFailure", "session_id": "s1", "project": "p",
+           "message": "Out of credits", "exhausted": True}
+    assert json.loads(daemon_message_to_ble_payload(msg))["alert"] == "error"
+
+
 def test_display_state_to_v1_debugger_counts_as_working():
     state = {"anims": ["debugger"], "ids": [1], "subagents": 0}
     payload = display_state_to_v1_payload(state)
@@ -802,3 +840,32 @@ def test_permission_summary_is_truncated_with_an_ellipsis():
 
 def test_permission_request_message_has_no_ble_payload():
     assert daemon_message_to_ble_payload(_perm("Bash", {"command": "ls"})) is None
+
+
+# --- Subagent tool calls carry agent_id (Claude Code sets it on hooks fired
+# inside a subagent; the main agent's own tool calls never have it) ---------
+
+
+@pytest.mark.parametrize("hook_event,event", [
+    ("PreToolUse", "tool_use"),
+    ("PostToolUse", "tool_done"),
+    ("PostToolUseFailure", "tool_failed"),
+    ("PermissionRequest", "permission"),
+])
+def test_tool_events_carry_agent_id_when_fired_in_a_subagent(hook_event, event):
+    msg = hook_payload_to_daemon_message({
+        "hook_event_name": hook_event, "session_id": "s", "tool_name": "Bash",
+        "agent_id": "sub-1", "agent_type": "general-purpose",
+    })
+    assert msg["event"] == event
+    assert msg["agent_id"] == "sub-1"
+
+
+@pytest.mark.parametrize("hook_event", [
+    "PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionRequest",
+])
+def test_tool_events_of_the_main_agent_have_no_agent_id_key(hook_event):
+    msg = hook_payload_to_daemon_message({
+        "hook_event_name": hook_event, "session_id": "s", "tool_name": "Bash",
+    })
+    assert "agent_id" not in msg

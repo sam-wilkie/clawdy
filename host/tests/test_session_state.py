@@ -36,22 +36,22 @@ def test_no_sessions_returns_sleeping():
 def test_single_registered_session_returns_idle():
     d = make_daemon()
     _add_session(d, "s1", {"state": "registered", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "idle"}], "subagents": 0}
 
 def test_single_idle_session_returns_idle():
     d = make_daemon()
     _add_session(d, "s1", {"state": "idle", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "idle"}], "subagents": 0}
 
 def test_single_thinking_session_returns_thinking():
     d = make_daemon()
     _add_session(d, "s1", {"state": "thinking", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["thinking"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["thinking"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "thinking"}], "subagents": 0}
 
 def test_single_working_session_returns_typing():
     d = make_daemon()
     _add_session(d, "s1", {"state": "working", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "typing"}], "subagents": 0}
 
 def test_two_working_sessions_returns_two_typing():
     d = make_daemon()
@@ -84,6 +84,53 @@ def test_agents_groups_kiro_ide_and_cli_as_one_product():
     _add_session(d, "kiro:sess_cli", {"state": "thinking", "last_event": time.time()})
     state = d._compute_display_state()
     assert state["agents"] == ["kiro", "kiro"]
+
+# --- Per-product aggregation (Phase 2 xN) ---
+
+def test_products_counts_sessions_per_product():
+    """products collapses sessions into one entry per product with a count."""
+    d = make_daemon()
+    _add_session(d, "c1", {"state": "working", "last_event": time.time()})
+    _add_session(d, "c2", {"state": "working", "last_event": time.time()})
+    _add_session(d, "kiro:k1", {"state": "thinking", "last_event": time.time()})
+    products = d._compute_display_state()["products"]
+    assert products == [
+        {"agent": "claude", "count": 2, "anim": "typing"},
+        {"agent": "kiro", "count": 1, "anim": "thinking"},
+    ]
+
+
+def test_products_order_is_first_seen():
+    """Product entries keep first-seen order so the pet layout stays stable."""
+    d = make_daemon()
+    _add_session(d, "kiro:k1", {"state": "idle", "last_event": time.time()})
+    _add_session(d, "c1", {"state": "idle", "last_event": time.time()})
+    products = d._compute_display_state()["products"]
+    assert [p["agent"] for p in products] == ["kiro", "claude"]
+
+
+def test_products_anim_is_most_actionable_session():
+    """When one product has sessions in different states, the product crab shows
+    the highest-priority one: alert > work > thinking > idle."""
+    d = make_daemon()
+    _add_session(d, "c1", {"state": "idle", "last_event": time.time()})
+    _add_session(d, "c2", {"state": "working", "last_event": time.time()})
+    _add_session(d, "c3", {"state": "waiting", "last_event": time.time()})
+    products = d._compute_display_state()["products"]
+    assert products == [{"agent": "claude", "count": 3, "anim": "alert"}]
+
+
+def test_products_count_includes_sessions_beyond_four_visible_slots():
+    """The 4-slot cap on anims/ids does NOT cap the product count: the grouped
+    view replaces individual slots, so xN must be the true total."""
+    d = make_daemon()
+    for i in range(6):
+        _add_session(d, f"c{i}", {"state": "working", "last_event": time.time()})
+    state = d._compute_display_state()
+    assert len(state["anims"]) == 4          # per-slot list still capped
+    assert state["overflow"] == 2
+    assert state["products"] == [{"agent": "claude", "count": 6, "anim": "typing"}]
+
 
 def test_three_plus_working_sessions_capped_at_four():
     d = make_daemon()
@@ -146,9 +193,23 @@ async def test_tool_use_sets_working():
     assert d._session_states["s1"]["state"] == "working"
 
 @pytest.mark.asyncio
-async def test_stop_add_sets_idle():
+async def test_stop_add_sets_waiting():
+    """End of turn with no running subagents rests in 'waiting' so the user sees
+    the crab is waiting for their next prompt (Option B)."""
     d = make_daemon()
     d._session_states["s1"] = {"state": "working", "last_event": time.time()}
+    await d._handle_message({
+        "event": "add", "hook": "Stop", "session_id": "s1",
+        "project": "proj", "message": "Waiting",
+    })
+    assert d._session_states["s1"]["state"] == "waiting"
+
+@pytest.mark.asyncio
+async def test_stop_add_with_subagents_stays_idle_for_conducting():
+    """If subagents are still running at Stop, the turn's work isn't done — stay
+    out of 'waiting' so the display shows 'conducting', not a false alert."""
+    d = make_daemon()
+    d._session_states["s1"] = {"state": "working", "last_event": time.time(), "subagents": {"a1"}}
     await d._handle_message({
         "event": "add", "hook": "Stop", "session_id": "s1",
         "project": "proj", "message": "Waiting",
@@ -156,16 +217,16 @@ async def test_stop_add_sets_idle():
     assert d._session_states["s1"]["state"] == "idle"
 
 @pytest.mark.asyncio
-async def test_idle_prompt_notification_keeps_session_idle():
-    """Claude Code's idle_prompt ("waiting for your input") is not confusion:
-    the session just waits for the user, so it stays idle."""
+async def test_idle_prompt_notification_sets_waiting():
+    """Claude Code's idle_prompt ("waiting for your input") blocks on the user, so
+    it surfaces the waiting alert."""
     d = make_daemon()
     d._session_states["s1"] = {"state": "idle", "last_event": time.time()}
     await d._handle_message({
         "event": "add", "hook": "Notification", "session_id": "s1",
         "project": "proj", "message": "Waiting",
     })
-    assert d._session_states["s1"]["state"] == "idle"
+    assert d._session_states["s1"]["state"] == "waiting"
 
 @pytest.mark.asyncio
 async def test_session_end_removes_session():
@@ -186,16 +247,16 @@ async def test_last_display_state_tracks_changes():
     d = make_daemon()
     assert d._last_display_state == {"status": "sleeping"}
     await d._handle_message({"event": "session_start", "session_id": "s1"})
-    assert d._last_display_state == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._last_display_state == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "idle"}], "subagents": 0}
     await d._handle_message({"event": "dismiss", "hook": "UserPromptSubmit", "session_id": "s1"})
-    assert d._last_display_state == {"anims": ["thinking"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._last_display_state == {"anims": ["thinking"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "thinking"}], "subagents": 0}
     await d._handle_message({"event": "tool_use", "session_id": "s1"})
-    assert d._last_display_state == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._last_display_state == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "typing"}], "subagents": 0}
     await d._handle_message({
         "event": "add", "hook": "Stop", "session_id": "s1",
         "project": "proj", "message": "Waiting",
     })
-    assert d._last_display_state == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._last_display_state == {"anims": ["alert"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "alert"}], "subagents": 0}
     await d._handle_message({"event": "dismiss", "hook": "SessionEnd", "session_id": "s1"})
     assert d._last_display_state == {"status": "sleeping"}
 
@@ -440,10 +501,10 @@ async def test_subagent_lifecycle():
 
     # Session starts and begins working
     await d._handle_message({"event": "session_start", "session_id": "s1"})
-    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "idle"}], "subagents": 0}
 
     await d._handle_message({"event": "tool_use", "session_id": "s1"})
-    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "typing"}], "subagents": 0}
 
     # Subagent spawned — the session keeps showing its own work
     await d._handle_message({"event": "subagent_start", "session_id": "s1", "agent_id": "a1"})
@@ -465,7 +526,7 @@ async def test_subagent_lifecycle():
     # Subagent finishes via SubagentStop
     await d._handle_message({"event": "subagent_stop", "session_id": "s1", "agent_id": "a1"})
     assert not d._session_states["s1"].get("subagents")
-    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "idle"}], "subagents": 0}
 
     # Staleness eviction works normally
     d._session_states["s1"]["last_event"] = time.time() - 9999
@@ -593,7 +654,7 @@ def test_daemon_startup_display_state_from_loaded_sessions(tmp_path):
     d = ClawdDaemon(sim_only=True, sessions_path=path)
     d._transports.clear()
     d._transport_queues.clear()
-    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "typing"}], "subagents": 0}
 
 
 def test_daemon_evicts_stale_sessions_on_startup(tmp_path):
@@ -672,7 +733,7 @@ async def test_display_state_single_session_typing():
     await d._handle_message({"event": "session_start", "session_id": "aaa"})
     await d._handle_message({"event": "tool_use", "session_id": "aaa"})
     state = d._compute_display_state()
-    assert state == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert state == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "typing"}], "subagents": 0}
 
 
 @pytest.mark.asyncio
@@ -848,7 +909,7 @@ async def test_compact_sends_per_session_sweeping_v2():
 def test_error_state_returns_dizzy():
     d = make_daemon()
     _add_session(d, "s1", {"state": "error", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["dizzy"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["dizzy"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "dizzy"}], "subagents": 0}
 
 
 @pytest.mark.asyncio
@@ -860,6 +921,38 @@ async def test_stop_failure_add_sets_error():
         "project": "proj", "message": "Rate limited",
     })
     assert d._session_states["s1"]["state"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_stop_failure_exhausted_sets_out_of_credits_low_battery():
+    d = make_daemon()
+    d._session_states["s1"] = {"state": "working", "last_event": time.time()}
+    await d._handle_message({
+        "event": "add", "hook": "StopFailure", "session_id": "s1",
+        "project": "proj", "message": "Out of credits", "exhausted": True,
+    })
+    assert d._session_states["s1"]["state"] == "out_of_credits"
+    assert d._compute_display_state()["anims"] == ["low_battery"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("event", [
+    {"event": "dismiss", "hook": "UserPromptSubmit"},
+    {"event": "tool_use"},
+])
+async def test_out_of_credits_clears_on_new_activity(event):
+    d = make_daemon()
+    d._session_states["s1"] = {"state": "out_of_credits", "last_event": time.time()}
+    await d._handle_message({**event, "session_id": "s1"})
+    assert d._session_states["s1"]["state"] in ("thinking", "working")
+
+
+def test_out_of_credits_downgrades_to_idle_on_v2():
+    from clawd_tank_daemon.daemon import downgrade_display_state
+    d = make_daemon()
+    _add_session(d, "s1", {"state": "out_of_credits", "last_event": time.time()})
+    state = d._compute_display_state()
+    assert downgrade_display_state(state, 2)["anims"] == ["idle"]
 
 
 @pytest.mark.asyncio
@@ -907,7 +1000,7 @@ async def test_stop_then_stop_failure_overwrites_to_error():
         "event": "add", "hook": "Stop", "session_id": "s1",
         "project": "proj", "message": "Waiting",
     })
-    assert d._session_states["s1"]["state"] == "idle"
+    assert d._session_states["s1"]["state"] == "waiting"
     await d._handle_message({
         "event": "add", "hook": "StopFailure", "session_id": "s1",
         "project": "proj", "message": "Rate limited",
@@ -1026,7 +1119,7 @@ async def test_ask_user_question_tool_use_sets_waiting():
 def test_waiting_session_returns_alert():
     d = make_daemon()
     _add_session(d, "s1", {"state": "waiting", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["alert"], "ids": [1], "agents": ["claude"], "subagents": 0}
+    assert d._compute_display_state() == {"anims": ["alert"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "alert"}], "subagents": 0}
 
 
 def test_waiting_and_working_mixed():
@@ -1148,13 +1241,16 @@ async def test_permission_waiting_clears_on_next_tool_use():
 
 
 @pytest.mark.asyncio
-async def test_permission_waiting_clears_on_stop():
+async def test_permission_waiting_transitions_to_end_of_turn_waiting_on_stop():
+    """A pending permission alert is superseded by end-of-turn: the Stop replaces
+    the permission 'waiting' with the end-of-turn 'waiting' (crab still awaits the
+    user, now for the next prompt rather than a tool approval)."""
     d = make_daemon()
     await d._handle_message({"event": "permission", "session_id": "s1", "tool_name": "Bash"})
     await d._handle_message({
         "event": "add", "hook": "Stop", "session_id": "s1", "project": "p", "message": "x",
     })
-    assert d._session_states["s1"]["state"] == "idle"
+    assert d._session_states["s1"]["state"] == "waiting"
 
 
 # --- PostToolUseFailure → confused (a tool genuinely errored) ---
@@ -1214,8 +1310,9 @@ async def test_non_web_tool_failure_stays_confused():
 
 
 @pytest.mark.asyncio
-async def test_idle_prompt_after_web_tool_shows_idle_not_hat_mishap():
-    """An idle_prompt Notification is not a web failure, even if the last tool was web."""
+async def test_idle_prompt_after_web_tool_shows_alert_not_hat_mishap():
+    """An idle_prompt Notification is not a web failure, even if the last tool was
+    web: it must surface the waiting alert, never hat_mishap."""
     d = make_daemon()
     await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "WebFetch"})
     await d._handle_message({
@@ -1224,7 +1321,7 @@ async def test_idle_prompt_after_web_tool_shows_idle_not_hat_mishap():
     await d._handle_message({
         "event": "add", "hook": "Notification", "session_id": "s1", "project": "p", "message": "x",
     })
-    assert d._compute_display_state()["anims"] == ["idle"]
+    assert d._compute_display_state()["anims"] == ["alert"]
 
 
 # --- Low usage headroom → low_battery instead of idle ---
@@ -1810,7 +1907,9 @@ async def test_stop_adds_no_notification_card():
 
 
 @pytest.mark.asyncio
-async def test_stop_plays_happy_then_idle_v3():
+async def test_stop_plays_happy_then_waiting_v3():
+    """End of turn: a happy oneshot, then the crab rests in the waiting alert so
+    the user sees it is awaiting their next prompt (Option B)."""
     d, transport = _v3_daemon()
     await d._handle_message({"event": "session_start", "session_id": "aaa"})
     await d._handle_message({"event": "tool_use", "session_id": "aaa", "tool_name": "Bash"})
@@ -1820,7 +1919,7 @@ async def test_stop_plays_happy_then_idle_v3():
 
     sessions = [json.loads(p) for p in transport.written
                 if json.loads(p).get("action") == "set_sessions"]
-    assert [s["anims"] for s in sessions] == [["happy"], ["idle"]]
+    assert [s["anims"] for s in sessions] == [["happy"], ["alert"]]
 
 
 @pytest.mark.asyncio
@@ -2172,7 +2271,7 @@ async def test_daemon_side_timeout_replies_none_and_clears(monkeypatch):
 
 def test_daemon_wait_is_shorter_than_the_hook_wait():
     from clawd_tank_daemon.protocol import PERMISSION_WAIT_SECONDS
-    assert PERMISSION_WAIT_SECONDS == 60
+    assert PERMISSION_WAIT_SECONDS == 15
     assert daemon_mod.PERMISSION_DAEMON_WAIT_SECONDS == PERMISSION_WAIT_SECONDS - 5
 
 
@@ -2246,3 +2345,142 @@ async def test_add_transport_chains_the_existing_event_callback():
     finally:
         d._transports["sim"] = client
         await d.remove_transport("sim")
+
+
+# --- Subagent activity vs. the main agent's own work --------------------------
+# Claude Code fires PreToolUse with the PARENT session_id (plus agent_id) when a
+# subagent runs a tool; that must not make the main agent look like it is working.
+
+
+@pytest.mark.asyncio
+async def test_subagent_tool_use_does_not_overwrite_main_state():
+    d = make_daemon()
+    await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "Agent"})
+    await d._handle_message({"event": "subagent_start", "session_id": "s1", "agent_id": "a1"})
+    await d._handle_message(
+        {"event": "tool_use", "session_id": "s1", "tool_name": "Bash", "agent_id": "a1"})
+    s = d._session_states["s1"]
+    assert s["state"] == "working" and s["tool_name"] == "Agent"
+    assert d._compute_display_state()["anims"] == ["conducting"]
+
+
+@pytest.mark.asyncio
+async def test_subagent_tool_events_do_not_move_a_thinking_main_agent():
+    d = make_daemon()
+    await d._handle_message({"event": "dismiss", "hook": "UserPromptSubmit", "session_id": "s1"})
+    await d._handle_message({"event": "subagent_start", "session_id": "s1", "agent_id": "a1"})
+    for ev in ("tool_use", "tool_done", "tool_failed"):
+        await d._handle_message(
+            {"event": ev, "session_id": "s1", "tool_name": "Read", "agent_id": "a1"})
+    assert d._session_states["s1"]["state"] == "thinking"
+
+
+@pytest.mark.asyncio
+async def test_subagent_tool_event_still_keeps_the_session_alive():
+    d = make_daemon()
+    await d._handle_message({"event": "subagent_start", "session_id": "s1", "agent_id": "a1"})
+    d._session_states["s1"]["last_event_monotonic"] = 0.0
+    d._session_states["s1"]["last_event"] = 0.0
+    await d._handle_message(
+        {"event": "tool_use", "session_id": "s1", "tool_name": "Bash", "agent_id": "a1"})
+    assert d._session_states["s1"]["last_event"] > 0.0
+    assert d._session_states["s1"]["last_event_monotonic"] > 0.0
+
+
+@pytest.mark.asyncio
+async def test_main_agent_tool_use_still_sets_working():
+    d = make_daemon()
+    await d._handle_message({"event": "subagent_start", "session_id": "s1", "agent_id": "a1"})
+    await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "Bash"})
+    assert d._session_states["s1"]["tool_name"] == "Bash"
+    assert d._compute_display_state()["anims"] == ["building"]
+
+
+@pytest.mark.asyncio
+async def test_subagent_permission_still_alerts():
+    """A subagent blocked on an approval needs the human, same as the main agent."""
+    d = make_daemon()
+    await d._handle_message({"event": "subagent_start", "session_id": "s1", "agent_id": "a1"})
+    await d._handle_message(
+        {"event": "permission", "session_id": "s1", "tool_name": "Bash", "agent_id": "a1"})
+    assert d._session_states["s1"]["state"] == "waiting"
+
+
+def test_products_expose_bg_when_subagents_are_running():
+    d = make_daemon()
+    _add_session(d, "c1", {"state": "idle", "last_event": time.time(), "subagents": {"a", "b"}})
+    _add_session(d, "c2", {"state": "idle", "last_event": time.time(), "subagents": {"c"}})
+    _add_session(d, "kiro:k1", {"state": "idle", "last_event": time.time()})
+    products = {p["agent"]: p for p in d._compute_display_state()["products"]}
+    assert products["claude"]["bg"] == 3
+    assert products["claude"]["anim"] == "conducting"
+    assert "bg" not in products["kiro"]
+
+
+def test_products_have_no_bg_key_without_subagents():
+    d = make_daemon()
+    _add_session(d, "c1", {"state": "working", "tool_name": "Bash", "last_event": time.time()})
+    assert d._compute_display_state()["products"] == [
+        {"agent": "claude", "count": 1, "anim": "building"}]
+
+
+def test_anims_for_hardware_are_unchanged_by_bg():
+    d = make_daemon()
+    _add_session(d, "c1", {"state": "idle", "last_event": time.time(), "subagents": {"a"}})
+    state = d._compute_display_state()
+    assert state["anims"] == ["conducting"] and state["subagents"] == 1
+
+
+def test_products_expose_exhausted_for_out_of_credits_session():
+    d = make_daemon()
+    _add_session(d, "c1", {"state": "out_of_credits", "last_event": time.time()})
+    _add_session(d, "kiro:k1", {"state": "idle", "last_event": time.time()})
+    state = d._compute_display_state()
+    products = {p["agent"]: p for p in state["products"]}
+    assert products["claude"]["exhausted"] is True
+    assert products["claude"]["anim"] == "low_battery"  # firmware-facing name unchanged
+    assert "exhausted" not in products["kiro"]
+    assert state["anims"] == ["low_battery", "idle"]
+
+
+def test_exhausted_not_set_for_plain_usage_low_battery():
+    d = make_daemon()
+    d._latest_usage = {"session_pct": 95}
+    _add_session(d, "c1", {"state": "idle", "last_event": time.time()})
+    product = d._compute_display_state()["products"][0]
+    assert product["anim"] == "low_battery"
+    assert "exhausted" not in product
+
+
+def test_exhausted_yields_to_a_sibling_session_that_is_active():
+    # Another session of the same product still works / needs the user: the pet
+    # shows that, the broke crab only appears when nothing more actionable exists.
+    for sibling, expected in (
+        ({"state": "working", "tool_name": "Bash"}, "building"),
+        ({"state": "thinking"}, "thinking"),
+        ({"state": "waiting"}, "alert"),
+        ({"state": "idle", "subagents": {"a"}}, "conducting"),
+    ):
+        d = make_daemon()
+        _add_session(d, "c1", {"state": "out_of_credits", "last_event": time.time()})
+        _add_session(d, "c2", {**sibling, "last_event": time.time()})
+        product = d._compute_display_state()["products"][0]
+        assert product["anim"] == expected
+        assert "exhausted" not in product, expected
+
+
+def test_exhausted_wins_over_idle_siblings():
+    d = make_daemon()
+    _add_session(d, "c1", {"state": "idle", "last_event": time.time()})
+    _add_session(d, "c2", {"state": "out_of_credits", "last_event": time.time()})
+    assert d._compute_display_state()["products"][0]["exhausted"] is True
+
+
+def test_exhausted_survives_v2_downgrade_without_unknown_names():
+    from clawd_tank_daemon.daemon import downgrade_display_state
+    d = make_daemon()
+    _add_session(d, "c1", {"state": "out_of_credits", "last_event": time.time()})
+    state = d._compute_display_state()
+    v2 = downgrade_display_state(state, 2)
+    assert v2["anims"] == ["idle"]
+    assert v2["products"][0]["exhausted"] is True
