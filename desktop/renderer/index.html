@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Clawdy</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- The crab lives in a transparent, always-on-top window. Everything outside
+     #crab-hit is click-through (handled by main.js via setIgnoreMouseEvents). -->
+<div id="crab" data-state="idle" data-held="false">
+  <div id="crab-art">
+    <!-- Idle crab: inline SVG copied from website/index.html so the eyes group
+         (id="crab-eyes") can be driven and the CSS idle animation plays. -->
+    <svg id="crab-idle" class="crab-layer" xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" aria-hidden="true" focusable="false" shape-rendering="crispEdges">
+      <defs>
+        <style>
+          .ey-open { animation: ey-open 16s infinite step-end; }
+          .ey-shut { animation: ey-shut 16s infinite step-end; }
+          .idle-breathe { animation: idle-breathe 16s infinite step-end; }
+          @keyframes ey-open {
+            0% { opacity: 1; } 4.6875% { opacity: 0; } 5.7292% { opacity: 1; }
+            19.2708% { opacity: 0; } 20.3125% { opacity: 1; }
+            44.2708% { opacity: 0; } 45.3125% { opacity: 1; }
+            84.8958% { opacity: 0; } 85.9375% { opacity: 1; }
+          }
+          @keyframes ey-shut {
+            0% { opacity: 0; } 4.6875% { opacity: 1; } 5.7292% { opacity: 0; }
+            19.2708% { opacity: 1; } 20.3125% { opacity: 0; }
+            44.2708% { opacity: 1; } 45.3125% { opacity: 0; }
+            84.8958% { opacity: 1; } 85.9375% { opacity: 0; }
+          }
+          @keyframes idle-breathe {
+            0% { transform: translate(0,0); } 4.6875% { transform: translate(0,1px); }
+            15.1042% { transform: translate(0,0); } 25.5208% { transform: translate(0,1px); }
+            34.8958% { transform: translate(0,0); } 45.3125% { transform: translate(0,1px); }
+            54.6875% { transform: translate(0,0); } 65.1042% { transform: translate(0,1px); }
+            75.5208% { transform: translate(0,0); } 84.8958% { transform: translate(0,1px); }
+            95.3125% { transform: translate(0,0); }
+          }
+        </style>
+        <g id="shadow">
+          <path fill="#000000" fill-opacity="0.3" d="M3 30h24v1h-24z"/>
+          <path fill="#000000" fill-opacity="0.15" d="M6 31h18v1h-18z"/>
+        </g>
+        <g id="leg1"><path fill="#B8644B" d="M6 18h1v11h-1z"/><path fill="#6B3122" d="M7 18h1v11h-1zM6 29h2v1h-2z"/></g>
+        <g id="leg2"><path fill="#B8644B" d="M10 18h1v11h-1z"/><path fill="#6B3122" d="M11 18h1v11h-1zM10 29h2v1h-2z"/></g>
+        <g id="leg3"><path fill="#B8644B" d="M18 18h1v11h-1z"/><path fill="#6B3122" d="M19 18h1v11h-1zM18 29h2v1h-2z"/></g>
+        <g id="leg4"><path fill="#B8644B" d="M22 18h1v11h-1z"/><path fill="#6B3122" d="M23 18h1v11h-1zM22 29h2v1h-2z"/></g>
+        <g id="torso">
+          <path fill="#DE886D" d="M24 13h1v1h-1zM8 14h16v1h-16zM6 15h18v8h-18zM5 23h1v2h-1z"/>
+          <path fill="#B8644B" d="M24 14h1v9h-1zM6 23h19v2h-19z"/>
+          <path fill="#6B3122" d="M4 12h22v1h-22zM4 13h1v12h-1zM25 13h1v12h-1zM4 25h22v1h-22z"/>
+          <path fill="#F3AC90" d="M5 13h19v1h-19zM5 14h1v9h-1z"/>
+          <path fill="#FFD3C2" d="M6 14h2v1h-2z"/>
+        </g>
+        <g id="arm-l">
+          <path fill="#6B3122" d="M0 15h5v1h-5zM-1 16h1v1h-1zM-1 17h2v1h-2zM1 18h1v2h-1zM-1 20h2v1h-2zM-1 21h1v1h-1zM0 22h5v1h-5z"/>
+          <path fill="#F3AC90" d="M1 16h4v1h-4zM1 20h1v1h-1z"/>
+          <path fill="#B8644B" d="M0 16h1v1h-1zM1 17h1v1h-1zM0 21h5v1h-5z"/>
+          <path fill="#DE886D" d="M2 17h3v4h-3z"/>
+        </g>
+        <g id="arm-r">
+          <path fill="#B8644B" d="M29 16h1v1h-1zM28 17h1v1h-1zM25 21h5v1h-5z"/>
+          <path fill="#6B3122" d="M25 15h5v1h-5zM30 16h1v1h-1zM29 17h2v1h-2zM28 18h1v2h-1zM29 20h2v1h-2zM30 21h1v1h-1zM25 22h5v1h-5z"/>
+          <path fill="#F3AC90" d="M25 16h4v1h-4zM28 20h1v1h-1z"/>
+          <path fill="#DE886D" d="M25 17h3v4h-3z"/>
+        </g>
+        <g id="eyes-open">
+          <path fill="#FFFFFF" d="M8 16h1v1h-1zM20 16h1v1h-1z"/>
+          <path fill="#1B1311" d="M9 16h1v1h-1zM21 16h1v1h-1zM8 17h2v3h-2zM20 17h2v3h-2z"/>
+        </g>
+        <g id="eyes-shut"><path fill="#1B1311" d="M8 19h2v1h-2zM20 19h2v1h-2z"/></g>
+      </defs>
+      <g transform="scale(.5)"><g id="crab-shift">
+        <use href="#shadow"/>
+        <use href="#leg1"/><use href="#leg2"/><use href="#leg3"/><use href="#leg4"/>
+        <g class="idle-breathe">
+          <use href="#torso"/>
+          <use href="#arm-l"/>
+          <use href="#arm-r"/>
+          <g id="crab-eyes">
+            <g class="ey-open"><use href="#eyes-open"/></g>
+            <g class="ey-shut"><use href="#eyes-shut"/></g>
+          </g>
+        </g>
+      </g></g>
+    </svg>
+    <!-- Per-state animated SVG overlay (thinking/typing/building/happy/etc.).
+         Driven by renderer.js from daemon commands. Hidden while idle. -->
+    <img id="crab-anim" class="crab-layer" alt="" hidden>
+  </div>
+  <!-- Interactive hit area over the crab body: drag + click-through boundary. -->
+  <div id="crab-hit" title="Clawdy"></div>
+</div>
+
+<script src="renderer.js"></script>
+</body>
+</html>

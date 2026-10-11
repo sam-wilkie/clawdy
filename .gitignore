@@ -74,3 +74,9 @@ docs/claude_hooks_integration_plan.md
 docs/hooks_reference.md
 assets/svg-animations/prompts/
 local/
+
+# Marketing site prototype (kept local, not part of the repo)
+website/
+
+# Electron desktop pet dependencies
+desktop/node_modules/

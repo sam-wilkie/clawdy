@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500">
+  <!-- Clawd v2 (web) notification / idea — 3 s loop.
+       Motion reference: clawd-on-desk notification. The left pincer raises, a dim bulb pops
+       up above it, it lights up with rays, the eyes turn into happy ^ ^, the crab leans
+       back a little and taps a foot, then everything resets. v2 look. Website only. -->
+  <defs>
+    <style>
+      .lean   { transform-box: fill-box; transform-origin: 50% 100%; animation: lean 3s ease-in-out infinite; }
+      .arm-l  { animation: arm-l 3s ease-in-out infinite; }
+      .bulb   { transform-box: fill-box; transform-origin: 50% 100%; animation: bulb 3s ease-out infinite; }
+      .lit    { animation: lit 3s steps(1) infinite; }
+      .rays   { transform-box: fill-box; transform-origin: 50% 50%; animation: rays 3s ease-out infinite; }
+      .ey-open  { animation: ey-open 3s steps(1) infinite; }
+      .ey-happy { animation: ey-happy 3s steps(1) infinite; }
+      .tap    { transform-box: fill-box; transform-origin: 50% 0%; animation: tap 0.5s ease-in-out infinite; }
+
+      @keyframes lean {
+        0%, 50%  { transform: rotate(0deg); }
+        58%, 90% { transform: rotate(3deg); }
+        100%     { transform: rotate(0deg); }
+      }
+      @keyframes arm-l {
+        0%, 10%  { transform: translate(0, 0); }
+        22%, 90% { transform: translate(3px, -6px); }
+        100%     { transform: translate(0, 0); }
+      }
+      @keyframes bulb {
+        0%, 20%  { transform: translateY(4px) scale(0.2); opacity: 0; }
+        30%      { transform: translateY(-1px) scale(1.1); opacity: 1; }
+        36%, 90% { transform: translateY(0) scale(1); opacity: 1; }
+        100%     { transform: translateY(0) scale(1); opacity: 0; }
+      }
+      @keyframes lit { 0% { opacity: 0; } 48% { opacity: 1; } 92% { opacity: 0; } }
+      @keyframes rays {
+        0%, 70%  { transform: scale(0.6); opacity: 0; }
+        74%      { transform: scale(1.1); opacity: 1; }
+        84%      { transform: scale(1.3); opacity: 0; }
+        100%     { transform: scale(0.6); opacity: 0; }
+      }
+      @keyframes ey-open  { 0% { opacity: 1; } 52% { opacity: 0; } 92% { opacity: 1; } }
+      @keyframes ey-happy { 0% { opacity: 0; } 52% { opacity: 1; } 92% { opacity: 0; } }
+      @keyframes tap {
+        0%, 100% { transform: rotate(0deg); }
+        50%      { transform: rotate(18deg); }
+      }
+    </style>
+
+    <!-- ===== v2 rig ===== -->
+    <g id="leg1"><path fill="#B8644B" d="M6 18h1v11h-1z"/><path fill="#6B3122" d="M7 18h1v11h-1zM6 29h2v1h-2z"/></g>
+    <g id="leg2"><path fill="#B8644B" d="M10 18h1v11h-1z"/><path fill="#6B3122" d="M11 18h1v11h-1zM10 29h2v1h-2z"/></g>
+    <g id="leg3"><path fill="#B8644B" d="M18 18h1v11h-1z"/><path fill="#6B3122" d="M19 18h1v11h-1zM18 29h2v1h-2z"/></g>
+    <g id="leg4"><path fill="#B8644B" d="M22 18h1v11h-1z"/><path fill="#6B3122" d="M23 18h1v11h-1zM22 29h2v1h-2z"/></g>
+    <g id="torso">
+      <path fill="#DE886D" d="M24 13h1v1h-1zM8 14h16v1h-16zM6 15h18v8h-18zM5 23h1v2h-1z"/>
+      <path fill="#B8644B" d="M24 14h1v9h-1zM6 23h19v2h-19z"/>
+      <path fill="#6B3122" d="M4 12h22v1h-22zM4 13h1v12h-1zM25 13h1v12h-1zM4 25h22v1h-22z"/>
+      <path fill="#F3AC90" d="M5 13h19v1h-19zM5 14h1v9h-1z"/>
+      <path fill="#FFD3C2" d="M6 14h2v1h-2z"/>
+    </g>
+    <g id="arm-l-free">
+      <path fill="#6B3122" d="M0 15h5v1h-5zM-1 16h1v1h-1zM4 16h1v6h-1zM-1 17h2v1h-2zM1 18h1v2h-1zM-1 20h2v1h-2zM-1 21h1v1h-1zM0 22h5v1h-5z"/>
+      <path fill="#F3AC90" d="M1 16h3v1h-3zM1 20h1v1h-1z"/>
+      <path fill="#DE886D" d="M2 17h2v4h-2z"/>
+      <path fill="#B8644B" d="M0 16h1v1h-1zM1 17h1v1h-1zM0 21h4v1h-4z"/>
+    </g>
+    <g id="arm-r">
+      <path fill="#B8644B" d="M29 16h1v1h-1zM28 17h1v1h-1zM25 21h5v1h-5z"/>
+      <path fill="#6B3122" d="M25 15h5v1h-5zM30 16h1v1h-1zM29 17h2v1h-2zM28 18h1v2h-1zM29 20h2v1h-2zM30 21h1v1h-1zM25 22h5v1h-5z"/>
+      <path fill="#F3AC90" d="M25 16h4v1h-4zM28 20h1v1h-1z"/>
+      <path fill="#DE886D" d="M25 17h3v4h-3z"/>
+    </g>
+    <g id="eyes-open">
+      <path fill="#FFFFFF" d="M8 16h1v1h-1zM20 16h1v1h-1z"/>
+      <path fill="#1B1311" d="M9 16h1v1h-1zM21 16h1v1h-1zM8 17h2v3h-2zM20 17h2v3h-2z"/>
+    </g>
+    <!-- happy ^ ^ eyes -->
+    <g id="eyes-happy" fill="#1B1311">
+      <path d="M8 17h2v1h-2zM7 18h1v1h-1zM10 18h1v1h-1z"/>
+      <path d="M20 17h2v1h-2zM19 18h1v1h-1zM22 18h1v1h-1z"/>
+    </g>
+
+    <!-- ===== light bulb (9x12), dim + lit variants ===== -->
+    <g id="bulb-dim">
+      <path fill="#5C4A1E" d="M3 0h3v1h-3zM1 1h2v1h-2zM6 1h2v1h-2zM0 2h1v4h-1zM8 2h1v4h-1zM1 6h1v2h-1zM7 6h1v2h-1zM2 8h5v1h-5z"/>
+      <path fill="#8A7334" d="M3 1h3v1h-3zM1 2h7v4h-7zM2 6h5v2h-5z"/>
+      <path fill="#A69050" d="M2 2h2v2h-2z"/>
+      <path fill="#6B737D" d="M2 9h5v1h-5zM3 11h3v1h-3z"/>
+      <path fill="#A9B2BC" d="M2 10h5v1h-5z"/>
+    </g>
+    <g id="bulb-lit">
+      <path fill="#C98918" d="M3 0h3v1h-3zM1 1h2v1h-2zM6 1h2v1h-2zM0 2h1v4h-1zM8 2h1v4h-1zM1 6h1v2h-1zM7 6h1v2h-1zM2 8h5v1h-5z"/>
+      <path fill="#FFD84D" d="M3 1h3v1h-3zM1 2h7v4h-7zM2 6h5v2h-5z"/>
+      <path fill="#FFF6C2" d="M2 2h2v2h-2z"/>
+      <path fill="#C98918" d="M4 4h1v3h-1z"/>
+      <path fill="#6B737D" d="M2 9h5v1h-5zM3 11h3v1h-3z"/>
+      <path fill="#DCE2E8" d="M2 10h5v1h-5z"/>
+    </g>
+    <g id="rays" fill="#FFFFFF">
+      <path d="M4 -4h1v2h-1zM-3 3h2v1h-2zM10 3h2v1h-2zM-2 -2h1v1h-1zM10 -2h1v1h-1z"/>
+    </g>
+  </defs>
+
+  <g transform="scale(.5)">
+    <path fill="#000000" fill-opacity="0.3" d="M3 30h24v1h-24z"/>
+    <path fill="#000000" fill-opacity="0.15" d="M6 31h18v1h-18z"/>
+    <use href="#leg1"/>
+    <use href="#leg2"/>
+    <use href="#leg3"/>
+    <g class="tap"><use href="#leg4"/></g>
+    <g class="lean">
+      <use href="#torso"/>
+      <use href="#arm-r"/>
+      <g class="ey-open"><use href="#eyes-open"/></g>
+      <g class="ey-happy"><use href="#eyes-happy"/></g>
+      <g class="arm-l">
+        <use href="#arm-l-free"/>
+        <g transform="translate(-3 2)">
+          <g class="bulb">
+            <use href="#bulb-dim"/>
+            <g class="lit"><use href="#bulb-lit"/></g>
+            <g class="rays"><use href="#rays"/></g>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

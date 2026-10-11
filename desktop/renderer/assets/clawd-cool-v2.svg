@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500">
+  <!-- Clawd v2 (web) "deal with it" — 5 s loop, eased.
+       Sequence (motion reference: clawd-on-desk shades): the right pincer raises, the shades
+       pop in small above it, fly onto the face growing to full size, the pincer comes down,
+       the crab tilts into a cool pose with pincers out, a sparkle flashes, it holds, then the
+       shades fade and the loop restarts. v2 look: outline, light/shade, palette. Website only. -->
+  <defs>
+    <style>
+      .tilt   { transform-box: fill-box; transform-origin: 50% 100%; animation: tilt 5s ease-in-out infinite; }
+      .arm-r  { transform-box: fill-box; transform-origin: 0% 50%;   animation: arm-r 5s ease-in-out infinite; }
+      .arm-l  { transform-box: fill-box; transform-origin: 100% 50%; animation: arm-l 5s ease-in-out infinite; }
+      .shades { transform-box: fill-box; transform-origin: 50% 50%;  animation: shades 5s ease-in-out infinite; }
+      .spark  { transform-box: fill-box; transform-origin: 50% 50%;  animation: spark 5s ease-out infinite; }
+
+      @keyframes tilt {
+        0%, 42%  { transform: rotate(0deg); }
+        46%      { transform: rotate(2deg); }
+        50%      { transform: rotate(-2deg); }
+        54%      { transform: rotate(0deg); }
+        60%, 88% { transform: rotate(2deg); }
+        96%, 100%{ transform: rotate(0deg); }
+      }
+      /* right pincer: rest -> raised (summons the shades) -> back -> cool pose out */
+      @keyframes arm-r {
+        0%, 8%   { transform: translate(0, 0) rotate(0deg); }
+        14%, 30% { transform: translate(-1px, -6px) rotate(-80deg); }
+        40%, 54% { transform: translate(0, 0) rotate(0deg); }
+        60%, 88% { transform: translate(1px, 1px) rotate(0deg); }
+        96%, 100%{ transform: translate(0, 0) rotate(0deg); }
+      }
+      @keyframes arm-l {
+        0%, 54%  { transform: translate(0, 0) rotate(0deg); }
+        60%, 88% { transform: translate(-1px, 1px) rotate(0deg); }
+        96%, 100%{ transform: translate(0, 0) rotate(0deg); }
+      }
+      /* shades: hidden -> pop in small over the raised pincer -> fly to the face -> hold -> fade */
+      @keyframes shades {
+        0%, 16%  { transform: translate(11px, -9px) scale(0.3); opacity: 0; }
+        22%, 30% { transform: translate(11px, -9px) scale(0.4); opacity: 1; }
+        42%      { transform: translate(0, 1px) scale(1.05); opacity: 1; }
+        46%, 88% { transform: translate(0, 0) scale(1); opacity: 1; }
+        96%, 100%{ transform: translate(0, -3px) scale(1); opacity: 0; }
+      }
+      @keyframes spark {
+        0%, 55%  { transform: scale(0.4); opacity: 0; }
+        59%      { transform: scale(1.3); opacity: 1; }
+        64%      { transform: scale(0.9); opacity: 0.8; }
+        70%, 100%{ transform: scale(0.4); opacity: 0; }
+      }
+    </style>
+
+    <!-- ===== v2 rig ===== -->
+    <g id="leg1"><path fill="#B8644B" d="M6 18h1v11h-1z"/><path fill="#6B3122" d="M7 18h1v11h-1zM6 29h2v1h-2z"/></g>
+    <g id="leg2"><path fill="#B8644B" d="M10 18h1v11h-1z"/><path fill="#6B3122" d="M11 18h1v11h-1zM10 29h2v1h-2z"/></g>
+    <g id="leg3"><path fill="#B8644B" d="M18 18h1v11h-1z"/><path fill="#6B3122" d="M19 18h1v11h-1zM18 29h2v1h-2z"/></g>
+    <g id="leg4"><path fill="#B8644B" d="M22 18h1v11h-1z"/><path fill="#6B3122" d="M23 18h1v11h-1zM22 29h2v1h-2z"/></g>
+    <g id="torso">
+      <path fill="#DE886D" d="M24 13h1v1h-1zM8 14h16v1h-16zM6 15h18v8h-18zM5 23h1v2h-1z"/>
+      <path fill="#B8644B" d="M24 14h1v9h-1zM6 23h19v2h-19z"/>
+      <path fill="#6B3122" d="M4 12h22v1h-22zM4 13h1v12h-1zM25 13h1v12h-1zM4 25h22v1h-22z"/>
+      <path fill="#F3AC90" d="M5 13h19v1h-19zM5 14h1v9h-1z"/>
+      <path fill="#FFD3C2" d="M6 14h2v1h-2z"/>
+    </g>
+    <g id="arm-l">
+      <path fill="#6B3122" d="M0 15h5v1h-5zM-1 16h1v1h-1zM-1 17h2v1h-2zM1 18h1v2h-1zM-1 20h2v1h-2zM-1 21h1v1h-1zM0 22h5v1h-5z"/>
+      <path fill="#F3AC90" d="M1 16h4v1h-4zM1 20h1v1h-1z"/>
+      <path fill="#B8644B" d="M0 16h1v1h-1zM1 17h1v1h-1zM0 21h5v1h-5z"/>
+      <path fill="#DE886D" d="M2 17h3v4h-3z"/>
+    </g>
+    <g id="arm-r">
+      <path fill="#B8644B" d="M29 16h1v1h-1zM28 17h1v1h-1zM25 21h5v1h-5z"/>
+      <path fill="#6B3122" d="M25 15h5v1h-5zM30 16h1v1h-1zM29 17h2v1h-2zM28 18h1v2h-1zM29 20h2v1h-2zM30 21h1v1h-1zM25 22h5v1h-5z"/>
+      <path fill="#F3AC90" d="M25 16h4v1h-4zM28 20h1v1h-1z"/>
+      <path fill="#DE886D" d="M25 17h3v4h-3z"/>
+    </g>
+    <g id="eyes-open">
+      <path fill="#FFFFFF" d="M8 16h1v1h-1zM20 16h1v1h-1z"/>
+      <path fill="#1B1311" d="M9 16h1v1h-1zM21 16h1v1h-1zM8 17h2v3h-2zM20 17h2v3h-2z"/>
+    </g>
+
+    <!-- ===== deal-with-it shades (shape from the reference, sized to the v2 face) =====
+         Continuous brow row 15 (cols 5-25); each lens steps in going down: 9 -> 7 -> 5 wide. -->
+    <g id="shades">
+      <path fill="#1B1311" d="M5 15h21v1h-21z"/>
+      <path fill="#1B1311" d="M5 16h9v2h-9zM6 18h7v1h-7zM7 19h5v1h-5z"/>
+      <path fill="#1B1311" d="M17 16h9v2h-9zM18 18h7v1h-7zM19 19h5v1h-5z"/>
+      <path fill="#FFFFFF" d="M10 16h1v1h-1zM9 17h1v1h-1zM22 16h1v1h-1zM21 17h1v1h-1z"/>
+    </g>
+    <!-- 4-point sparkle -->
+    <g id="spark" fill="#FFFFFF">
+      <path d="M2 0h1v5h-1zM0 2h5v1h-5z"/>
+    </g>
+  </defs>
+
+  <g transform="scale(.5)">
+    <path fill="#000000" fill-opacity="0.3" d="M3 30h24v1h-24z"/>
+    <path fill="#000000" fill-opacity="0.15" d="M6 31h18v1h-18z"/>
+    <use href="#leg1"/>
+    <use href="#leg2"/>
+    <use href="#leg3"/>
+    <use href="#leg4"/>
+    <g class="tilt">
+      <use href="#torso"/>
+      <use href="#eyes-open"/>
+      <g class="shades"><use href="#shades"/></g>
+      <g class="arm-l"><use href="#arm-l"/></g>
+      <g class="arm-r"><use href="#arm-r"/></g>
+      <g transform="translate(1 8)"><g class="spark"><use href="#spark"/></g></g>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500">
+  <!-- Clawd v2 (web) error — 2.4 s loop.
+       Motion reference: clawd-on-desk error. The crab has collapsed flat (legs folded under),
+       X eyes, pincers limp on the floor, a slow defeated breath, grey smoke puffs rise and
+       fade from the head, and a red ERROR label blinks above. v2 look. Website only. -->
+  <defs>
+    <style>
+      .breath { transform-box: fill-box; transform-origin: 50% 100%; animation: breath 2.4s ease-in-out infinite; }
+      .twitch { transform-box: fill-box; transform-origin: 0% 50%; animation: twitch 2.4s ease-in-out infinite; }
+      .puff   { animation: puff 2.4s ease-out infinite; }
+      .p2 { animation-delay: -0.8s; }
+      .p3 { animation-delay: -1.6s; }
+      .label  { animation: blink 1.2s steps(1) infinite; }
+
+      @keyframes breath {
+        0%, 100% { transform: scaleY(1); }
+        50%      { transform: scaleY(0.94); }
+      }
+      @keyframes twitch {
+        0%, 70%, 100% { transform: rotate(0deg); }
+        76% { transform: rotate(-14deg); }
+        82% { transform: rotate(0deg); }
+      }
+      @keyframes puff {
+        0%   { transform: translate(0, 0) scale(0.6); opacity: 0; }
+        15%  { transform: translate(0, -2px) scale(0.8); opacity: 0.9; }
+        100% { transform: translate(2px, -14px) scale(1.4); opacity: 0; }
+      }
+      @keyframes blink {
+        0%  { opacity: 1; }
+        50% { opacity: 0.35; }
+      }
+    </style>
+
+    <!-- ===== v2 parts, lowered: the torso sits 5 art px lower (legs folded under) ===== -->
+    <g id="torso">
+      <path fill="#DE886D" d="M24 13h1v1h-1zM8 14h16v1h-16zM6 15h18v8h-18zM5 23h1v2h-1z"/>
+      <path fill="#B8644B" d="M24 14h1v9h-1zM6 23h19v2h-19z"/>
+      <path fill="#6B3122" d="M4 12h22v1h-22zM4 13h1v12h-1zM25 13h1v12h-1zM4 25h22v1h-22z"/>
+      <path fill="#F3AC90" d="M5 13h19v1h-19zM5 14h1v9h-1z"/>
+      <path fill="#FFD3C2" d="M6 14h2v1h-2z"/>
+    </g>
+    <!-- limp pincers: the normal v2 pincers, dropped to rest on the floor -->
+    <g id="arm-l-limp" transform="translate(0 7)">
+      <path fill="#6B3122" d="M0 15h5v1h-5zM-1 16h1v1h-1zM-1 17h2v1h-2zM1 18h1v2h-1zM-1 20h2v1h-2zM-1 21h1v1h-1zM0 22h5v1h-5z"/>
+      <path fill="#F3AC90" d="M1 16h4v1h-4zM1 20h1v1h-1z"/>
+      <path fill="#B8644B" d="M0 16h1v1h-1zM1 17h1v1h-1zM0 21h5v1h-5z"/>
+      <path fill="#DE886D" d="M2 17h3v4h-3z"/>
+    </g>
+    <g id="arm-r-limp" transform="translate(0 7)">
+      <path fill="#B8644B" d="M29 16h1v1h-1zM28 17h1v1h-1zM25 21h5v1h-5z"/>
+      <path fill="#6B3122" d="M25 15h5v1h-5zM30 16h1v1h-1zM29 17h2v1h-2zM28 18h1v2h-1zM29 20h2v1h-2zM30 21h1v1h-1zM25 22h5v1h-5z"/>
+      <path fill="#F3AC90" d="M25 16h4v1h-4zM28 20h1v1h-1z"/>
+      <path fill="#DE886D" d="M25 17h3v4h-3z"/>
+    </g>
+    <!-- X eyes, 4x4 -->
+    <g id="eyes-x" fill="#1B1311">
+      <path d="M7 16h1v1h-1zM10 16h1v1h-1zM8 17h2v2h-2zM7 19h1v1h-1zM10 19h1v1h-1z"/>
+      <path d="M19 16h1v1h-1zM22 16h1v1h-1zM20 17h2v2h-2zM19 19h1v1h-1zM22 19h1v1h-1z"/>
+    </g>
+    <!-- sad flat mouth -->
+    <g id="mouth"><path fill="#6B3122" d="M13 21h4v1h-4z"/></g>
+    <!-- smoke puff: 3x3 grey blob -->
+    <g id="smoke">
+      <path fill="#C9C4BD" d="M1 0h2v1h-2zM0 1h4v2h-4zM1 3h2v1h-2z"/>
+      <path fill="#E6E2DC" d="M1 1h2v1h-2z"/>
+    </g>
+  </defs>
+
+  <g transform="scale(.5)">
+    <path fill="#000000" fill-opacity="0.3" d="M-2 30h34v1h-34z"/>
+    <path fill="#000000" fill-opacity="0.15" d="M2 31h26v1h-26z"/>
+    <use href="#arm-l-limp"/>
+    <g class="twitch" transform="translate(0 0)"><use href="#arm-r-limp"/></g>
+    <g class="breath">
+      <g transform="translate(0 5)">
+        <use href="#torso"/>
+        <use href="#eyes-x"/>
+        <use href="#mouth"/>
+      </g>
+    </g>
+    <g transform="translate(13 12)">
+      <g class="puff"><use href="#smoke"/></g>
+      <g class="puff p2"><use href="#smoke"/></g>
+      <g class="puff p3"><use href="#smoke"/></g>
+    </g>
+    <text class="label" x="15" y="8" text-anchor="middle"
+          font-family="ui-monospace, Consolas, monospace" font-weight="700" font-size="5"
+          fill="#E25A35" letter-spacing="0.4">ERROR</text>
+  </g>
+</svg>

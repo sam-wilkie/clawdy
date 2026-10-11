@@ -1,0 +1,59 @@
+/* Transparent window: NO background anywhere, so only the crab paints. */
+:root {
+  --coral-hi: #f3ac90;
+  --crab: 180px; /* crab box size inside the 320x320 window */
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  background: transparent;      /* real alpha transparency (Electron) */
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+/* Crab centered in the window. */
+#crab {
+  position: absolute;
+  width: var(--crab);
+  height: var(--crab);
+  left: calc(50% - var(--crab) / 2);
+  top: calc(50% - var(--crab) / 2);
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+#crab-art {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 89%;
+  transition: transform .12s steps(3);
+}
+#crab[data-held="true"] #crab-art { transform: rotate(-5deg) translateY(-3%); }
+
+.crab-layer {
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  image-rendering: pixelated;   /* crisp pixel art */
+  max-width: none;
+}
+img.crab-layer[hidden] { display: none; }
+/* While a non-idle state plays, hide the inline idle crab so only the overlay shows. */
+#crab:not([data-state="idle"]) #crab-idle { visibility: hidden; }
+
+/* Interactive body: this is the ONLY area that captures the mouse. Everything
+   else in the window is click-through (main.js setIgnoreMouseEvents). */
+#crab-hit {
+  position: absolute;
+  left: 28%; top: 40%;
+  width: 44%; height: 45%;
+  cursor: grab;
+}
+#crab[data-held="true"] #crab-hit { cursor: grabbing; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

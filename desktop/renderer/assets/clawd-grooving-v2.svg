@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500">
+  <!-- Clawd v2 (web) grooving — 1 subagent. 1.6 s loop, eased.
+       v2 look (outline, light/shade, palette, pincers) with fluid web motion: the body
+       sways side to side from the feet, the outer legs kick on each beat, pincers dance,
+       the ear cups squeeze on the beat, happy v-eyes with blush, notes float up.
+       Motion reference: clawd-on-desk headphones groove. Website only (not the ESP32). -->
+  <defs>
+    <style>
+      .sway   { transform-box: fill-box; transform-origin: 50% 100%; animation: sway 1.6s ease-in-out infinite; }
+      .shadow { transform-box: fill-box; transform-origin: 50% 50%;  animation: shadow 1.6s ease-in-out infinite; }
+      .leg-lo { transform-box: fill-box; transform-origin: 50% 0%;   animation: leg-lo 1.6s ease-in-out infinite; }
+      .leg-li { transform-box: fill-box; transform-origin: 50% 0%;   animation: leg-li 1.6s ease-in-out infinite; }
+      .leg-ri { transform-box: fill-box; transform-origin: 50% 0%;   animation: leg-ri 1.6s ease-in-out infinite; }
+      .leg-ro { transform-box: fill-box; transform-origin: 50% 0%;   animation: leg-ro 1.6s ease-in-out infinite; }
+      .arm-l  { transform-box: fill-box; transform-origin: 100% 50%; animation: arm-l 1.6s ease-in-out infinite; }
+      .arm-r  { transform-box: fill-box; transform-origin: 0% 50%;   animation: arm-r 1.6s ease-in-out infinite; }
+      .cup-l  { transform-box: fill-box; transform-origin: 100% 50%; animation: cup 1.6s ease-in-out infinite; }
+      .cup-r  { transform-box: fill-box; transform-origin: 0% 50%;   animation: cup 1.6s ease-in-out infinite; }
+      .note-l { animation: note-l 1.6s ease-out infinite; }
+      .note-r { animation: note-r 1.6s ease-out infinite; }
+
+      @keyframes sway {
+        0%, 100% { transform: rotate(0deg) translateY(0); }
+        22%, 30% { transform: rotate(-6deg) translateY(0.6px); }
+        50%      { transform: rotate(0deg) translateY(-0.4px); }
+        70%, 78% { transform: rotate(6deg) translateY(0.6px); }
+      }
+      @keyframes shadow {
+        0%, 50%, 100% { transform: translateX(0) scaleX(1); }
+        22%, 30%      { transform: translateX(-1px) scaleX(0.85); }
+        70%, 78%      { transform: translateX(1px) scaleX(0.85); }
+      }
+      @keyframes leg-ro { 0%, 100% { transform: rotate(0); } 22%, 30% { transform: rotate(-22deg); } 50%, 70%, 78% { transform: rotate(0); } }
+      @keyframes leg-ri { 0%, 100% { transform: rotate(0); } 22%, 30% { transform: rotate(-12deg); } 50%, 70%, 78% { transform: rotate(0); } }
+      @keyframes leg-li { 0%, 22%, 30%, 50%, 100% { transform: rotate(0); } 70%, 78% { transform: rotate(12deg); } }
+      @keyframes leg-lo { 0%, 22%, 30%, 50%, 100% { transform: rotate(0); } 70%, 78% { transform: rotate(22deg); } }
+      @keyframes arm-l {
+        0%, 100% { transform: rotate(0deg); }
+        22%, 30% { transform: rotate(-30deg); }
+        50%      { transform: rotate(0deg); }
+        70%, 78% { transform: rotate(20deg); }
+      }
+      @keyframes arm-r {
+        0%, 100% { transform: rotate(0deg); }
+        22%, 30% { transform: rotate(-20deg); }
+        50%      { transform: rotate(0deg); }
+        70%, 78% { transform: rotate(30deg); }
+      }
+      @keyframes cup {
+        0%, 100% { transform: scaleX(1); }
+        22%, 30% { transform: scaleX(0.82); }
+        50%      { transform: scaleX(1.04); }
+        70%, 78% { transform: scaleX(0.82); }
+      }
+      @keyframes note-l {
+        0%, 14%, 42%, 100% { opacity: 0; transform: translate(0, 0); }
+        22%                { opacity: 1; transform: translate(-1px, -3px); }
+        38%                { opacity: 0; transform: translate(-4px, -9px); }
+      }
+      @keyframes note-r {
+        0%, 62%, 90%, 100% { opacity: 0; transform: translate(0, 0); }
+        70%                { opacity: 1; transform: translate(1px, -3px); }
+        86%                { opacity: 0; transform: translate(4px, -9px); }
+      }
+    </style>
+
+    <!-- ===== v2 rig ===== -->
+    <g id="leg1"><path fill="#B8644B" d="M6 18h1v11h-1z"/><path fill="#6B3122" d="M7 18h1v11h-1zM6 29h2v1h-2z"/></g>
+    <g id="leg2"><path fill="#B8644B" d="M10 18h1v11h-1z"/><path fill="#6B3122" d="M11 18h1v11h-1zM10 29h2v1h-2z"/></g>
+    <g id="leg3"><path fill="#B8644B" d="M18 18h1v11h-1z"/><path fill="#6B3122" d="M19 18h1v11h-1zM18 29h2v1h-2z"/></g>
+    <g id="leg4"><path fill="#B8644B" d="M22 18h1v11h-1z"/><path fill="#6B3122" d="M23 18h1v11h-1zM22 29h2v1h-2z"/></g>
+    <g id="torso">
+      <path fill="#DE886D" d="M24 13h1v1h-1zM8 14h16v1h-16zM6 15h18v8h-18zM5 23h1v2h-1z"/>
+      <path fill="#B8644B" d="M24 14h1v9h-1zM6 23h19v2h-19z"/>
+      <path fill="#6B3122" d="M4 12h22v1h-22zM4 13h1v12h-1zM25 13h1v12h-1zM4 25h22v1h-22z"/>
+      <path fill="#F3AC90" d="M5 13h19v1h-19zM5 14h1v9h-1z"/>
+      <path fill="#FFD3C2" d="M6 14h2v1h-2z"/>
+    </g>
+    <g id="arm-l">
+      <path fill="#6B3122" d="M0 15h5v1h-5zM-1 16h1v1h-1zM-1 17h2v1h-2zM1 18h1v2h-1zM-1 20h2v1h-2zM-1 21h1v1h-1zM0 22h5v1h-5z"/>
+      <path fill="#F3AC90" d="M1 16h4v1h-4zM1 20h1v1h-1z"/>
+      <path fill="#B8644B" d="M0 16h1v1h-1zM1 17h1v1h-1zM0 21h5v1h-5z"/>
+      <path fill="#DE886D" d="M2 17h3v4h-3z"/>
+    </g>
+    <g id="arm-r">
+      <path fill="#B8644B" d="M29 16h1v1h-1zM28 17h1v1h-1zM25 21h5v1h-5z"/>
+      <path fill="#6B3122" d="M25 15h5v1h-5zM30 16h1v1h-1zM29 17h2v1h-2zM28 18h1v2h-1zM29 20h2v1h-2zM30 21h1v1h-1zM25 22h5v1h-5z"/>
+      <path fill="#F3AC90" d="M25 16h4v1h-4zM28 20h1v1h-1z"/>
+      <path fill="#DE886D" d="M25 17h3v4h-3z"/>
+    </g>
+    <!-- happy v eyes -->
+    <g id="eyes-happy" fill="#1B1311">
+      <path d="M7 16h1v1h-1zM10 16h1v1h-1zM8 17h2v1h-2z"/>
+      <path d="M19 16h1v1h-1zM22 16h1v1h-1zM20 17h2v1h-2z"/>
+    </g>
+    <g id="blush">
+      <path fill="#EA7C7E" d="M6 19h4v2h-4zM20 19h4v2h-4z"/>
+      <path fill="#F7A3A1" d="M7 19h2v1h-2zM21 19h2v1h-2z"/>
+    </g>
+
+    <!-- ===== headphones ===== -->
+    <!-- band: a 2-row arc over the head, light top row + dark inner row -->
+    <g id="band">
+      <path fill="#2E7AA8" d="M10 6h10v1h-10zM8 7h2v1h-2zM20 7h2v1h-2zM6 8h2v1h-2zM22 8h2v1h-2zM5 9h1v1h-1zM24 9h1v1h-1zM4 10h1v1h-1zM25 10h1v1h-1z"/>
+      <path fill="#1D5C83" d="M10 7h10v1h-10zM8 8h2v1h-2zM20 8h2v1h-2zM6 9h2v1h-2zM22 9h2v1h-2zM5 10h1v1h-1zM24 10h1v1h-1z"/>
+    </g>
+    <!-- ear cups: three layers, darker outside, sitting on the head sides -->
+    <g id="cup-l">
+      <path fill="#1D5C83" d="M2 13h1v5h-1z"/>
+      <path fill="#256891" d="M3 12h1v7h-1z"/>
+      <path fill="#2E7AA8" d="M4 11h2v9h-2z"/>
+      <path fill="#7FB6DC" d="M5 12h1v2h-1z"/>
+    </g>
+    <g id="cup-r">
+      <path fill="#1D5C83" d="M27 13h1v5h-1z"/>
+      <path fill="#256891" d="M26 12h1v7h-1z"/>
+      <path fill="#2E7AA8" d="M24 11h2v9h-2z"/>
+      <path fill="#7FB6DC" d="M24 12h1v2h-1z"/>
+    </g>
+    <!-- eighth note -->
+    <g id="note">
+      <path fill="#FFD84D" d="M2 0h1v5h-1zM3 0h2v1h-2zM4 1h1v1h-1zM0 4h2v2h-2zM2 5h1v1h-1z"/>
+      <path fill="#C98918" d="M0 6h3v1h-3z"/>
+    </g>
+  </defs>
+
+  <g transform="scale(.5)">
+    <path class="shadow" fill="#000000" fill-opacity="0.3" d="M3 30h24v1h-24z"/>
+    <g class="leg-lo"><use href="#leg1"/></g>
+    <g class="leg-li"><use href="#leg2"/></g>
+    <g class="leg-ri"><use href="#leg3"/></g>
+    <g class="leg-ro"><use href="#leg4"/></g>
+    <g class="sway">
+      <use href="#torso"/>
+      <use href="#blush"/>
+      <use href="#eyes-happy"/>
+      <use href="#band"/>
+      <g class="arm-l"><use href="#arm-l"/></g>
+      <g class="arm-r"><use href="#arm-r"/></g>
+      <g class="cup-l"><use href="#cup-l"/></g>
+      <g class="cup-r"><use href="#cup-r"/></g>
+    </g>
+    <g transform="translate(-8 6)"><g class="note-l"><use href="#note"/></g></g>
+    <g transform="translate(33 6)"><g class="note-r"><use href="#note"/></g></g>
+  </g>
+</svg>

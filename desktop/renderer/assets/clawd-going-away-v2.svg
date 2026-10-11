@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500">
+  <!-- Clawd v2 (web) going_away — session ends. 3.2 s loop.
+       Motion reference: v1 clawd-going-away. The crab looks left and right, a hole opens
+       under it, it sinks into the ground while dirt bits fly out, then the hole closes to a
+       line and the loop restarts. v2 look. Website only. -->
+  <defs>
+    <style>
+      .sink  { animation: sink 3.2s ease-in infinite; }
+      .look  { animation: look 3.2s steps(1) infinite; }
+      .hole  { transform-box: fill-box; transform-origin: 50% 50%; animation: hole 3.2s ease-in-out infinite; }
+      .shadow { animation: shadow 3.2s linear infinite; }
+      .dirt  { animation: dirt 3.2s ease-out infinite; }
+      .d2 { animation-name: dirt2; } .d3 { animation-name: dirt3; } .d4 { animation-name: dirt4; }
+
+      @keyframes sink {
+        0%, 32%  { transform: translateY(0); opacity: 1; }
+        40%      { transform: translateY(-2px); opacity: 1; }
+        66%      { transform: translateY(24px); opacity: 1; }
+        67%, 99% { transform: translateY(24px); opacity: 0; }
+        100%     { transform: translateY(0); opacity: 0; }
+      }
+      @keyframes look {
+        0%  { transform: translateX(0); }
+        10% { transform: translateX(-1px); }
+        20% { transform: translateX(1px); }
+        30% { transform: translateX(0); }
+      }
+      @keyframes hole {
+        0%, 26%  { transform: scaleX(0); opacity: 0; }
+        34%, 70% { transform: scaleX(1); opacity: 1; }
+        84%      { transform: scaleX(0.3); opacity: 1; }
+        92%, 100%{ transform: scaleX(0); opacity: 0; }
+      }
+      @keyframes shadow { 0%, 30% { opacity: 1; } 36%, 100% { opacity: 0; } }
+      @keyframes dirt  { 0%, 40% { transform: translate(0, 0); opacity: 0; } 44% { opacity: 1; } 60% { transform: translate(-7px, -10px); opacity: 1; } 70%, 100% { transform: translate(-9px, -4px); opacity: 0; } }
+      @keyframes dirt2 { 0%, 44% { transform: translate(0, 0); opacity: 0; } 48% { opacity: 1; } 62% { transform: translate(6px, -12px); opacity: 1; } 72%, 100% { transform: translate(9px, -5px); opacity: 0; } }
+      @keyframes dirt3 { 0%, 48% { transform: translate(0, 0); opacity: 0; } 52% { opacity: 1; } 64% { transform: translate(-3px, -14px); opacity: 1; } 74%, 100% { transform: translate(-4px, -8px); opacity: 0; } }
+      @keyframes dirt4 { 0%, 52% { transform: translate(0, 0); opacity: 0; } 56% { opacity: 1; } 66% { transform: translate(3px, -9px); opacity: 1; } 76%, 100% { transform: translate(5px, -3px); opacity: 0; } }
+    </style>
+
+    <!-- everything below the ground line (art y 30) is hidden: the crab sinks out of view -->
+    <clipPath id="above-ground" clipPathUnits="userSpaceOnUse">
+      <rect x="-40" y="-60" width="120" height="90"/>
+    </clipPath>
+
+    <!-- ===== v2 rig ===== -->
+    <g id="leg1"><path fill="#B8644B" d="M6 18h1v11h-1z"/><path fill="#6B3122" d="M7 18h1v11h-1zM6 29h2v1h-2z"/></g>
+    <g id="leg2"><path fill="#B8644B" d="M10 18h1v11h-1z"/><path fill="#6B3122" d="M11 18h1v11h-1zM10 29h2v1h-2z"/></g>
+    <g id="leg3"><path fill="#B8644B" d="M18 18h1v11h-1z"/><path fill="#6B3122" d="M19 18h1v11h-1zM18 29h2v1h-2z"/></g>
+    <g id="leg4"><path fill="#B8644B" d="M22 18h1v11h-1z"/><path fill="#6B3122" d="M23 18h1v11h-1zM22 29h2v1h-2z"/></g>
+    <g id="torso">
+      <path fill="#DE886D" d="M24 13h1v1h-1zM8 14h16v1h-16zM6 15h18v8h-18zM5 23h1v2h-1z"/>
+      <path fill="#B8644B" d="M24 14h1v9h-1zM6 23h19v2h-19z"/>
+      <path fill="#6B3122" d="M4 12h22v1h-22zM4 13h1v12h-1zM25 13h1v12h-1zM4 25h22v1h-22z"/>
+      <path fill="#F3AC90" d="M5 13h19v1h-19zM5 14h1v9h-1z"/>
+      <path fill="#FFD3C2" d="M6 14h2v1h-2z"/>
+    </g>
+    <g id="arm-l">
+      <path fill="#6B3122" d="M0 15h5v1h-5zM-1 16h1v1h-1zM-1 17h2v1h-2zM1 18h1v2h-1zM-1 20h2v1h-2zM-1 21h1v1h-1zM0 22h5v1h-5z"/>
+      <path fill="#F3AC90" d="M1 16h4v1h-4zM1 20h1v1h-1z"/>
+      <path fill="#B8644B" d="M0 16h1v1h-1zM1 17h1v1h-1zM0 21h5v1h-5z"/>
+      <path fill="#DE886D" d="M2 17h3v4h-3z"/>
+    </g>
+    <g id="arm-r">
+      <path fill="#B8644B" d="M29 16h1v1h-1zM28 17h1v1h-1zM25 21h5v1h-5z"/>
+      <path fill="#6B3122" d="M25 15h5v1h-5zM30 16h1v1h-1zM29 17h2v1h-2zM28 18h1v2h-1zM29 20h2v1h-2zM30 21h1v1h-1zM25 22h5v1h-5z"/>
+      <path fill="#F3AC90" d="M25 16h4v1h-4zM28 20h1v1h-1z"/>
+      <path fill="#DE886D" d="M25 17h3v4h-3z"/>
+    </g>
+    <g id="eyes-open">
+      <path fill="#FFFFFF" d="M8 16h1v1h-1zM20 16h1v1h-1z"/>
+      <path fill="#1B1311" d="M9 16h1v1h-1zM21 16h1v1h-1zM8 17h2v3h-2zM20 17h2v3h-2z"/>
+    </g>
+    <g id="dirt-bit"><path fill="#6B4A32" d="M0 0h2v2h-2z"/><path fill="#9A7350" d="M0 0h1v1h-1z"/></g>
+  </defs>
+
+  <g transform="scale(.5)">
+    <g class="shadow">
+      <path fill="#000000" fill-opacity="0.3" d="M3 30h24v1h-24z"/>
+      <path fill="#000000" fill-opacity="0.15" d="M6 31h18v1h-18z"/>
+    </g>
+    <!-- the hole: dark pit with a dirt rim -->
+    <g class="hole">
+      <path fill="#2A1E1A" d="M2 29h26v2h-26zM5 31h20v1h-20z"/>
+      <path fill="#6B4A32" d="M0 29h2v1h-2zM28 29h2v1h-2zM2 28h4v1h-4zM24 28h4v1h-4z"/>
+    </g>
+    <g clip-path="url(#above-ground)">
+      <g class="sink">
+        <use href="#leg1"/><use href="#leg2"/><use href="#leg3"/><use href="#leg4"/>
+        <use href="#torso"/>
+        <use href="#arm-l"/>
+        <use href="#arm-r"/>
+        <g class="look"><use href="#eyes-open"/></g>
+      </g>
+    </g>
+    <g transform="translate(14 28)">
+      <g class="dirt"><use href="#dirt-bit"/></g>
+      <g class="dirt d2"><use href="#dirt-bit"/></g>
+      <g class="dirt d3"><use href="#dirt-bit"/></g>
+      <g class="dirt d4"><use href="#dirt-bit"/></g>
+    </g>
+  </g>
+</svg>
