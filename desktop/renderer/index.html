@@ -92,8 +92,27 @@
   </div>
   <!-- Interactive hit area over the crab body: drag + click-through boundary. -->
   <div id="crab-hit" title="Clawdy"></div>
+  <!-- "xN" multiplier shown when this product has more than one active session.
+       Hidden for a single session (count <= 1). Driven by renderer.js. -->
+  <div id="crab-badge" hidden></div>
+  <!-- Product name label, always visible, so each crab is identifiable while the
+       per-product art is still being drawn (Phase 4). Driven by renderer.js. -->
+  <div id="crab-label"></div>
 </div>
 
+<!-- Permission bubble: Allow/Deny over the crab, so a tool approval can be
+     answered without opening the device screen. Driven by renderer.js from the
+     daemon's permission_request; hidden until one arrives. -->
+<div id="perm-card" hidden>
+  <div id="perm-head"><span id="perm-project"></span><span id="perm-sep"> &rsaquo; </span><span id="perm-tool"></span><span id="perm-count"></span></div>
+  <div id="perm-summary"></div>
+  <div id="perm-buttons">
+    <button id="perm-allow" type="button">Allow</button>
+    <button id="perm-deny" type="button">Deny</button>
+  </div>
+</div>
+
+<script src="anim-map.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>

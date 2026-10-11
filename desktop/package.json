@@ -5,7 +5,8 @@
   "description": "Clawdy desktop pet (Electron spike) — transparent, always-on-top, draggable crab.",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "test": "node --test test/anim-map.test.js"
   },
   "devDependencies": {
     "electron": "33.2.1"

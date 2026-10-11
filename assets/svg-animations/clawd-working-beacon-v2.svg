@@ -1,41 +1,147 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500">
   <!-- Clawd v2 beacon (MCP signal): 2 s loop at 8 fps (16 frames). Grid-aligned per the v2 ART BIBLE
        (1 art px = 0.5 SVG unit, art inside scale(.5), integer art-pixel moves only, no rotation/scaling,
-       so nothing is anti-aliased and the frames downscale to exact 2x2 blocks). A steel antenna rises from
-       the head with a blinking red tip; three concentric signal rings of 2x2 bits pulse outward in phase. -->
+       so nothing is anti-aliased and the frames downscale to exact 2x2 blocks). The antenna tip flashes bright as each radio wave is emitted; cyan ((.)) arcs travel outward 2 px per frame (a new wave every 4 frames, 2 in flight), shrinking to dotted arcs and fading. The body dips on every emission and the eyes glance up toward the antenna. -->
   <defs>
     <style>
       .bob { animation: bob 2s infinite step-end; }
-      .tip { animation: tip 0.8s infinite step-end; }
-      .ring1 { animation: ring1 2s infinite step-end; }
-      .ring2 { animation: ring2 2s infinite step-end; }
-      .ring3 { animation: ring3 2s infinite step-end; }
+      .eyes { animation: eyes 2s infinite step-end; }
+      .tbr { animation: tbr 2s infinite step-end; }
+      .tdm { animation: tdm 2s infinite step-end; }
+      .w0 { animation: w0 2s infinite step-end; }
+      .w1 { animation: w1 2s infinite step-end; }
+      .w2 { animation: w2 2s infinite step-end; }
+      .w3 { animation: w3 2s infinite step-end; }
+      .w4 { animation: w4 2s infinite step-end; }
+      .w5 { animation: w5 2s infinite step-end; }
+      .w6 { animation: w6 2s infinite step-end; }
+      .w7 { animation: w7 2s infinite step-end; }
+      .w8 { animation: w8 2s infinite step-end; }
+      .w9 { animation: w9 2s infinite step-end; }
+      .w10 { animation: w10 2s infinite step-end; }
+      .w11 { animation: w11 2s infinite step-end; }
+      .w12 { animation: w12 2s infinite step-end; }
+      .w13 { animation: w13 2s infinite step-end; }
+      .w14 { animation: w14 2s infinite step-end; }
+      .w15 { animation: w15 2s infinite step-end; }
       @keyframes bob {
-        0%   { transform: translate(0px, 0px); }
-        25%  { transform: translate(0px, 1px); }
-        75%  { transform: translate(0px, 0px); }
+        0.0% { transform: translate(0px, 1px); }
+        6.25% { transform: translate(0px, 0px); }
+        25.0% { transform: translate(0px, 1px); }
+        31.25% { transform: translate(0px, 0px); }
+        50.0% { transform: translate(0px, 1px); }
+        56.25% { transform: translate(0px, 0px); }
+        75.0% { transform: translate(0px, 1px); }
+        81.25% { transform: translate(0px, 0px); }
       }
-      /* Antenna tip blinks red to bright, ~2.5 Hz against the 8 fps grid */
-      @keyframes tip {
-        0%   { opacity: 1; }
-        50%  { opacity: 0; }
+      @keyframes eyes {
+        0.0% { transform: translate(0px, 0px); }
+        6.25% { transform: translate(0px, -1px); }
+        18.75% { transform: translate(0px, 0px); }
+        31.25% { transform: translate(0px, -1px); }
+        43.75% { transform: translate(0px, 0px); }
+        56.25% { transform: translate(0px, -1px); }
+        68.75% { transform: translate(0px, 0px); }
+        81.25% { transform: translate(0px, -1px); }
+        93.75% { transform: translate(0px, 0px); }
       }
-      /* Each ring fades in near the antenna, holds while the next ring takes over, then clears.
-         The three rings are offset by ~1/3 of the loop so a wave reads as travelling outward. */
-      @keyframes ring1 {
-        0%     { opacity: 1; }
-        37.5%  { opacity: 0; }
-        100%   { opacity: 0; }
+      @keyframes tbr {
+        0.0% { opacity: 1; }
+        6.25% { opacity: 0; }
+        25.0% { opacity: 1; }
+        31.25% { opacity: 0; }
+        50.0% { opacity: 1; }
+        56.25% { opacity: 0; }
+        75.0% { opacity: 1; }
+        81.25% { opacity: 0; }
       }
-      @keyframes ring2 {
-        0%     { opacity: 0; }
+      @keyframes tdm {
+        0.0% { opacity: 0; }
+        12.5% { opacity: 1; }
+        25.0% { opacity: 0; }
+        37.5% { opacity: 1; }
+        50.0% { opacity: 0; }
+        62.5% { opacity: 1; }
+        75.0% { opacity: 0; }
+        87.5% { opacity: 1; }
+      }
+      @keyframes w0 {
+        0.0% { opacity: 1; }
+        6.25% { opacity: 0; }
+      }
+      @keyframes w1 {
+        0.0% { opacity: 0; }
+        6.25% { opacity: 1; }
+        12.5% { opacity: 0; }
+      }
+      @keyframes w2 {
+        0.0% { opacity: 0; }
+        12.5% { opacity: 1; }
+        18.75% { opacity: 0; }
+      }
+      @keyframes w3 {
+        0.0% { opacity: 0; }
+        18.75% { opacity: 1; }
+        25.0% { opacity: 0; }
+      }
+      @keyframes w4 {
+        0.0% { opacity: 0; }
+        25.0% { opacity: 1; }
+        31.25% { opacity: 0; }
+      }
+      @keyframes w5 {
+        0.0% { opacity: 0; }
         31.25% { opacity: 1; }
+        37.5% { opacity: 0; }
+      }
+      @keyframes w6 {
+        0.0% { opacity: 0; }
+        37.5% { opacity: 1; }
+        43.75% { opacity: 0; }
+      }
+      @keyframes w7 {
+        0.0% { opacity: 0; }
+        43.75% { opacity: 1; }
+        50.0% { opacity: 0; }
+      }
+      @keyframes w8 {
+        0.0% { opacity: 0; }
+        50.0% { opacity: 1; }
+        56.25% { opacity: 0; }
+      }
+      @keyframes w9 {
+        0.0% { opacity: 0; }
+        56.25% { opacity: 1; }
+        62.5% { opacity: 0; }
+      }
+      @keyframes w10 {
+        0.0% { opacity: 0; }
+        62.5% { opacity: 1; }
         68.75% { opacity: 0; }
       }
-      @keyframes ring3 {
-        0%     { opacity: 0; }
-        62.5%  { opacity: 1; }
-        100%   { opacity: 0; }
+      @keyframes w11 {
+        0.0% { opacity: 0; }
+        68.75% { opacity: 1; }
+        75.0% { opacity: 0; }
+      }
+      @keyframes w12 {
+        0.0% { opacity: 0; }
+        75.0% { opacity: 1; }
+        81.25% { opacity: 0; }
+      }
+      @keyframes w13 {
+        0.0% { opacity: 0; }
+        81.25% { opacity: 1; }
+        87.5% { opacity: 0; }
+      }
+      @keyframes w14 {
+        0.0% { opacity: 0; }
+        87.5% { opacity: 1; }
+        93.75% { opacity: 0; }
+      }
+      @keyframes w15 {
+        0.0% { opacity: 0; }
+        93.75% { opacity: 1; }
       }
     </style>
 
@@ -105,21 +211,14 @@
       <path fill="#FF5A5F" d="M14 3h2v2h-2z"/>
       <path fill="#FFA3A6" d="M14 3h1v1h-1z"/>
     </g>
-    <!-- Signal rings: concentric 2x2 bits around the tip (centre at art px 15,4), one colour per ring. -->
-    <!-- ring 1 (near): blue, four bits one step out -->
-    <g id="ring1">
-      <path fill="#3D8BFD" d="M11 3h2v2h-2zM17 3h2v2h-2zM14 0h2v2h-2zM14 7h2v2h-2z"/>
-      <path fill="#9CC4FF" d="M11 3h1v1h-1zM17 3h1v1h-1zM14 0h1v1h-1zM14 7h1v1h-1z"/>
+    <!-- Tip emission flash (bright when a wave leaves) and dim phase (after), over the base tip. -->
+    <g id="tip-bright">
+      <path fill="#FFC2C4" d="M14 3h2v2h-2z"/>
+      <path fill="#FFFFFF" d="M14 3h1v1h-1z"/>
     </g>
-    <!-- ring 2 (mid): yellow, four bits two steps out -->
-    <g id="ring2">
-      <path fill="#FFC93C" d="M8 3h2v2h-2zM20 3h2v2h-2zM14 -3h2v2h-2zM14 10h2v2h-2z"/>
-      <path fill="#FFE9A3" d="M8 3h1v1h-1zM20 3h1v1h-1zM14 -3h1v1h-1zM14 10h1v1h-1z"/>
-    </g>
-    <!-- ring 3 (far): red, four bits three steps out -->
-    <g id="ring3">
-      <path fill="#FF5A5F" d="M5 3h2v2h-2zM23 3h2v2h-2zM14 -6h2v2h-2zM14 13h2v2h-2z"/>
-      <path fill="#FFA3A6" d="M5 3h1v1h-1zM23 3h1v1h-1zM14 -6h1v1h-1zM14 13h1v1h-1z"/>
+    <g id="tip-dim">
+      <path fill="#A93434" d="M14 3h2v2h-2z"/>
+      <path fill="#C9494E" d="M14 3h1v1h-1z"/>
     </g>
   </defs>
 
@@ -130,16 +229,79 @@
     <use href="#leg3"/>
     <use href="#leg4"/>
     <g class="bob">
-      <!-- signal rings expand outward from the antenna tip -->
-      <g class="ring1"><use href="#ring1"/></g>
-      <g class="ring2"><use href="#ring2"/></g>
-      <g class="ring3"><use href="#ring3"/></g>
+      <!-- radio-wave arcs, 4 waves staggered every 4 frames, each travelling 2 px/frame outward for 8 frames, shrinking to dotted arcs and dimming -->
+      <g class="w0">
+      <g opacity="1"><path fill="#3DD6F5" d="M12 2h1v1h-1zM12 5h1v1h-1zM17 2h1v1h-1zM17 5h1v1h-1z"/><path fill="#B8F1FF" d="M11 3h1v1h-1zM11 4h1v1h-1zM18 3h1v1h-1zM18 4h1v1h-1z"/></g>
+      <g opacity="0.85"><path fill="#3DD6F5" d="M5 1h1v1h-1zM4 2h1v1h-1zM4 5h1v1h-1zM5 6h1v1h-1zM24 1h1v1h-1zM25 2h1v1h-1zM25 5h1v1h-1zM24 6h1v1h-1z"/><path fill="#B8F1FF" d="M3 3h1v1h-1zM3 4h1v1h-1zM26 3h1v1h-1zM26 4h1v1h-1z"/></g>
+      </g>
+      <g class="w1">
+      <g opacity="1"><path fill="#3DD6F5" d="M10 2h1v1h-1zM10 5h1v1h-1zM19 2h1v1h-1zM19 5h1v1h-1z"/><path fill="#B8F1FF" d="M9 3h1v1h-1zM9 4h1v1h-1zM20 3h1v1h-1zM20 4h1v1h-1z"/></g>
+      <g opacity="0.85"><path fill="#3DD6F5" d="M3 1h1v1h-1zM2 2h1v1h-1zM2 5h1v1h-1zM3 6h1v1h-1zM26 1h1v1h-1zM27 2h1v1h-1zM27 5h1v1h-1zM26 6h1v1h-1z"/><path fill="#B8F1FF" d="M1 3h1v1h-1zM1 4h1v1h-1zM28 3h1v1h-1zM28 4h1v1h-1z"/></g>
+      </g>
+      <g class="w2">
+      <g opacity="1"><path fill="#3DD6F5" d="M8 2h1v1h-1zM8 5h1v1h-1zM21 2h1v1h-1zM21 5h1v1h-1z"/><path fill="#B8F1FF" d="M7 3h1v1h-1zM7 4h1v1h-1zM22 3h1v1h-1zM22 4h1v1h-1z"/></g>
+      <g opacity="0.5"><path fill="#3DD6F5" d="M1 1h1v1h-1zM1 6h1v1h-1zM28 1h1v1h-1zM28 6h1v1h-1z"/><path fill="#B8F1FF" d="M-1 3h1v1h-1zM-1 4h1v1h-1zM30 3h1v1h-1zM30 4h1v1h-1z"/></g>
+      </g>
+      <g class="w3">
+      <g opacity="0.85"><path fill="#3DD6F5" d="M7 1h1v1h-1zM6 2h1v1h-1zM6 5h1v1h-1zM7 6h1v1h-1zM22 1h1v1h-1zM23 2h1v1h-1zM23 5h1v1h-1zM22 6h1v1h-1z"/><path fill="#B8F1FF" d="M5 3h1v1h-1zM5 4h1v1h-1zM24 3h1v1h-1zM24 4h1v1h-1z"/></g>
+      <g opacity="0.3"><path fill="#3DD6F5" d="M-1 1h1v1h-1zM-1 6h1v1h-1zM30 1h1v1h-1zM30 6h1v1h-1z"/><path fill="#B8F1FF" d="M-3 3h1v1h-1zM-3 4h1v1h-1zM32 3h1v1h-1zM32 4h1v1h-1z"/></g>
+      </g>
+      <g class="w4">
+      <g opacity="0.85"><path fill="#3DD6F5" d="M5 1h1v1h-1zM4 2h1v1h-1zM4 5h1v1h-1zM5 6h1v1h-1zM24 1h1v1h-1zM25 2h1v1h-1zM25 5h1v1h-1zM24 6h1v1h-1z"/><path fill="#B8F1FF" d="M3 3h1v1h-1zM3 4h1v1h-1zM26 3h1v1h-1zM26 4h1v1h-1z"/></g>
+      <g opacity="1"><path fill="#3DD6F5" d="M12 2h1v1h-1zM12 5h1v1h-1zM17 2h1v1h-1zM17 5h1v1h-1z"/><path fill="#B8F1FF" d="M11 3h1v1h-1zM11 4h1v1h-1zM18 3h1v1h-1zM18 4h1v1h-1z"/></g>
+      </g>
+      <g class="w5">
+      <g opacity="0.85"><path fill="#3DD6F5" d="M3 1h1v1h-1zM2 2h1v1h-1zM2 5h1v1h-1zM3 6h1v1h-1zM26 1h1v1h-1zM27 2h1v1h-1zM27 5h1v1h-1zM26 6h1v1h-1z"/><path fill="#B8F1FF" d="M1 3h1v1h-1zM1 4h1v1h-1zM28 3h1v1h-1zM28 4h1v1h-1z"/></g>
+      <g opacity="1"><path fill="#3DD6F5" d="M10 2h1v1h-1zM10 5h1v1h-1zM19 2h1v1h-1zM19 5h1v1h-1z"/><path fill="#B8F1FF" d="M9 3h1v1h-1zM9 4h1v1h-1zM20 3h1v1h-1zM20 4h1v1h-1z"/></g>
+      </g>
+      <g class="w6">
+      <g opacity="0.5"><path fill="#3DD6F5" d="M1 1h1v1h-1zM1 6h1v1h-1zM28 1h1v1h-1zM28 6h1v1h-1z"/><path fill="#B8F1FF" d="M-1 3h1v1h-1zM-1 4h1v1h-1zM30 3h1v1h-1zM30 4h1v1h-1z"/></g>
+      <g opacity="1"><path fill="#3DD6F5" d="M8 2h1v1h-1zM8 5h1v1h-1zM21 2h1v1h-1zM21 5h1v1h-1z"/><path fill="#B8F1FF" d="M7 3h1v1h-1zM7 4h1v1h-1zM22 3h1v1h-1zM22 4h1v1h-1z"/></g>
+      </g>
+      <g class="w7">
+      <g opacity="0.3"><path fill="#3DD6F5" d="M-1 1h1v1h-1zM-1 6h1v1h-1zM30 1h1v1h-1zM30 6h1v1h-1z"/><path fill="#B8F1FF" d="M-3 3h1v1h-1zM-3 4h1v1h-1zM32 3h1v1h-1zM32 4h1v1h-1z"/></g>
+      <g opacity="0.85"><path fill="#3DD6F5" d="M7 1h1v1h-1zM6 2h1v1h-1zM6 5h1v1h-1zM7 6h1v1h-1zM22 1h1v1h-1zM23 2h1v1h-1zM23 5h1v1h-1zM22 6h1v1h-1z"/><path fill="#B8F1FF" d="M5 3h1v1h-1zM5 4h1v1h-1zM24 3h1v1h-1zM24 4h1v1h-1z"/></g>
+      </g>
+      <g class="w8">
+      <g opacity="0.85"><path fill="#3DD6F5" d="M5 1h1v1h-1zM4 2h1v1h-1zM4 5h1v1h-1zM5 6h1v1h-1zM24 1h1v1h-1zM25 2h1v1h-1zM25 5h1v1h-1zM24 6h1v1h-1z"/><path fill="#B8F1FF" d="M3 3h1v1h-1zM3 4h1v1h-1zM26 3h1v1h-1zM26 4h1v1h-1z"/></g>
+      <g opacity="1"><path fill="#3DD6F5" d="M12 2h1v1h-1zM12 5h1v1h-1zM17 2h1v1h-1zM17 5h1v1h-1z"/><path fill="#B8F1FF" d="M11 3h1v1h-1zM11 4h1v1h-1zM18 3h1v1h-1zM18 4h1v1h-1z"/></g>
+      </g>
+      <g class="w9">
+      <g opacity="0.85"><path fill="#3DD6F5" d="M3 1h1v1h-1zM2 2h1v1h-1zM2 5h1v1h-1zM3 6h1v1h-1zM26 1h1v1h-1zM27 2h1v1h-1zM27 5h1v1h-1zM26 6h1v1h-1z"/><path fill="#B8F1FF" d="M1 3h1v1h-1zM1 4h1v1h-1zM28 3h1v1h-1zM28 4h1v1h-1z"/></g>
+      <g opacity="1"><path fill="#3DD6F5" d="M10 2h1v1h-1zM10 5h1v1h-1zM19 2h1v1h-1zM19 5h1v1h-1z"/><path fill="#B8F1FF" d="M9 3h1v1h-1zM9 4h1v1h-1zM20 3h1v1h-1zM20 4h1v1h-1z"/></g>
+      </g>
+      <g class="w10">
+      <g opacity="0.5"><path fill="#3DD6F5" d="M1 1h1v1h-1zM1 6h1v1h-1zM28 1h1v1h-1zM28 6h1v1h-1z"/><path fill="#B8F1FF" d="M-1 3h1v1h-1zM-1 4h1v1h-1zM30 3h1v1h-1zM30 4h1v1h-1z"/></g>
+      <g opacity="1"><path fill="#3DD6F5" d="M8 2h1v1h-1zM8 5h1v1h-1zM21 2h1v1h-1zM21 5h1v1h-1z"/><path fill="#B8F1FF" d="M7 3h1v1h-1zM7 4h1v1h-1zM22 3h1v1h-1zM22 4h1v1h-1z"/></g>
+      </g>
+      <g class="w11">
+      <g opacity="0.3"><path fill="#3DD6F5" d="M-1 1h1v1h-1zM-1 6h1v1h-1zM30 1h1v1h-1zM30 6h1v1h-1z"/><path fill="#B8F1FF" d="M-3 3h1v1h-1zM-3 4h1v1h-1zM32 3h1v1h-1zM32 4h1v1h-1z"/></g>
+      <g opacity="0.85"><path fill="#3DD6F5" d="M7 1h1v1h-1zM6 2h1v1h-1zM6 5h1v1h-1zM7 6h1v1h-1zM22 1h1v1h-1zM23 2h1v1h-1zM23 5h1v1h-1zM22 6h1v1h-1z"/><path fill="#B8F1FF" d="M5 3h1v1h-1zM5 4h1v1h-1zM24 3h1v1h-1zM24 4h1v1h-1z"/></g>
+      </g>
+      <g class="w12">
+      <g opacity="0.85"><path fill="#3DD6F5" d="M5 1h1v1h-1zM4 2h1v1h-1zM4 5h1v1h-1zM5 6h1v1h-1zM24 1h1v1h-1zM25 2h1v1h-1zM25 5h1v1h-1zM24 6h1v1h-1z"/><path fill="#B8F1FF" d="M3 3h1v1h-1zM3 4h1v1h-1zM26 3h1v1h-1zM26 4h1v1h-1z"/></g>
+      <g opacity="1"><path fill="#3DD6F5" d="M12 2h1v1h-1zM12 5h1v1h-1zM17 2h1v1h-1zM17 5h1v1h-1z"/><path fill="#B8F1FF" d="M11 3h1v1h-1zM11 4h1v1h-1zM18 3h1v1h-1zM18 4h1v1h-1z"/></g>
+      </g>
+      <g class="w13">
+      <g opacity="0.85"><path fill="#3DD6F5" d="M3 1h1v1h-1zM2 2h1v1h-1zM2 5h1v1h-1zM3 6h1v1h-1zM26 1h1v1h-1zM27 2h1v1h-1zM27 5h1v1h-1zM26 6h1v1h-1z"/><path fill="#B8F1FF" d="M1 3h1v1h-1zM1 4h1v1h-1zM28 3h1v1h-1zM28 4h1v1h-1z"/></g>
+      <g opacity="1"><path fill="#3DD6F5" d="M10 2h1v1h-1zM10 5h1v1h-1zM19 2h1v1h-1zM19 5h1v1h-1z"/><path fill="#B8F1FF" d="M9 3h1v1h-1zM9 4h1v1h-1zM20 3h1v1h-1zM20 4h1v1h-1z"/></g>
+      </g>
+      <g class="w14">
+      <g opacity="0.5"><path fill="#3DD6F5" d="M1 1h1v1h-1zM1 6h1v1h-1zM28 1h1v1h-1zM28 6h1v1h-1z"/><path fill="#B8F1FF" d="M-1 3h1v1h-1zM-1 4h1v1h-1zM30 3h1v1h-1zM30 4h1v1h-1z"/></g>
+      <g opacity="1"><path fill="#3DD6F5" d="M8 2h1v1h-1zM8 5h1v1h-1zM21 2h1v1h-1zM21 5h1v1h-1z"/><path fill="#B8F1FF" d="M7 3h1v1h-1zM7 4h1v1h-1zM22 3h1v1h-1zM22 4h1v1h-1z"/></g>
+      </g>
+      <g class="w15">
+      <g opacity="0.3"><path fill="#3DD6F5" d="M-1 1h1v1h-1zM-1 6h1v1h-1zM30 1h1v1h-1zM30 6h1v1h-1z"/><path fill="#B8F1FF" d="M-3 3h1v1h-1zM-3 4h1v1h-1zM32 3h1v1h-1zM32 4h1v1h-1z"/></g>
+      <g opacity="0.85"><path fill="#3DD6F5" d="M7 1h1v1h-1zM6 2h1v1h-1zM6 5h1v1h-1zM7 6h1v1h-1zM22 1h1v1h-1zM23 2h1v1h-1zM23 5h1v1h-1zM22 6h1v1h-1z"/><path fill="#B8F1FF" d="M5 3h1v1h-1zM5 4h1v1h-1zM24 3h1v1h-1zM24 4h1v1h-1z"/></g>
+      </g>
       <use href="#antenna"/>
-      <g class="tip"><use href="#tip"/></g>
+      <use href="#tip"/>
+      <g class="tdm"><use href="#tip-dim"/></g>
+      <g class="tbr"><use href="#tip-bright"/></g>
       <use href="#torso"/>
       <use href="#arm-l"/>
       <use href="#arm-r"/>
-      <use href="#eyes-open"/>
+      <g class="eyes"><use href="#eyes-open"/></g>
     </g>
   </g>
 </svg>

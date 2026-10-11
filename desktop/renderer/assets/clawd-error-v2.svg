@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500">
   <!-- Clawd v2 (web) error — 2.4 s loop.
-       Motion reference: clawd-on-desk error. The crab has collapsed flat (legs folded under),
-       X eyes, pincers limp on the floor, a slow defeated breath, grey smoke puffs rise and
+       The crab has collapsed flat (legs folded under),
+       X eyes (5x5 diagonal strokes), three tiny dizzy stars orbiting above the head, pincers limp on the floor, a slow defeated breath, grey smoke puffs rise and
        fade from the head, and a red ERROR label blinks above. v2 look. Website only. -->
   <defs>
     <style>
@@ -10,6 +10,9 @@
       .puff   { animation: puff 2.4s ease-out infinite; }
       .p2 { animation-delay: -0.8s; }
       .p3 { animation-delay: -1.6s; }
+      .star { animation: orbit 2.4s steps(1) infinite; }
+      .s2 { animation-delay: -0.8s; }
+      .s3 { animation-delay: -1.6s; }
       .label  { animation: blink 1.2s steps(1) infinite; }
 
       @keyframes breath {
@@ -29,6 +32,20 @@
       @keyframes blink {
         0%  { opacity: 1; }
         50% { opacity: 0.35; }
+      }
+      @keyframes orbit {
+        0.0% { transform: translate(23px, 11px); }
+        8.3333% { transform: translate(22px, 12px); }
+        16.6667% { transform: translate(18px, 13px); }
+        25.0% { transform: translate(14px, 13px); }
+        33.3333% { transform: translate(10px, 13px); }
+        41.6667% { transform: translate(6px, 12px); }
+        50.0% { transform: translate(5px, 11px); }
+        58.3333% { transform: translate(6px, 10px); }
+        66.6667% { transform: translate(9px, 9px); }
+        75.0% { transform: translate(14px, 9px); }
+        83.3333% { transform: translate(18px, 9px); }
+        91.6667% { transform: translate(22px, 10px); }
       }
     </style>
 
@@ -53,13 +70,18 @@
       <path fill="#F3AC90" d="M25 16h4v1h-4zM28 20h1v1h-1z"/>
       <path fill="#DE886D" d="M25 17h3v4h-3z"/>
     </g>
-    <!-- X eyes, 4x4 -->
+    <!-- X eyes, 6x6 bold (2 px strokes) on the same footprint as the dizzy spiral eyes (centres x=9/21, y=18) -->
     <g id="eyes-x" fill="#1B1311">
-      <path d="M7 16h1v1h-1zM10 16h1v1h-1zM8 17h2v2h-2zM7 19h1v1h-1zM10 19h1v1h-1z"/>
-      <path d="M19 16h1v1h-1zM22 16h1v1h-1zM20 17h2v2h-2zM19 19h1v1h-1zM22 19h1v1h-1z"/>
+      <path d="M6 15h2v1h-2zM10 15h2v1h-2zM7 16h4v1h-4zM8 17h2v1h-2zM8 18h2v1h-2zM7 19h4v1h-4zM6 20h2v1h-2zM10 20h2v1h-2z"/>
+      <path d="M18 15h2v1h-2zM22 15h2v1h-2zM19 16h4v1h-4zM20 17h2v1h-2zM20 18h2v1h-2zM19 19h4v1h-4zM18 20h2v1h-2zM22 20h2v1h-2z"/>
     </g>
     <!-- sad flat mouth -->
-    <g id="mouth"><path fill="#6B3122" d="M13 21h4v1h-4z"/></g>
+    <g id="mouth"><path fill="#6B3122" d="M13 22h4v1h-4z"/></g>
+    <!-- dizzy star: 3x3 plus sparkle -->
+    <g id="star">
+      <path fill="#FFD84D" d="M1 0h1v3h-1zM0 1h3v1h-3z"/>
+      <path fill="#FFF1A8" d="M1 1h1v1h-1z"/>
+    </g>
     <!-- smoke puff: 3x3 grey blob -->
     <g id="smoke">
       <path fill="#C9C4BD" d="M1 0h2v1h-2zM0 1h4v2h-4zM1 3h2v1h-2z"/>
@@ -79,6 +101,9 @@
         <use href="#mouth"/>
       </g>
     </g>
+    <g class="star"><use href="#star"/></g>
+    <g class="star s2"><use href="#star"/></g>
+    <g class="star s3"><use href="#star"/></g>
     <g transform="translate(13 12)">
       <g class="puff"><use href="#smoke"/></g>
       <g class="puff p2"><use href="#smoke"/></g>

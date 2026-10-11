@@ -3,7 +3,7 @@
        v2 look (outline, light/shade, palette, pincers) with fluid web motion: the body
        sways side to side from the feet, the outer legs kick on each beat, pincers dance,
        the ear cups squeeze on the beat, happy v-eyes with blush, notes float up.
-       Motion reference: clawd-on-desk headphones groove. Website only (not the ESP32). -->
+       Headphones groove. Website only (not the ESP32). -->
   <defs>
     <style>
       .sway   { transform-box: fill-box; transform-origin: 50% 100%; animation: sway 1.6s ease-in-out infinite; }

@@ -1,19 +1,40 @@
-// renderer.js — click-through boundary + drag for the Clawdy desktop pet (spike).
+// renderer.js — one product's crab (Phase 3). Each window renders a single AI
+// product (window.pet.agent) and shows an "xN" badge when that product has more
+// than one active session.
 //
-// Click-through model (Electron transparent window):
+// Click-through model (unchanged from the single-window spike):
 //   - main.js starts the window with setIgnoreMouseEvents(true, {forward:true}),
-//     so the whole window passes clicks through BUT the renderer still receives
-//     mousemove events (that's what forward:true buys us).
-//   - When the pointer is over the crab body (#crab-hit), we ask main to STOP
-//     ignoring mouse events, so clicks/drag land on the crab.
-//   - When it leaves, we go back to click-through.
+//     so the whole window passes clicks through BUT the renderer still gets
+//     mousemove events.
+//   - When the pointer is over #crab-hit, we ask main to STOP ignoring mouse
+//     events so clicks/drag land on the crab; on leave we go back to click-through.
+//   - Drag moves THIS window via window.pet.moveWindow.
 
 const crab = document.getElementById("crab");
 const hit = document.getElementById("crab-hit");
+const badge = document.getElementById("crab-badge");
+const label = document.getElementById("crab-label");
+
+// Human-readable product name for the always-visible identity label. Set once:
+// each window renders a single product for its whole lifetime.
+const AGENT_LABELS = { claude: "Claude", codex: "Codex", kiro: "Kiro" };
+const AGENT = (window.pet && window.pet.agent) || "claude";
+if (label) label.textContent = AGENT_LABELS[AGENT] || AGENT;
+crab.dataset.agent = AGENT;
 
 let overBody = false;
 let dragging = false;
 let lastX = 0, lastY = 0;
+
+// --- Shake-to-dizzy detection ------------------------------------------------
+// A "shake" is a fast back-and-forth drag: several horizontal direction
+// reversals, each above a speed threshold, within a short window. A normal slow
+// drag never triggers it. On a shake we play the dizzy oneshot (defined below).
+const SHAKE_MIN_SPEED = 6;      // px per mousemove to count as a fast move
+const SHAKE_REVERSALS = 3;      // direction flips needed to be a shake
+const SHAKE_WINDOW_MS = 1000;   // flips must happen within this window
+let shakeDir = 0;               // last horizontal direction (-1/0/+1)
+let shakeFlips = [];            // timestamps of recent qualifying reversals
 
 /** Is a window-space point inside the crab's hit rectangle? */
 function pointInHit(clientX, clientY) {
@@ -21,15 +42,14 @@ function pointInHit(clientX, clientY) {
   return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
 }
 
-// Track the pointer across the whole (forwarded) window to toggle interactivity.
 window.addEventListener("mousemove", (e) => {
   if (dragging) {
-    // While dragging, move the window by the pointer delta (screen-space).
     const dx = e.screenX - lastX;
     const dy = e.screenY - lastY;
     lastX = e.screenX;
     lastY = e.screenY;
     if (dx !== 0 || dy !== 0) window.pet.moveWindow(dx, dy);
+    detectShake(dx);
     return;
   }
   const inside = pointInHit(e.clientX, e.clientY);
@@ -39,7 +59,6 @@ window.addEventListener("mousemove", (e) => {
   }
 });
 
-// Start a drag on left press over the body.
 hit.addEventListener("mousedown", (e) => {
   if (e.button !== 0) return;
   dragging = true;
@@ -53,18 +72,34 @@ window.addEventListener("mouseup", () => {
   if (!dragging) return;
   dragging = false;
   crab.dataset.held = "false";
-  // After releasing, if the pointer is no longer over the body, go click-through.
+  shakeDir = 0;
+  shakeFlips = [];
   if (!overBody) window.pet.setInteractive(false);
 });
 
+/** Count fast horizontal direction reversals; on enough of them within the
+ *  window, make the crab dizzy. Called on every drag mousemove with the frame's
+ *  horizontal delta. */
+function detectShake(dx) {
+  if (Math.abs(dx) < SHAKE_MIN_SPEED) return;
+  const dir = dx > 0 ? 1 : -1;
+  if (shakeDir !== 0 && dir !== shakeDir) {
+    const now = Date.now();
+    shakeFlips.push(now);
+    shakeFlips = shakeFlips.filter((t) => now - t <= SHAKE_WINDOW_MS);
+    if (shakeFlips.length >= SHAKE_REVERSALS) {
+      shakeFlips = [];
+      playOneshot("dizzy");
+    }
+  }
+  shakeDir = dir;
+}
+
 // --- Per-state animations ----------------------------------------------------
 // Overlay <img> shows the animated SVG for each state; idle uses the inline SVG.
-// Ported from website/js/crab.js. vb = [x, y, size] of the SVG viewBox; idle box
-// is [-15,-25,45], so the overlay is sized/offset relative to that.
 let img = document.getElementById("crab-anim");
 const STATES = {
   idle:         null,
-  // viewBox read from each SVG: most are [-15,-25,45]; happy/sleeping differ.
   dizzy:        { src: "assets/clawd-dizzy-v2.svg",              vb: [-15, -25, 45] },
   happy:        { src: "assets/clawd-happy-v2.svg",             vb: [-12, -15, 40] },
   sleeping:     { src: "assets/clawd-sleeping-v2.svg",          vb: [-10, -20, 40] },
@@ -73,7 +108,6 @@ const STATES = {
   typing:       { src: "assets/clawd-working-typing-v2.svg",    vb: [-15, -25, 45] },
   building:     { src: "assets/clawd-working-building-v2.svg",  vb: [-15, -25, 45] },
   notification: { src: "assets/clawd-notification-v2.svg",      vb: [-15, -25, 45] },
-  // Previously aliased to generic sprites — now each has its own v2 art.
   confused:     { src: "assets/clawd-working-confused-v2.svg",  vb: [-15, -25, 45] },
   debugger:     { src: "assets/clawd-working-debugger-v2.svg",  vb: [-15, -25, 45] },
   conducting:   { src: "assets/clawd-working-conducting-v2.svg", vb: [-15, -25, 45] },
@@ -81,8 +115,8 @@ const STATES = {
   sweeping:     { src: "assets/clawd-working-sweeping-v2.svg",  vb: [-15, -25, 45] },
   hat_mishap:   { src: "assets/clawd-hat-mishap-v2.svg",        vb: [-15, -25, 45] },
   low_battery:  { src: "assets/clawd-idle-low-battery-v2.svg",  vb: [-15, -25, 45] },
+  no_credits:   { src: "assets/clawd-no-credits-v2.svg",        vb: [-15, -25, 45] },
   waiting_reply:{ src: "assets/clawd-waiting-reply-v2.svg",     vb: [-15, -25, 45] },
-  // Web-motion v2 art (smooth, website + desktop only; not the ESP32).
   wizard:       { src: "assets/clawd-wizard-v2.svg",            vb: [-15, -25, 45] },
   juggling:     { src: "assets/clawd-juggling-v2.svg",          vb: [-15, -25, 45] },
   grooving:     { src: "assets/clawd-grooving-v2.svg",          vb: [-15, -25, 45] },
@@ -95,9 +129,25 @@ const STATES = {
   idea:         { src: "assets/clawd-idea-v2.svg",              vb: [-15, -25, 45] },
 };
 
-// Daemon state names → our sprite keys. set_status sends working_1..3 and the
-// legacy "alert"; set_sessions sends the raw anim name (which now mostly has
-// its own SVG above). Only the names WITHOUT dedicated art are aliased.
+// Codex has its own pixel-art cloud (the Codex logo with a ">_" face), drawn
+// with the Clawd v2 art rules by tools/codex_cloud_pixel.py. The state names
+// still come from the daemon, so only the art selection changes in a Codex
+// window: every state uses assets/codex/cloud-<state>-v2.svg with the same vb
+// as the matching Clawd entry (each file's viewBox equals that vb), so the art
+// lines up exactly like Clawd's. Idle has no Clawd file (Clawd idles on the
+// inline SVG), so its cloud uses the full 45-unit box.
+// Codex also has its own "alert" (urgent: needs permission or input), distinct
+// from "notification" (gentle: a message arrived). resolveState() finds it
+// before the ALIAS fallback, which Clawd still uses (alert -> notification).
+const FULL_VB = [-15, -25, 45];
+const CODEX_STATES = Object.fromEntries(
+  [...Object.keys(STATES), "alert"].map((state) => [
+    state,
+    { src: `assets/codex/cloud-${state}-v2.svg`, vb: (STATES[state] && STATES[state].vb) || FULL_VB },
+  ]),
+);
+const ART_STATES = AGENT === "codex" ? CODEX_STATES : STATES;
+
 const ALIAS = {
   working_1: "typing", working_2: "typing", working_3: "typing",
   alert: "notification",
@@ -105,21 +155,17 @@ const ALIAS = {
 
 function resolveState(name) {
   if (!name) return "idle";
-  if (STATES[name] !== undefined) return name;
-  if (ALIAS[name] && STATES[ALIAS[name]] !== undefined) return ALIAS[name];
+  if (ART_STATES[name] !== undefined) return name;
+  if (ALIAS[name] && ART_STATES[ALIAS[name]] !== undefined) return ALIAS[name];
   return "idle";
 }
 
 function renderState(name) {
   const key = resolveState(name);
   crab.dataset.state = key;
-  const s = STATES[key];
-  if (!s) { img.hidden = true; img.removeAttribute("src"); return; } // idle: inline SVG only
+  const s = ART_STATES[key];
+  if (!s) { img.hidden = true; img.removeAttribute("src"); return; }
 
-  // Replace the <img> node entirely. Swapping only .src does NOT reliably
-  // restart a CSS-animated SVG's timeline in Chromium (it can keep showing the
-  // previous frame), which looked like "the old animation stays until a working
-  // one appears". A fresh element guarantees a clean load + animation from 0.
   const fresh = document.createElement("img");
   fresh.id = "crab-anim";
   fresh.className = "crab-layer";
@@ -129,34 +175,38 @@ function renderState(name) {
   fresh.style.left = ((15 + s.vb[0]) / 45 * 100) + "%";
   fresh.style.top = ((25 + s.vb[1]) / 45 * 100) + "%";
   fresh.onerror = () => console.error("[pet] FAILED to load:", s.src);
-  fresh.src = s.src; // clean path, no query string (file:// safe)
+  fresh.src = s.src;
   img.replaceWith(fresh);
   img = fresh;
 }
 
 // Warm the cache so swaps don't flash.
-Object.keys(STATES).forEach((k) => {
-  if (STATES[k]) { const im = new Image(); im.src = STATES[k].src; }
+Object.keys(ART_STATES).forEach((k) => {
+  if (ART_STATES[k]) { const im = new Image(); im.src = ART_STATES[k].src; }
 });
 
+// --- xN badge ----------------------------------------------------------------
+function renderBadge(count) {
+  if (!badge) return;
+  if (count > 1) {
+    badge.textContent = "x" + count;
+    badge.hidden = false;
+  } else {
+    badge.hidden = true;
+  }
+}
+
 // --- Pet-side state controller ------------------------------------------------
-// The daemon (shared with the ESP32) is NOT changed. The pet derives the extra
-// web-only states from what it already receives:
-//   conducting + 1 subagent  -> grooving      conducting + 2+ -> juggling
-//   dizzy (API error)        -> error
-//   new session id           -> walking  (oneshot, then the real state)
-//   session id gone          -> going_away (oneshot)
-//   idle-ish -> thinking     -> idea (oneshot), then thinking
-//   cool (all tests passed, sent by the daemon) -> cool oneshot
-//   no daemon connection     -> disconnected
-const ONESHOT_MS = { walking: 1500, going_away: 3200, idea: 1500, cool: 5000, happy: 2000 };
-const RESTING = new Set(["idle", "sleeping", "low_battery", "waiting_reply", "happy", "alert", "notification"]);
+// Derives the extra web-only states from the daemon's product anim, same as the
+// single-window spike did, but driven by this window's product-state updates.
+const ONESHOT_MS = { walking: 1500, going_away: 3200, idea: 1500, cool: 5000, happy: 2000, dizzy: 2000 };
+const RESTING = new Set(["idle", "sleeping", "low_battery", "no_credits", "waiting_reply", "happy", "alert", "notification"]);
 
 let linked = false;      // daemon connected to the bridge
 let base = "idle";       // latest state from the daemon, after mapping
 let shown = null;        // what is on screen right now
 let oneshot = null;      // { name, timer } while a oneshot plays
-let knownIds = null;     // session ids from the last set_sessions (null = none yet)
+let seenFirst = false;   // first product-state received (for walking oneshot)
 
 function show(name) {
   if (name === shown) return;
@@ -166,7 +216,7 @@ function show(name) {
 
 function refresh() {
   if (!linked) { show("disconnected"); return; }
-  if (oneshot) return;   // the oneshot owns the screen until it ends
+  if (oneshot) return;
   show(base);
 }
 
@@ -176,63 +226,120 @@ function playOneshot(name) {
   if (linked) show(name);
 }
 
-/** Map the daemon's animation name to the pet's art, using the subagent count. */
-function mapAnim(name, subagents) {
-  if (name === "conducting") return subagents >= 2 ? "juggling" : "grooving";
-  if (name === "dizzy") return "error";
-  return name || "idle";
-}
+// 'conducting' tracking: the daemon keeps reporting it for as long as the Agent
+// tool is the main agent's last tool, so the pet times it itself (see
+// AnimMap.mapAnim) and settles into 'grooving' once subagents are working.
+let conductSince = null;   // Date.now() when the daemon started reporting it
+let conductTimer = null;   // re-evaluates the mapping when CONDUCT_MS elapses
+let lastProduct = null;    // latest product-state, for the timer re-evaluation
 
-function handleState(next, ids) {
+function handleProductState(state) {
+  linked = !!state.linked;
+  renderBadge(Number(state.count) || 1);
+  lastProduct = state;
+
+  if (!linked) { refresh(); return; }
+
+  // Track how long the daemon has been saying 'conducting'.
+  if (state.anim === "conducting") {
+    if (conductSince === null) conductSince = Date.now();
+  } else {
+    conductSince = null;
+  }
+  clearTimeout(conductTimer);
+  conductTimer = null;
+  const bg = Number(state.bg) || 0;
+  const conductMs = conductSince === null ? Infinity : Date.now() - conductSince;
+  if (state.anim === "conducting" && bg > 0 && conductMs < AnimMap.CONDUCT_MS) {
+    conductTimer = setTimeout(() => handleProductState(lastProduct), AnimMap.CONDUCT_MS - conductMs + 20);
+  }
+
+  const next = AnimMap.mapAnim(state.anim, bg, conductMs, !!state.exhausted);
   const prev = base;
 
-  // Session arrivals and departures (set_sessions only).
-  if (ids) {
-    const now = new Set(ids);
-    if (knownIds) {
-      const arrived = ids.some((id) => !knownIds.has(id));
-      const left = [...knownIds].some((id) => !now.has(id));
-      if (left && !arrived) playOneshot("going_away");
-      else if (arrived) playOneshot("walking");
-    }
-    knownIds = now;
-  } else if (next === "sleeping" && knownIds && knownIds.size) {
-    // Last session ended: the daemon falls back to set_status sleeping.
-    knownIds = new Set();
-    playOneshot("going_away");
-  }
-
-  base = (next === "happy" || next === "cool") ? prev : next;   // oneshots, not resting states
-
-  if (next === "happy" || next === "cool") {
-    // "cool" = all tests passed (to be sent by the daemon); "happy" = turn finished.
-    playOneshot(next);
+  // First time we see this product's window: play the walking entrance.
+  if (!seenFirst) {
+    seenFirst = true;
+    base = next;
+    playOneshot("walking");
     return;
   }
-  if (next === "thinking" && RESTING.has(prev) && !oneshot) {
-    playOneshot("idea");   // new prompt: the bulb lights up, then it thinks
-    return;
-  }
+
+  base = (next === "happy" || next === "cool") ? prev : next;
+
+  if (next === "happy" || next === "cool") { playOneshot(next); return; }
+  if (next === "thinking" && RESTING.has(prev) && !oneshot) { playOneshot("idea"); return; }
   refresh();
 }
 
-window.pet.onDaemonCommand((cmd) => {
-  if (!cmd || !cmd.action) return;
-  if (cmd.action === "set_status") {
-    handleState(mapAnim(cmd.status, 0), null);
-  } else if (cmd.action === "set_sessions") {
-    const anims = Array.isArray(cmd.anims) ? cmd.anims : [];
-    const ids = Array.isArray(cmd.ids) ? cmd.ids.map(String) : null;
-    handleState(mapAnim(anims[0], Number(cmd.subagents) || 0), ids);
-  } else if (cmd.action.startsWith("permission")) {
-    console.log("[pet] permission cmd:", cmd);
+window.pet.onProductState(handleProductState);
+
+// --- Permission bubble -------------------------------------------------------
+// A FIFO of pending requests (the daemon can have several); we show the first.
+// Clicking Allow/Deny replies to the daemon and advances to the next, mirroring
+// the SDL2 simulator's bubble. While a bubble is up the whole window must be
+// interactive (not click-through) so the buttons are clickable.
+const permCard = document.getElementById("perm-card");
+const permProject = document.getElementById("perm-project");
+const permTool = document.getElementById("perm-tool");
+const permCount = document.getElementById("perm-count");
+const permSummary = document.getElementById("perm-summary");
+const permAllow = document.getElementById("perm-allow");
+const permDeny = document.getElementById("perm-deny");
+
+let permQueue = [];            // pending requests, oldest first
+// Guard against an accidental click landing on a bubble that just appeared.
+const PERM_CLICK_GUARD_MS = 350;
+let permShownAt = 0;
+
+function renderPermission() {
+  if (permQueue.length === 0) {
+    permCard.hidden = true;
+    // Return to click-through unless the pointer is actually over the crab.
+    if (!overBody) window.pet.setInteractive(false);
+    return;
   }
+  const r = permQueue[0];
+  permProject.textContent = r.project || "";
+  permTool.textContent = r.tool || "";
+  permSummary.textContent = r.summary || r.tool || "";
+  permCount.textContent = permQueue.length > 1 ? "+" + (permQueue.length - 1) : "";
+  if (permCard.hidden) {
+    permCard.hidden = false;
+    permShownAt = Date.now();
+    // Capture the mouse so the buttons are clickable over the transparent window.
+    window.pet.setInteractive(true);
+  }
+}
+
+function answerPermission(decision) {
+  if (permQueue.length === 0) return;
+  if (Date.now() - permShownAt < PERM_CLICK_GUARD_MS) return; // ignore stray clicks
+  const r = permQueue.shift();
+  window.pet.sendPermissionDecision({
+    event: "permission_decision", id: r.id, nonce: r.nonce, decision,
+  });
+  permShownAt = Date.now(); // re-arm the guard for the next queued request
+  renderPermission();
+}
+
+permAllow.addEventListener("click", () => answerPermission("allow"));
+permDeny.addEventListener("click", () => answerPermission("deny"));
+
+window.pet.onPermissionRequest((req) => {
+  if (!req || !req.id) return;
+  if (permQueue.some((p) => p.id === req.id)) return; // de-dup
+  permQueue.push(req);
+  renderPermission();
 });
 
-window.pet.onDaemonLink((connected) => {
-  linked = connected;
-  if (!connected) { knownIds = null; if (oneshot) { clearTimeout(oneshot.timer); oneshot = null; } }
-  refresh();
+window.pet.onPermissionClear((msg) => {
+  if (!msg) return;
+  const before = permQueue.length;
+  permQueue = permQueue.filter((p) => p.id !== msg.id);
+  if (permQueue.length !== before) renderPermission();
 });
 
-refresh(); // start as "disconnected" until the daemon connects
+// Ask main for our initial state, then render.
+window.pet.requestState();
+refresh(); // "disconnected" until the first linked product-state arrives

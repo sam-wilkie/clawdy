@@ -9,7 +9,7 @@ const { pathToFileURL } = require("url");
 const [svgArg, outPrefix, countArg, intervalArg] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const COUNT = parseInt(countArg || "8", 10);
 const INTERVAL = parseInt(intervalArg || "200", 10);
-const SIZE = 200;
+const SIZE = parseInt(process.env.SIZE || "200", 10);
 
 app.disableHardwareAcceleration();
 app.whenReady().then(async () => {

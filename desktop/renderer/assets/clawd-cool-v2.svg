@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500">
   <!-- Clawd v2 (web) "deal with it" — 5 s loop, eased.
-       Sequence (motion reference: clawd-on-desk shades): the right pincer raises, the shades
+       Sequence: the right pincer raises, the shades
        pop in small above it, fly onto the face growing to full size, the pincer comes down,
        the crab tilts into a cool pose with pincers out, a sparkle flashes, it holds, then the
        shades fade and the loop restarts. v2 look: outline, light/shade, palette. Website only. -->
