@@ -37,7 +37,7 @@
 - **Nota pendiente**: el acceso directo usa `start_margarita.vbs`, que NO antepone
   `simulator\build` al PATH como sí hace `ver-tray.bat`. Para desarrollo en vivo desde el
   acceso directo, convendría que el `.vbs` también agregue esa ruta. (No hecho aún.)
-- Toolchain: scoop gcc (`C:/Users/user/scoop/apps/gcc/current/bin`) + ninja shim.
+- Toolchain: scoop gcc (`<scoop>/apps/gcc/current/bin`) + ninja shim.
   Rebuild: `cmake --build simulator\build`. El `.exe` no puede estar corriendo o el link
   falla con "Permission denied".
 
