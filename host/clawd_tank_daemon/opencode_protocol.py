@@ -123,8 +123,12 @@ def opencode_hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
         return msg
 
     if event_type == "session.deleted":
+        # Mirror Codex/Kiro's SessionEnd: include `hook: "SessionEnd"` so the
+        # daemon's _handle_message removes the session entirely (a plain
+        # `event: "dismiss"` only clears the active notification card).
         return {
             "event": "dismiss",
+            "hook": "SessionEnd",
             "session_id": session_id,
             "pid": pid,
         }

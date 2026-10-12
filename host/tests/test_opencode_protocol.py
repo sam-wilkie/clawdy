@@ -43,10 +43,13 @@ def test_session_created_passthrough_of_source_field():
 # --- session.deleted → dismiss ----------------------------------------------
 
 def test_session_deleted_translates_to_dismiss():
+    """session.deleted maps to dismiss with hook=SessionEnd (so the daemon
+    removes the session, not just the notification card)."""
     payload = {"type": "session.deleted", "sessionID": "abc123"}
     msg = opencode_hook_payload_to_daemon_message(payload)
     assert msg is not None
     assert msg["event"] == "dismiss"
+    assert msg["hook"] == "SessionEnd"
     assert msg["session_id"] == f"{OPENCODE_SESSION_PREFIX}abc123"
     assert msg["pid"] is None
 

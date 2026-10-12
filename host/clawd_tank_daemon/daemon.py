@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Optional, Protocol, runtime_checkable
 
 from .ble_client import ClawdBleClient
+from .kiro_log_watcher import run_kiro_log_watcher
 from .process_utils import pid_alive, terminate_pid
 from .protocol import (
     ASK_USER_QUESTION_TOOL,
@@ -163,14 +164,16 @@ def _state_to_anim(state: dict, has_subagents: bool, usage_low: bool) -> str:
 
 
 # Which AI product a session belongs to, derived from the session-id prefix the
-# translators add (codex_protocol "codex:", kiro_protocol "kiro:", Claude none).
-# Grouped by PRODUCT: a Kiro IDE session and a Kiro CLI session are both "kiro".
-# Lets the desktop pet pick a per-product crab (and group/count by product)
-# without the daemon storing anything new — the prefix is the single source of
-# truth. Unknown/unprefixed ids are Claude Code, the original agent.
+# translators add (codex_protocol "codex:", kiro_protocol "kiro:",
+# opencode_protocol "opencode:", Claude none). Grouped by PRODUCT: a Kiro IDE
+# session and a Kiro CLI session are both "kiro". Lets the desktop pet pick a
+# per-product crab (and group/count by product) without the daemon storing
+# anything new — the prefix is the single source of truth. Unknown/unprefixed
+# ids are Claude Code, the original agent.
 SESSION_AGENT_PREFIXES = (
     ("codex:", "codex"),
     ("kiro:", "kiro"),
+    ("opencode:", "opencode"),
 )
 
 
@@ -180,6 +183,28 @@ def _session_agent(session_id: str) -> str:
         if session_id.startswith(prefix):
             return agent
     return "claude"
+
+
+# Path to the per-product preference file used by both the menubar app and the
+# daemon. PR1 adds `enable_opencode` here; existing keys (`ble_enabled`,
+# `sim_enabled`, `sim_window_visible`, `sim_always_on_top`, `sim_desk_mode`,
+# `claude_mod_enabled`) live in clawd_tank_menubar.preferences but the daemon
+# only reads the keys it cares about.
+_PREFERENCES_PATH = Path.home() / ".clawd-tank" / "preferences.json"
+
+
+def _load_preferences() -> dict:
+    """Read the preferences file. Missing/unparseable files behave as empty,
+    so the daemon defaults (enable_opencode True) apply."""
+    try:
+        text = _PREFERENCES_PATH.read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError):
+        return {}
+    try:
+        parsed = json.loads(text)
+    except ValueError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 # Priority of each animation when several sessions of the SAME product are
@@ -291,6 +316,10 @@ PID_LIVENESS_INTERVAL_SECS = 5.0
 # the instant the process dies). Keeps ghost sessions from lingering ~10 min
 # after a terminal is closed. Applies identically on macOS and Windows.
 NO_PID_STALENESS_TIMEOUT = 90.0
+# States in which a session seen in Kiro's log keeps the normal staleness
+# timeout despite having no PID: an opened-but-unused Kiro (registered) or one
+# that hit its usage limit (out_of_credits) legitimately sends no events.
+LOG_RESTING_STATES = ("registered", "out_of_credits")
 
 
 @runtime_checkable
@@ -410,6 +439,11 @@ class ClawdDaemon:
         self._observer = observer
         self._headless = headless
         self._sessions_path = sessions_path if sessions_path is not None else session_store.SESSIONS_PATH
+        # Per-product preference gate: a user can keep the OpenCode plugin
+        # installed while still suppressing its events (debugging, switching
+        # products). New in PR1 — Codex/Kiro have no equivalent. Default is
+        # True so an unset preferences file behaves identically to before.
+        self._preferences = _load_preferences()
         loaded_states, loaded_order, loaded_next_id = load_sessions(self._sessions_path)
 
         # One-shot startup prune by wall-clock: if last_event is older than the
@@ -448,6 +482,19 @@ class ClawdDaemon:
         event = msg.get("event")
         session_id = msg.get("session_id", "")
         hook = msg.get("hook", "")
+        from_log = bool(msg.get("from_log"))
+        # PR1: per-product preference gate for `enable_opencode`. When the user
+        # has disabled OpenCode plugin events, drop every opencode:-prefixed
+        # message before any state work — same effect as if the plugin were
+        # not installed. Codex/Kiro have no equivalent gate (verified by
+        # absence in clawd_tank_menubar.preferences).
+        if (session_id.startswith("opencode:")
+                and not self._preferences.get("enable_opencode", True)):
+            return
+        # Kiro's log reports a new session that a hook may already have
+        # registered; re-registering it would reset its state.
+        if from_log and event == "session_start" and session_id in self._session_states:
+            return
         # Activity from a session means whatever it was blocked on is resolved
         # (answered in the terminal, turn ended, ...): drop its open requests.
         if session_id and (
@@ -531,6 +578,8 @@ class ClawdDaemon:
         # Store project name after session state is created
         if project and session_id and session_id in self._session_states:
             self._session_states[session_id]["project"] = project
+        if from_log and session_id in self._session_states:
+            self._session_states[session_id]["log_seen"] = True
 
         # --- Handle compact: send sweeping oneshot ---
         if event == "compact":
@@ -769,11 +818,27 @@ class ClawdDaemon:
             )
         products = _aggregate_products(all_agents, all_anims, all_bgs, all_exhausted)
 
+        # Rich session detail is for the local desktop pet panel only. The
+        # transport adapter strips it before sending to hardware.
+        sessions = []
+        for session_id, _ in self._session_order:
+            state = self._session_states.get(session_id)
+            if state is None:
+                continue
+            sessions.append({
+                "agent": _session_agent(session_id),
+                "project": state.get("project", ""),
+                "state": state.get("state", "idle"),
+                "tool": state.get("tool_name", ""),
+                "subagents": len(state.get("subagents", ())),
+            })
+
         result = {
             "anims": anims,
             "ids": ids,
             "agents": agents,
             "products": products,
+            "sessions": sessions,
             "subagents": total_subagents,
         }
         if len(self._session_order) > 4:
@@ -835,8 +900,13 @@ class ClawdDaemon:
             downgraded = _map_anims(downgraded, DESKTOP_PET_ANIM_FALLBACKS)
         if name != "sim":
             downgraded = {
-                k: v for k, v in downgraded.items() if k not in ("agents", "products")
+                k: v for k, v in downgraded.items()
+                if k not in ("agents", "products", "sessions")
             }
+        elif not getattr(self._transports.get(name), "desktop_pet", False):
+            # The SDL simulator shares product summaries but does not need the
+            # richer list shown in the Electron activity panel.
+            downgraded.pop("sessions", None)
         return display_state_to_ble_payload(downgraded)
 
     def _enter_state(
@@ -1010,8 +1080,12 @@ class ClawdDaemon:
             # keep the long timeout. Sessions with no PID (failed detection,
             # e.g. no claude.exe ancestor on Windows) have no such safety net,
             # so they expire much sooner.
+            # Sessions Kiro's log reported (no PID ever) sit idle at rest without
+            # events, so they keep the normal timeout while in a resting state.
             has_pid = s.get("pid") is not None
-            timeout = self._session_staleness_timeout if has_pid else NO_PID_STALENESS_TIMEOUT
+            log_resting = s.get("log_seen") and s.get("state") in LOG_RESTING_STATES
+            timeout = (self._session_staleness_timeout if has_pid or log_resting
+                       else NO_PID_STALENESS_TIMEOUT)
             idle = now_mono - s.get("last_event_monotonic", now_mono)
             if idle > timeout:
                 stale.append(sid)
@@ -1355,6 +1429,13 @@ class ClawdDaemon:
             except asyncio.CancelledError:
                 pass
 
+        if hasattr(self, '_kiro_log_task'):
+            self._kiro_log_task.cancel()
+            try:
+                await self._kiro_log_task
+            except asyncio.CancelledError:
+                pass
+
         for task in self._sender_tasks.values():
             task.cancel()
         for task in self._sender_tasks.values():
@@ -1487,6 +1568,7 @@ class ClawdDaemon:
         self._liveness_task = asyncio.create_task(self._liveness_checker())
         self._ble_liveness_task = asyncio.create_task(self._ble_liveness_checker())
         self._usage_task = asyncio.create_task(self._usage_checker())
+        self._kiro_log_task = asyncio.create_task(run_kiro_log_watcher(self._handle_message))
 
         await self._shutdown_event.wait()
         logger.info("Daemon run() finished")
