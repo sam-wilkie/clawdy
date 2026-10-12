@@ -64,6 +64,11 @@ class TrayState:
     # Floating desk pet: the simulator runs as a transparent crab-only window.
     # Implies sim_enabled; the window/pin items do not apply while it is on.
     sim_desk: bool = False
+    # PR1: OpenCode plugin installed? Reflects hooks.are_opencode_hooks_installed()
+    # at __init__ / render time, updated by toggle_opencode_hooks(). Mirrors the
+    # Claude hooks_installed field — a fresh read on every render() so the
+    # checkmark always matches disk state.
+    opencode_hooks_installed: bool = False
 
 
 class TrayView(Protocol):
@@ -130,6 +135,7 @@ class ClawdTankController(DaemonObserver):
         self._session_timeout_seconds = DEFAULT_SESSION_TIMEOUT_SECONDS
 
         self._hooks_installed = hooks.are_hooks_installed()
+        self._opencode_hooks_installed = hooks.are_opencode_hooks_installed()
         self._claude_mod_enabled = bool(prefs.get("claude_mod_enabled", False))
 
         if autostart.is_enabled() and autostart.is_stale():
@@ -190,6 +196,10 @@ class ClawdTankController(DaemonObserver):
         return self._claude_mod_enabled
 
     @property
+    def opencode_hooks_installed(self) -> bool:
+        return self._opencode_hooks_installed
+
+    @property
     def session_timeout_seconds(self) -> int:
         return self._session_timeout_seconds
 
@@ -233,6 +243,7 @@ class ClawdTankController(DaemonObserver):
             login_enabled=self._login_enabled,
             claude_mod_enabled=self._claude_mod_enabled,
             sim_desk=self._sim_desk,
+            opencode_hooks_installed=self._opencode_hooks_installed,
         )
         self._view.render(state)
 
@@ -513,6 +524,59 @@ class ClawdTankController(DaemonObserver):
                 "Restart your Kiro session in that folder for the hooks to take effect."
             ),
         )
+
+    def toggle_opencode_hooks(self) -> None:
+        """Toggle the OpenCode plugin shim: install when missing, uninstall
+        when present. Mirrors install_hooks()'s stateless UX (no folder
+        picker — OpenCode's plugin lives at a convention path, not a per-
+        workspace one). The menu checkmark tracks disk state via
+        hooks.are_opencode_hooks_installed() on every render, so an external
+        change (a user manually editing opencode.json) is reflected without
+        us holding stale controller state."""
+        was_installed = hooks.are_opencode_hooks_installed()
+        if was_installed:
+            if not hooks.uninstall_opencode_hooks():
+                self._view.alert(
+                    title="OpenCode Plugin Not Removed",
+                    message=(
+                        "Could not uninstall the OpenCode plugin. Check the log "
+                        "and try again."
+                    ),
+                )
+                self._render()
+                return
+            self._opencode_hooks_installed = False
+            self._render()
+            self._view.alert(
+                title="OpenCode Plugin Removed",
+                message=(
+                    "The Clawdy plugin was removed from opencode.json. Restart "
+                    "your OpenCode session for the change to take effect."
+                ),
+            )
+        else:
+            if not hooks.install_opencode_hooks():
+                self._view.alert(
+                    title="OpenCode Plugin Not Installed",
+                    message=(
+                        "The Clawdy plugin could not be installed: the bundled "
+                        "plugin shim is missing (this is the PR1 build — the shim "
+                        "ships in PR2), or opencode.json could not be parsed and "
+                        "was left untouched. See the log for details."
+                    ),
+                )
+                self._render()
+                return
+            self._opencode_hooks_installed = True
+            self._render()
+            self._view.alert(
+                title="OpenCode Plugin Installed",
+                message=(
+                    "The Clawdy plugin was added to OpenCode. Restart your "
+                    "OpenCode session for the plugin to load."
+                ),
+            )
+        self._render()
 
     def toggle_claude_mod(self) -> None:
         """Turn the Margarita side panel in Claude Code on or off. The choice is

@@ -133,6 +133,15 @@ class RumpsTrayView:
             callback=lambda _sender: controller.install_kiro_hooks(),
         )
 
+        # PR1: OpenCode hooks — stateless enable/disable like Claude. The check
+        # reflects hooks.are_opencode_hooks_installed() (queried on every render),
+        # not an internal flag, so disk edits show up without an app restart.
+        self._opencode_hooks_item = rumps.MenuItem(
+            "Install OpenCode Hooks",
+            callback=lambda _sender: controller.toggle_opencode_hooks(),
+        )
+        self._opencode_hooks_item.state = controller.opencode_hooks_installed
+
         # Claude Code mod: the Margarita side panel inside Claude Code
         self._claude_mod_item = rumps.MenuItem(
             "Claude Code Mod (panel)",
@@ -168,6 +177,7 @@ class RumpsTrayView:
             None,
             self._hooks_item,
             self._kiro_hooks_item,
+            self._opencode_hooks_item,
             self._claude_mod_item,
             self._login_item,
             None,
@@ -254,6 +264,7 @@ class RumpsTrayView:
 
         # --- Hooks / Claude Code mod / login ---
         self._hooks_item.state = state.hooks_installed
+        self._opencode_hooks_item.state = state.opencode_hooks_installed
         self._claude_mod_item.state = state.claude_mod_enabled
         self._login_item.state = state.login_enabled
 

@@ -151,6 +151,11 @@ class WindowsTrayView:
                 lambda item: controller.install_kiro_hooks(),
             ),
             pystray.MenuItem(
+                "Install OpenCode Hooks",
+                lambda item: controller.toggle_opencode_hooks(),
+                checked=has_state(lambda s: s.opencode_hooks_installed),
+            ),
+            pystray.MenuItem(
                 "Claude Code Mod (panel)",
                 lambda item: controller.toggle_claude_mod(),
                 checked=has_state(lambda s: s.claude_mod_enabled),
