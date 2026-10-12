@@ -31,10 +31,9 @@ NOTIFY_SCRIPT_PATH = CLAWD_DIR / (
 )
 CLAUDE_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
 
-# Claude Code kills a hook that runs longer than its timeout (default 60 s). Our
-# PermissionRequest hook waits up to PERMISSION_WAIT_SECONDS for the pet, so its
-# entry carries a larger timeout; no other hook of ours waits. Kept comfortably
-# above the wait so the daemon/hook always resolve before Claude kills the hook.
+# Hosts kill hooks that run longer than their configured timeout. Permission
+# hooks and Kiro's PreToolUse gate wait up to PERMISSION_WAIT_SECONDS for the pet,
+# so their entries carry a larger timeout.
 PERMISSION_HOOK_TIMEOUT_SECONDS = 25
 assert PERMISSION_HOOK_TIMEOUT_SECONDS > PERMISSION_WAIT_SECONDS
 
@@ -283,9 +282,18 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
             return None
 
 
-    def _print_decision(decision):
-        """Print the PermissionRequest hook output Claude Code understands. The
-        only thing this script ever writes to stdout."""
+    def _print_decision(decision, agent):
+        """Return the decision in the format expected by the calling agent.
+
+        Kiro's PreToolUse hook uses exit status: zero allows the tool hook to
+        continue, nonzero blocks the tool. Missing/late decisions fail closed
+        for Kiro because Clawdy is acting as its approval gate.
+        """
+        if agent == "kiro":
+            if decision != "allow":
+                print(PERMISSION_DENY_MESSAGE, file=sys.stderr)
+                sys.exit(2)
+            return
         if decision == "allow":
             outcome = {"behavior": "allow"}
         elif decision == "deny":
@@ -456,7 +464,13 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
         if event_name == "PostToolUse":
             return {"event": "tool_done", "session_id": session_id, "tool_name": _codex_tool(hook.get("tool_name", "")), "project": project, "pid": pid}
         if event_name == "PermissionRequest":
-            return {"event": "permission", "session_id": session_id, "tool_name": _codex_tool(hook.get("tool_name", "")), "project": project, "pid": pid}
+            tool_name = _codex_tool(hook.get("tool_name", ""))
+            return {
+                "event": "permission", "session_id": session_id,
+                "tool_name": tool_name, "project": project, "pid": pid,
+                "wait": True,
+                "tool_summary": _tool_summary(tool_name, hook.get("tool_input")),
+            }
         if event_name == "PreCompact":
             return {"event": "compact", "session_id": session_id, "pid": pid}
         if event_name == "Stop":
@@ -477,8 +491,9 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
 
 
     # Kiro IDE reuses Claude's event vocabulary (hook_event_name, session_id,
-    # cwd, tool_name). Only the session-id namespace, the tool-name aliases and
-    # the card name differ, and Kiro has no PermissionRequest/Subagent hooks.
+    # cwd, tool_name). Only the session-id namespace, tool-name aliases and the
+    # card name differ. Kiro has no native PermissionRequest/Subagent hooks;
+    # Clawdy uses PreToolUse as the desk approval gate.
     # Keep this in sync with clawd_tank_daemon/kiro_protocol.py.
     KIRO_SESSION_PREFIX = "kiro:"
     KIRO_DISPLAY_NAME = "Kiro"
@@ -521,7 +536,13 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
                 msg["source"] = source
             return msg
         if event_name == "PreToolUse":
-            return {"event": "tool_use", "session_id": session_id, "tool_name": _kiro_tool(hook.get("tool_name", "")), "project": project, "pid": pid}
+            tool_name = _kiro_tool(hook.get("tool_name", ""))
+            return {
+                "event": "permission", "session_id": session_id,
+                "tool_name": tool_name, "project": project, "pid": pid,
+                "wait": True,
+                "tool_summary": _tool_summary(tool_name, hook.get("tool_input")),
+            }
         if event_name == "PostToolUse":
             return {"event": "tool_done", "session_id": session_id, "tool_name": _kiro_tool(hook.get("tool_name", "")), "project": project, "pid": pid}
         if event_name == "Stop":
@@ -585,16 +606,20 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
         # raised on the Windows branch, so POSIX behaviour is unchanged.
         except (ConnectionRefusedError, FileNotFoundError, socket.timeout,
                 json.JSONDecodeError, KeyError):
+            if wait and agent == "kiro":
+                _print_decision(None, agent)
             sys.exit(0)
         except Exception:
             # A waiting hook must never fail loudly or allow anything: Claude
             # Code then asks in the terminal. Other messages keep raising.
             if wait:
+                if agent == "kiro":
+                    _print_decision(None, agent)
                 sys.exit(0)
             raise
         finally:
             sock.close()
-        _print_decision(decision)
+        _print_decision(decision, agent)
 
 
     if __name__ == "__main__":
@@ -1040,7 +1065,11 @@ def build_codex_hooks_config(command: str) -> dict:
         "PostToolUse": [
             {"matcher": ASK_USER_QUESTION_TOOL, "hooks": [{"type": "command", "command": command}]}
         ],
-        "PermissionRequest": [{"hooks": [{"type": "command", "command": command}]}],
+        "PermissionRequest": [{"hooks": [{
+            "type": "command", "command": command,
+            "timeout": PERMISSION_HOOK_TIMEOUT_SECONDS,
+            "statusMessage": "Waiting for Clawdy pet approval",
+        }]}],
         "PreCompact": [{"hooks": [{"type": "command", "command": command}]}],
         "Stop": [{"hooks": [{"type": "command", "command": command}]}],
         "SessionEnd": [{"hooks": [{"type": "command", "command": command}]}],
@@ -1150,11 +1179,12 @@ def uninstall_codex_hooks() -> bool:
 # engine (the v2 engine does not read standalone hook files).
 KIRO_HOOKS_DIRNAME = ".kiro/hooks"
 KIRO_HOOKS_FILENAME = "clawdy.json"
+KIRO_WORKSPACES_PATH = CLAWD_DIR / "kiro-workspaces.json"
 KIRO_HOOK_COMMAND = HOOK_COMMAND + " kiro"
 
-# Only the triggers the Kiro translator (kiro_protocol / NOTIFY_SCRIPT) maps to a
-# daemon message. Kiro has no PermissionRequest/StopFailure/Notification/
-# PreCompact/Subagent events, so registering them would be dead config.
+# Kiro has no PermissionRequest trigger, so its PreToolUse hook acts as an
+# explicit approval gate for each tool invocation. Other unsupported lifecycle
+# hooks (StopFailure, Notification, PreCompact, Subagent) stay unregistered.
 KIRO_TRIGGERS = ("SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop")
 
 
@@ -1167,6 +1197,10 @@ def build_kiro_hooks_file(command: str) -> dict:
             {
                 "name": f"Clawdy: {trigger}",
                 "trigger": trigger,
+                **(
+                    {"timeout": PERMISSION_HOOK_TIMEOUT_SECONDS}
+                    if trigger == "PreToolUse" else {}
+                ),
                 "action": {"type": "command", "command": command},
             }
             for trigger in KIRO_TRIGGERS
@@ -1177,6 +1211,34 @@ def build_kiro_hooks_file(command: str) -> dict:
 def kiro_hooks_path(workspace) -> Path:
     """Path to our Kiro hook file inside `workspace`."""
     return Path(workspace) / KIRO_HOOKS_DIRNAME / KIRO_HOOKS_FILENAME
+
+
+def _load_kiro_workspaces() -> list[str] | None:
+    if not KIRO_WORKSPACES_PATH.exists():
+        return []
+    try:
+        data = json.loads(KIRO_WORKSPACES_PATH.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, list) or not all(isinstance(p, str) for p in data):
+        return None
+    return data
+
+
+def _track_kiro_workspace(workspace) -> bool:
+    workspaces = _load_kiro_workspaces()
+    if workspaces is None:
+        logger.warning("Could not track Kiro workspace: %s is not valid JSON", KIRO_WORKSPACES_PATH)
+        return False
+    value = str(Path(workspace).resolve())
+    if value not in workspaces:
+        workspaces.append(value)
+    try:
+        _write_json_atomic(KIRO_WORKSPACES_PATH, workspaces)
+    except OSError:
+        logger.warning("Could not track Kiro workspace %s", value)
+        return False
+    return True
 
 
 def install_kiro_hooks(workspace) -> bool:
@@ -1190,6 +1252,9 @@ def install_kiro_hooks(workspace) -> bool:
         _write_json_atomic(path, build_kiro_hooks_file(KIRO_HOOK_COMMAND))
     except OSError:
         logger.warning("Could not install Kiro hooks at %s", path)
+        return False
+    if not _track_kiro_workspace(workspace):
+        path.unlink(missing_ok=True)
         return False
     logger.info("Installed Kiro hooks: %s", path)
     return True
@@ -1218,6 +1283,22 @@ def uninstall_kiro_hooks(workspace) -> bool:
         logger.warning("Could not uninstall Kiro hooks at %s", path)
         return False
     logger.info("Uninstalled Kiro hooks from %s", path)
+    return True
+
+
+def uninstall_tracked_kiro_hooks() -> bool:
+    """Remove Clawdy's Kiro hook files from workspaces recorded at install."""
+    workspaces = _load_kiro_workspaces()
+    if workspaces is None:
+        logger.warning("Not uninstalling tracked Kiro hooks: invalid workspace list")
+        return False
+    try:
+        for workspace in workspaces:
+            kiro_hooks_path(workspace).unlink(missing_ok=True)
+        KIRO_WORKSPACES_PATH.unlink(missing_ok=True)
+    except OSError:
+        logger.warning("Could not remove all tracked Kiro hooks")
+        return False
     return True
 
 
@@ -1882,3 +1963,246 @@ def uninstall_hooks() -> bool:
         _statusline_command_path().unlink(missing_ok=True)
     logger.info("Uninstalled hooks from %s", CLAUDE_SETTINGS_PATH)
     return True
+
+
+# --- OpenCode plugin installer ----------------------------------------------
+#
+# OpenCode is MiniMax's AI coding assistant (https://opencode.ai). Unlike
+# Claude Code (settings.json edits) and Codex (hooks.json edits), OpenCode is
+# configured by a single opencode.json file whose `plugin` array holds file://
+# URLs to plugin shims. The installer copies our plugin shim from its bundled
+# source into ~/.config/opencode/plugins/clawd-tank.js (POSIX) or
+# %APPDATA%\opencode\plugins\clawd-tank.js (Windows), and merges the
+# corresponding file:// URL into the user's opencode.json plugin array.
+#
+# PR1 NOTE: the actual plugin shim source (clawd-tank-opencode.js) lands in
+# PR2. PR1 ships the installer; resolve_plugin_source() returns the path the
+# file will live at, but the file at that path does NOT exist yet, so
+# install_opencode_hooks() refuses (logs a warning) until PR2 drops the file
+# at OPENCODE_PLUGIN_SOURCE.
+
+OPENCODE_PLUGIN_FILENAME = "clawd-tank.js"
+OPENCODE_BACKUP_SUFFIX = ".clawd-tank.bak"
+_OPENCODE_BUNDLE_DIR = "opencode-plugin"
+
+
+def _opencode_config_path() -> Path:
+    """Path to the user's opencode.json. POSIX follows the XDG convention
+    (~/.config/opencode/opencode.json); Windows uses %APPDATA%\\opencode\\
+    opencode.json, mirroring how CLAWD_DIR is resolved."""
+    if sys.platform == "win32":
+        # APPDATA is the roaming profile path; OpenCode matches the convention
+        # used by VS Code, Discord, Slack, etc.
+        base = Path(os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming"))
+    else:
+        base = Path.home() / ".config"
+    return base / "opencode" / "opencode.json"
+
+
+def _opencode_plugin_path() -> Path:
+    """Path the plugin shim is copied to (next to opencode.json in
+    ~/.config/opencode/plugins/ or %APPDATA%\\opencode\\plugins\\)."""
+    return _opencode_config_path().parent / "plugins" / OPENCODE_PLUGIN_FILENAME
+
+
+# Module-level constants — tests monkeypatch these so a tmp_path can stand in
+# for the user's real ~/.config or %APPDATA%.
+OPENCODE_CONFIG_PATH = _opencode_config_path()
+OPENCODE_PLUGIN_PATH = _opencode_plugin_path()
+
+
+def resolve_plugin_source(frozen: bool, executable: str, resourcepath, module_file) -> Path:
+    """Where the bundled OpenCode plugin shim ships from.
+
+    PR1: the file at this path is NOT yet checked in. PR2 drops
+    ``clawd-tank-opencode.js`` at host/opencode-plugin/clawd-tank-opencode.js
+    (relative to the repo root); the macOS py2app bundle places it under
+    Contents/Resources/opencode-plugin/, and the PyInstaller onedir build
+    places it next to the exe. Mirrors resolve_mod_source() exactly so the
+    installer reads the same shape regardless of platform.
+
+    Returns the path the file WILL live at, even when nothing is there yet.
+    """
+    if frozen:
+        base = Path(resourcepath) if resourcepath else Path(executable).parent
+    else:
+        base = Path(module_file).parents[2]
+    return base / _OPENCODE_BUNDLE_DIR / "clawd-tank-opencode.js"
+
+
+# Resolved at import time; tests monkeypatch this constant.
+OPENCODE_PLUGIN_SOURCE = resolve_plugin_source(
+    bool(getattr(sys, "frozen", False)),
+    sys.executable,
+    os.environ.get("RESOURCEPATH"),
+    Path(__file__).resolve(),
+)
+
+
+def _opencode_plugin_entry() -> str:
+    """The `file://` URL OpenCode's loader expects for a local plugin file.
+
+    PosixPath.as_uri() returns ``file:///abs/path`` on POSIX and
+    ``file:///C:/abs/path`` on Windows, both of which OpenCode accepts.
+    """
+    return OPENCODE_PLUGIN_PATH.resolve().as_uri()
+
+
+def _is_our_opencode_plugin(entry) -> bool:
+    """True if a `plugin` array entry is one we wrote (the install target's
+    `file://` URL, with case-folding on Windows and trailing-separator
+    tolerance)."""
+    if not isinstance(entry, str):
+        return False
+    def normal(p: str) -> str:
+        return os.path.normcase(os.path.normpath(p))
+    return normal(entry) == normal(_opencode_plugin_entry())
+
+
+def _load_opencode_config() -> dict | None:
+    """Parse opencode.json. Returns {} when absent or empty, None when present
+    but not a readable JSON object (so we leave it untouched, same rule as
+    Codex)."""
+    if not OPENCODE_CONFIG_PATH.exists():
+        return {}
+    try:
+        text = OPENCODE_CONFIG_PATH.read_text(encoding="utf-8-sig")
+        if not text.strip():
+            return {}
+        data = json.loads(text)
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def install_opencode_hooks() -> bool:
+    """Install the OpenCode plugin shim and register it in opencode.json.
+
+    PR1 note: the bundled plugin source (clawd-tank-opencode.js) lands in
+    PR2; until the file exists at OPENCODE_PLUGIN_SOURCE this returns False
+    and leaves opencode.json untouched. Once PR2 drops the file, install
+    copies it to OPENCODE_PLUGIN_PATH and merges the file:// URL into the
+    user's `plugin` array.
+
+    Returns False, leaving opencode.json untouched, when the file cannot be
+    parsed or the bundled plugin source is missing.
+    """
+    if not OPENCODE_PLUGIN_SOURCE.is_file():
+        logger.warning(
+            "Not installing OpenCode plugin: bundled source %s not found "
+            "(lands in PR2 — see resolve_plugin_source in hooks.py)",
+            OPENCODE_PLUGIN_SOURCE,
+        )
+        return False
+
+    OPENCODE_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    data = _load_opencode_config()
+    if data is None:
+        logger.warning(
+            "Not installing OpenCode plugin: %s is not a readable JSON object; "
+            "left untouched",
+            OPENCODE_CONFIG_PATH,
+        )
+        return False
+
+    # Backup the existing config before we touch it; uninstall restores from
+    # this file byte-for-byte. _write_json_atomic replaces the config on
+    # success, so the backup lives alongside.
+    if OPENCODE_CONFIG_PATH.exists():
+        backup = OPENCODE_CONFIG_PATH.with_name(
+            OPENCODE_CONFIG_PATH.name + OPENCODE_BACKUP_SUFFIX
+        )
+        if not backup.exists():
+            backup.write_bytes(OPENCODE_CONFIG_PATH.read_bytes())
+
+    plugins = data.get("plugin")
+    if not isinstance(plugins, list):
+        plugins = []
+        data["plugin"] = plugins
+    our_entry = _opencode_plugin_entry()
+    if not any(_is_our_opencode_plugin(e) for e in plugins):
+        plugins.append(our_entry)
+
+    _write_json_atomic(OPENCODE_CONFIG_PATH, data)
+
+    # Copy the plugin file AFTER writing the config: a config pointing at a
+    # missing plugin is worse than no config at all (OpenCode would log an
+    # error on every start).
+    OPENCODE_PLUGIN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    OPENCODE_PLUGIN_PATH.write_bytes(OPENCODE_PLUGIN_SOURCE.read_bytes())
+
+    logger.info(
+        "Installed OpenCode plugin: shim at %s, entry in %s",
+        OPENCODE_PLUGIN_PATH, OPENCODE_CONFIG_PATH,
+    )
+    return True
+
+
+def uninstall_opencode_hooks() -> bool:
+    """Remove the OpenCode plugin shim and our entry from opencode.json,
+    restoring the user's original opencode.json byte-for-byte from the backup
+    install() wrote. Idempotent; returns True when no entry or file of ours
+    remains (including when nothing was ever installed). Returns False only
+    when opencode.json exists but is unparseable — in that case it is left
+    untouched."""
+    backup = OPENCODE_CONFIG_PATH.with_name(
+        OPENCODE_CONFIG_PATH.name + OPENCODE_BACKUP_SUFFIX
+    )
+
+    # Always remove the plugin file (it's ours to copy).
+    try:
+        OPENCODE_PLUGIN_PATH.unlink(missing_ok=True)
+    except OSError:
+        logger.warning("Could not remove OpenCode plugin file %s", OPENCODE_PLUGIN_PATH)
+
+    if not OPENCODE_CONFIG_PATH.exists():
+        # No config to clean up; backup file (if any) is orphaned, drop it.
+        backup.unlink(missing_ok=True)
+        return True
+
+    if backup.exists():
+        # Restore the original byte-for-byte, then drop the backup.
+        OPENCODE_CONFIG_PATH.write_bytes(backup.read_bytes())
+        backup.unlink(missing_ok=True)
+        logger.info("Restored %s from backup", OPENCODE_CONFIG_PATH)
+        return True
+
+    # No backup means install never ran, or the user has already restored
+    # manually. Either way, do a surgical removal of our entry only — never
+    # touch the user's own plugin entries.
+    data = _load_opencode_config()
+    if data is None:
+        logger.warning(
+            "Not uninstalling OpenCode plugin: %s is not a readable JSON object; "
+            "left untouched",
+            OPENCODE_CONFIG_PATH,
+        )
+        return False
+    plugins = data.get("plugin")
+    if not isinstance(plugins, list) or not any(
+        _is_our_opencode_plugin(e) for e in plugins
+    ):
+        return True
+    kept = [e for e in plugins if not _is_our_opencode_plugin(e)]
+    if kept:
+        data["plugin"] = kept
+    else:
+        del data["plugin"]
+    _write_json_atomic(OPENCODE_CONFIG_PATH, data)
+    logger.info("Removed OpenCode plugin entry from %s", OPENCODE_CONFIG_PATH)
+    return True
+
+
+def are_opencode_hooks_installed() -> bool:
+    """True iff the plugin file is in place AND opencode.json carries our
+    entry. Idempotent with install(): a successful install returns True,
+    a successful uninstall returns False."""
+    if not OPENCODE_PLUGIN_PATH.is_file():
+        return False
+    data = _load_opencode_config()
+    if not data:
+        return False
+    plugins = data.get("plugin")
+    if not isinstance(plugins, list):
+        return False
+    return any(_is_our_opencode_plugin(e) for e in plugins)
