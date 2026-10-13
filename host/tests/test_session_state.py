@@ -29,6 +29,29 @@ def _add_session(d, sid, state_dict, display_id=None):
             d._next_display_id = max(d._next_display_id, did + 1)
 
 
+def _single_display(anim, state, *, project="", tool="", subagents=0):
+    """Expected v2 display state for ONE claude session.
+
+    `sessions` is the rich per-session detail for the desktop Activity panel
+    (agent, project, state, tool, subagents); the transport adapter strips it
+    before it reaches hardware.
+    """
+    return {
+        "anims": [anim],
+        "ids": [1],
+        "agents": ["claude"],
+        "products": [{"agent": "claude", "count": 1, "anim": anim}],
+        "sessions": [{
+            "agent": "claude",
+            "project": project,
+            "state": state,
+            "tool": tool,
+            "subagents": subagents,
+        }],
+        "subagents": subagents,
+    }
+
+
 def test_no_sessions_returns_sleeping():
     d = make_daemon()
     assert d._compute_display_state() == {"status": "sleeping"}
@@ -36,22 +59,22 @@ def test_no_sessions_returns_sleeping():
 def test_single_registered_session_returns_idle():
     d = make_daemon()
     _add_session(d, "s1", {"state": "registered", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "idle"}], "subagents": 0}
+    assert d._compute_display_state() == _single_display("idle", "registered")
 
 def test_single_idle_session_returns_idle():
     d = make_daemon()
     _add_session(d, "s1", {"state": "idle", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "idle"}], "subagents": 0}
+    assert d._compute_display_state() == _single_display("idle", "idle")
 
 def test_single_thinking_session_returns_thinking():
     d = make_daemon()
     _add_session(d, "s1", {"state": "thinking", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["thinking"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "thinking"}], "subagents": 0}
+    assert d._compute_display_state() == _single_display("thinking", "thinking")
 
 def test_single_working_session_returns_typing():
     d = make_daemon()
     _add_session(d, "s1", {"state": "working", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "typing"}], "subagents": 0}
+    assert d._compute_display_state() == _single_display("typing", "working")
 
 def test_two_working_sessions_returns_two_typing():
     d = make_daemon()
@@ -247,16 +270,16 @@ async def test_last_display_state_tracks_changes():
     d = make_daemon()
     assert d._last_display_state == {"status": "sleeping"}
     await d._handle_message({"event": "session_start", "session_id": "s1"})
-    assert d._last_display_state == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "idle"}], "subagents": 0}
+    assert d._last_display_state == _single_display("idle", "registered")
     await d._handle_message({"event": "dismiss", "hook": "UserPromptSubmit", "session_id": "s1"})
-    assert d._last_display_state == {"anims": ["thinking"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "thinking"}], "subagents": 0}
+    assert d._last_display_state == _single_display("thinking", "thinking")
     await d._handle_message({"event": "tool_use", "session_id": "s1"})
-    assert d._last_display_state == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "typing"}], "subagents": 0}
+    assert d._last_display_state == _single_display("typing", "working")
     await d._handle_message({
         "event": "add", "hook": "Stop", "session_id": "s1",
         "project": "proj", "message": "Waiting",
     })
-    assert d._last_display_state == {"anims": ["waiting_reply"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "waiting_reply"}], "subagents": 0}
+    assert d._last_display_state == _single_display("waiting_reply", "waiting", project="proj")
     await d._handle_message({"event": "dismiss", "hook": "SessionEnd", "session_id": "s1"})
     assert d._last_display_state == {"status": "sleeping"}
 
@@ -501,10 +524,10 @@ async def test_subagent_lifecycle():
 
     # Session starts and begins working
     await d._handle_message({"event": "session_start", "session_id": "s1"})
-    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "idle"}], "subagents": 0}
+    assert d._compute_display_state() == _single_display("idle", "registered")
 
     await d._handle_message({"event": "tool_use", "session_id": "s1"})
-    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "typing"}], "subagents": 0}
+    assert d._compute_display_state() == _single_display("typing", "working")
 
     # Subagent spawned — the session keeps showing its own work
     await d._handle_message({"event": "subagent_start", "session_id": "s1", "agent_id": "a1"})
@@ -526,7 +549,7 @@ async def test_subagent_lifecycle():
     # Subagent finishes via SubagentStop
     await d._handle_message({"event": "subagent_stop", "session_id": "s1", "agent_id": "a1"})
     assert not d._session_states["s1"].get("subagents")
-    assert d._compute_display_state() == {"anims": ["idle"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "idle"}], "subagents": 0}
+    assert d._compute_display_state() == _single_display("idle", "idle", project="proj")
 
     # Staleness eviction works normally
     d._session_states["s1"]["last_event"] = time.time() - 9999
@@ -654,7 +677,7 @@ def test_daemon_startup_display_state_from_loaded_sessions(tmp_path):
     d = ClawdDaemon(sim_only=True, sessions_path=path)
     d._transports.clear()
     d._transport_queues.clear()
-    assert d._compute_display_state() == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "typing"}], "subagents": 0}
+    assert d._compute_display_state() == _single_display("typing", "working")
 
 
 def test_daemon_evicts_stale_sessions_on_startup(tmp_path):
@@ -733,7 +756,7 @@ async def test_display_state_single_session_typing():
     await d._handle_message({"event": "session_start", "session_id": "aaa"})
     await d._handle_message({"event": "tool_use", "session_id": "aaa"})
     state = d._compute_display_state()
-    assert state == {"anims": ["typing"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "typing"}], "subagents": 0}
+    assert state == _single_display("typing", "working")
 
 
 @pytest.mark.asyncio
@@ -909,7 +932,7 @@ async def test_compact_sends_per_session_sweeping_v2():
 def test_error_state_returns_dizzy():
     d = make_daemon()
     _add_session(d, "s1", {"state": "error", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["dizzy"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "dizzy"}], "subagents": 0}
+    assert d._compute_display_state() == _single_display("dizzy", "error")
 
 
 @pytest.mark.asyncio
@@ -1119,7 +1142,7 @@ async def test_ask_user_question_tool_use_sets_waiting():
 def test_waiting_session_returns_alert():
     d = make_daemon()
     _add_session(d, "s1", {"state": "waiting", "last_event": time.time()})
-    assert d._compute_display_state() == {"anims": ["alert"], "ids": [1], "agents": ["claude"], "products": [{"agent": "claude", "count": 1, "anim": "alert"}], "subagents": 0}
+    assert d._compute_display_state() == _single_display("alert", "waiting")
 
 
 def test_waiting_and_working_mixed():
@@ -2597,13 +2620,72 @@ async def test_user_prompt_submit_clears_both_kinds_of_waiting(enter):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("enter", [_stop(), _idle_prompt()])
 async def test_staleness_does_not_evict_end_of_turn_waiting(enter):
+    """A PID-backed end-of-turn rest is covered by the liveness checker, never by
+    the time-based eviction (a PID-less one expires, see the tests below)."""
     d = make_daemon()
     await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "Bash"})
     await d._handle_message(enter)
+    d._session_states["s1"]["pid"] = 4242
     d._session_states["s1"]["last_event_monotonic"] = time.monotonic() - 9999
     d._session_staleness_timeout = 1
     d._evict_stale_sessions()
     assert "s1" in d._session_states
+
+
+# --- PID-less end-of-turn rest expires with the normal timeout ---
+#
+# Agents with no PID and no SessionEnd (Antigravity, PID-less Codex/Kiro/OpenCode)
+# have no liveness checker; their end-of-turn "waiting" must still expire, with the
+# normal configurable timeout (not the short no-PID one: the user is thinking).
+
+def _rest(awaiting, idle, pid=None, **extra):
+    d = make_daemon()
+    s = {"state": "waiting", "last_event": time.time(),
+         "last_event_monotonic": time.monotonic() - idle, **extra}
+    if awaiting:
+        s["awaiting_prompt"] = True
+    if pid is not None:
+        s["pid"] = pid
+    d._session_states["s1"] = s
+    d._session_staleness_timeout = 600.0
+    d._evict_stale_sessions()
+    return d
+
+
+def test_pidless_end_of_turn_waiting_is_evicted_after_normal_timeout():
+    assert "s1" not in _rest(True, 601)._session_states
+
+
+def test_pidless_end_of_turn_waiting_kept_before_normal_timeout():
+    # 120 s is past the 90 s no-PID timeout but the user may be thinking.
+    assert "s1" in _rest(True, 120)._session_states
+
+
+def test_pidless_blocked_waiting_is_never_evicted():
+    assert "s1" in _rest(False, 99999)._session_states
+
+
+def test_pid_backed_end_of_turn_waiting_is_not_time_evicted():
+    assert "s1" in _rest(True, 99999, pid=4242)._session_states
+
+
+def test_pidless_end_of_turn_waiting_with_subagents_is_not_evicted():
+    assert "s1" in _rest(True, 99999, subagents={"a1"})._session_states
+
+
+@pytest.mark.asyncio
+async def test_pidless_end_of_turn_eviction_is_persisted_and_cleans_up(tmp_path):
+    path = tmp_path / "sessions.json"
+    d = make_daemon_with_path(path)
+    await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "Bash"})
+    await d._handle_message(_stop())
+    d._active_notifications["s1"] = {"x": 1}
+    d._session_states["s1"]["last_event_monotonic"] = time.monotonic() - 601
+    d._evict_stale_sessions()
+    assert "s1" not in d._session_states
+    assert "s1" not in d._active_notifications
+    assert d._session_order == []
+    assert make_daemon_with_path(path)._session_states == {}
 
 
 @pytest.mark.asyncio
@@ -2653,9 +2735,160 @@ def test_product_alert_outranks_waiting_reply():
         assert d._compute_display_state()["products"][0]["anim"] == "alert", order
 
 
-def test_product_waiting_reply_outranks_work():
+def test_product_active_work_outranks_waiting_reply():
+    """A session that finished its turn must not hide a sibling still working."""
     d = make_daemon()
     _add_session(d, "c1", {"state": "working", "tool_name": "Bash", "last_event": time.time()})
     _add_session(d, "c2", {"state": "waiting", "awaiting_prompt": True,
                            "last_event": time.time()})
-    assert d._compute_display_state()["products"][0]["anim"] == "waiting_reply"
+    assert d._compute_display_state()["products"][0]["anim"] == "building"
+
+
+# --- A blocked permission must not leave the crab stuck on "alert" ----------
+
+
+def _working(d, sid="s1", tool="Bash"):
+    _add_session(d, sid, {"state": "working", "tool_name": tool,
+                          "last_event": time.time(), "last_event_monotonic": time.monotonic()})
+
+
+@pytest.mark.asyncio
+async def test_allowed_permission_leaves_alert_and_goes_back_to_working():
+    d = make_sim_daemon()
+    _working(d)
+    task, req = await _start_wait(d, FakeReply())
+    assert d._session_states["s1"]["state"] == "waiting"
+    d.handle_sim_event(_decision(req, "allow"))
+    await asyncio.wait_for(task, timeout=1)
+    s = d._session_states["s1"]
+    assert s["state"] == "working" and s["tool_name"] == "Bash"
+    assert "permission_since_monotonic" not in s
+
+
+@pytest.mark.asyncio
+async def test_denied_permission_leaves_alert_and_goes_to_thinking():
+    d = make_sim_daemon()
+    _working(d)
+    task, req = await _start_wait(d, FakeReply())
+    d.handle_sim_event(_decision(req, "deny"))
+    await asyncio.wait_for(task, timeout=1)
+    assert d._session_states["s1"]["state"] == "thinking"
+
+
+@pytest.mark.asyncio
+async def test_hook_hangup_means_answered_elsewhere_and_leaves_alert():
+    d = make_sim_daemon()
+    _working(d)
+    reply = FakeReply()
+    task, req = await _start_wait(d, reply)
+    reply.disconnected.set()
+    await asyncio.wait_for(task, timeout=1)
+    assert d._session_states["s1"]["state"] == "thinking"
+
+
+@pytest.mark.asyncio
+async def test_daemon_timeout_keeps_the_alert_because_the_outcome_is_unknown(monkeypatch):
+    # The hook falls back to the product's own prompt; the user may still be
+    # deciding there, so the urgent alert stays.
+    monkeypatch.setattr(daemon_mod, "PERMISSION_DAEMON_WAIT_SECONDS", 0.05)
+    d = make_sim_daemon()
+    _working(d)
+    task, req = await _start_wait(d, FakeReply())
+    await asyncio.wait_for(task, timeout=1)
+    assert d._session_states["s1"]["state"] == "waiting"
+
+
+@pytest.mark.asyncio
+async def test_permission_for_ask_user_question_keeps_waiting_after_allow():
+    d = make_sim_daemon()
+    _working(d, tool="AskUserQuestion")
+    msg = _perm_msg(tool="AskUserQuestion")
+    task, req = await _start_wait(d, FakeReply(), msg)
+    d.handle_sim_event(_decision(req, "allow"))
+    await asyncio.wait_for(task, timeout=1)
+    assert d._session_states["s1"]["state"] == "waiting"
+
+
+@pytest.mark.asyncio
+async def test_resolution_does_not_overwrite_newer_state():
+    d = make_sim_daemon()
+    _working(d)
+    task, req = await _start_wait(d, FakeReply())
+    # A question arrives while the permission is open: it cancels the request but
+    # the session is legitimately still blocked on the human.
+    await d._handle_message({"event": "tool_use", "session_id": "s1",
+                             "tool_name": "AskUserQuestion"})
+    await asyncio.wait_for(task, timeout=1)
+    assert d._session_states["s1"]["state"] == "waiting"
+    assert d._session_states["s1"]["tool_name"] == "AskUserQuestion"
+
+
+@pytest.mark.asyncio
+async def test_end_of_turn_rest_survives_permission_resolution():
+    d = make_sim_daemon()
+    _working(d)
+    task, req = await _start_wait(d, FakeReply())
+    await d._handle_message({"event": "add", "hook": "Stop", "session_id": "s1",
+                             "project": "p", "message": "x"})
+    await asyncio.wait_for(task, timeout=1)
+    s = d._session_states["s1"]
+    assert s["state"] == "waiting" and s.get("awaiting_prompt") is True
+
+
+def _codex_permission_session(d, age):
+    sid = "codex:abc"
+    _add_session(d, sid, {
+        "state": "waiting", "tool_name": "exec_command", "last_event": time.time(),
+        "last_event_monotonic": time.monotonic(),
+        "permission_since_monotonic": time.monotonic() - age,
+    })
+    return sid
+
+
+def test_codex_permission_alert_expires_after_the_bounded_window():
+    d = make_daemon()
+    sid = _codex_permission_session(d, daemon_mod.CODEX_PERMISSION_ALERT_SECONDS + 1)
+    d._evict_stale_sessions()
+    s = d._session_states[sid]
+    assert s["state"] == "thinking"
+    assert "permission_since_monotonic" not in s
+
+
+def test_codex_permission_alert_holds_inside_the_window():
+    d = make_daemon()
+    sid = _codex_permission_session(d, 1)
+    d._evict_stale_sessions()
+    assert d._session_states[sid]["state"] == "waiting"
+
+
+def test_claude_permission_alert_never_expires_by_this_rule():
+    d = make_daemon()
+    _add_session(d, "claude-1", {
+        "state": "waiting", "tool_name": "Bash", "last_event": time.time(),
+        "last_event_monotonic": time.monotonic(),
+        "permission_since_monotonic": time.monotonic() - 10_000,
+    })
+    d._evict_stale_sessions()
+    assert d._session_states["claude-1"]["state"] == "waiting"
+
+
+@pytest.mark.asyncio
+async def test_permission_event_stamps_when_the_block_started():
+    d = make_daemon()
+    _working(d)
+    await d._handle_message({"event": "permission", "session_id": "s1", "tool_name": "Bash"})
+    assert "permission_since_monotonic" in d._session_states["s1"]
+    await d._handle_message({"event": "tool_use", "session_id": "s1", "tool_name": "Bash"})
+    assert "permission_since_monotonic" not in d._session_states["s1"]
+
+
+@pytest.mark.asyncio
+async def test_resolving_a_permission_broadcasts_the_cleared_alert():
+    d = make_sim_daemon()
+    _working(d)
+    task, req = await _start_wait(d, FakeReply())
+    await d._broadcast_display_state_if_changed()
+    assert d._last_display_state["anims"] == ["alert"]
+    d.handle_sim_event(_decision(req, "allow"))
+    await asyncio.wait_for(task, timeout=1)
+    assert d._last_display_state["anims"] == ["building"]

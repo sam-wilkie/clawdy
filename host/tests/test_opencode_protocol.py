@@ -17,6 +17,33 @@ from clawd_tank_daemon.opencode_protocol import (
 
 # --- session.created → session_start -----------------------------------------
 
+@pytest.mark.parametrize("event_type,event,hook", [
+    ("chat.message", "dismiss", "UserPromptSubmit"),
+    ("session.idle", "add", "Stop"),
+    ("session.heartbeat", "session_heartbeat", None),
+])
+def test_v2_prompt_and_idle_keep_opencode_identity(event_type, event, hook):
+    msg = opencode_hook_payload_to_daemon_message({
+        "type": event_type, "sessionID": "restored", "directory": "/work/project",
+    })
+    assert msg["event"] == event
+    assert msg.get("hook") == hook
+    assert msg["session_id"] == "opencode:restored"
+    assert msg["project"] == "project"
+    # The installed standalone bridge must recognize the same v2 events.
+    from clawd_tank_menubar.hooks import NOTIFY_SCRIPT
+    namespace = {"__name__": "bridge_test"}
+    exec(NOTIFY_SCRIPT, namespace)
+    assert namespace["opencode_hook_to_message"]({
+        "type": event_type, "sessionID": "restored", "directory": "/work/project",
+    }) == msg
+    from tests.test_notify_standalone import _load_notify_script
+    standalone = _load_notify_script()
+    assert standalone._parse_source(["opencode"]) == "opencode"
+    assert standalone._translate_payload({
+        "type": event_type, "sessionID": "restored", "directory": "/work/project",
+    }, "opencode") == msg
+
 def test_session_created_translates_to_session_start_with_prefix():
     """session.created maps to session_start, session_id is namespaced with the
     OpenCode prefix, and pid is None (OpenCode has no hostable PID)."""

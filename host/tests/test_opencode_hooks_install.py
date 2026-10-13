@@ -1,5 +1,5 @@
 """Tests for OpenCode plugin installation into ~/.config/opencode/opencode.json
-(macOS/Linux) and %APPDATA%\\opencode\\opencode.json (Windows).
+on macOS, Linux, and Windows (or under XDG_CONFIG_HOME).
 
 install_opencode_hooks() must MERGE our plugin entry into the user's
 opencode.json without clobbering their own plugin entries, be idempotent,
@@ -7,7 +7,7 @@ and uninstall_opencode_hooks() must remove only ours.
 
 Mirrors the structure of `test_codex_hooks_install.py`. Tests use
 monkeypatching on the module-level path constants and the bundled plugin
-source constant — the actual plugin file lands in PR2; for PR1 the tests
+source constant — the real plugin file is not needed; the tests
 swap in a small text fixture so install/uninstall can copy it.
 """
 
@@ -39,7 +39,7 @@ def opencode_paths(tmp_path, monkeypatch):
     config_path = config_dir / "opencode.json"
     plugin_path = plugins_dir / "clawd-tank.js"
     source_path = tmp_path / "clawd-tank-opencode.js"
-    source_path.write_text("// stub OpenCode plugin for PR1 tests\n", encoding="utf-8")
+    source_path.write_text("// stub OpenCode plugin for tests\n", encoding="utf-8")
 
     monkeypatch.setattr(hooks, "OPENCODE_CONFIG_PATH", config_path)
     monkeypatch.setattr(hooks, "OPENCODE_PLUGIN_PATH", plugin_path)
@@ -155,7 +155,7 @@ def test_install_refuses_when_opencode_json_unparseable(opencode_paths):
 
 
 def test_install_refuses_when_plugin_source_missing(opencode_paths, monkeypatch):
-    """If the bundled plugin source is missing (PR1: it lands in PR2),
+    """If the bundled plugin source is missing (not bundled),
     install refuses with a clear log message — no partial state."""
     p = opencode_paths
     p["source_path"].unlink()
@@ -281,20 +281,52 @@ def test_opencode_plugin_entry_is_file_url(opencode_paths):
 @pytest.mark.parametrize("platform_name,expected_subpath", [
     ("darwin", ".config/opencode/opencode.json"),
     ("linux", ".config/opencode/opencode.json"),
-    ("win32", "AppData/Roaming/opencode/opencode.json"),
+    ("win32", ".config/opencode/opencode.json"),
 ])
 def test_opencode_config_path_platform(platform_name, expected_subpath,
                                        monkeypatch, tmp_path):
-    """The config path follows XDG on POSIX and %APPDATA% on Windows. POSIX
-    uses ~/.config/opencode/; Windows uses %APPDATA%/opencode/ (the roaming
-    profile path that matches VS Code, Slack, etc.)."""
+    """OpenCode uses ~/.config/opencode on every supported platform."""
     fake_home = tmp_path / "home"
     fake_home.mkdir()
     monkeypatch.setattr(Path, "home", lambda: fake_home)
     monkeypatch.setattr(sys, "platform", platform_name)
-    # On Windows the implementation reads APPDATA first; clear it so the
-    # Path.home() override is what we test against.
+    # Keep the user's environment from overriding the fake home.
     monkeypatch.delenv("APPDATA", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     path = hooks._opencode_config_path()
     expected = fake_home / expected_subpath
     assert path == expected
+
+
+@pytest.mark.parametrize("platform_name", ["darwin", "linux", "win32"])
+def test_opencode_config_path_respects_xdg(platform_name, monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "platform", platform_name)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "custom-config"))
+    assert hooks._opencode_config_path() == tmp_path / "custom-config" / "opencode" / "opencode.json"
+
+# --- resolve_plugin_source: bundled shim location ---------------------------
+
+def test_resolve_plugin_source_non_frozen_points_at_host_dir(tmp_path):
+    """hooks.py lives in host/clawd_tank_menubar/, so the shim is looked up in
+    host/opencode-plugin/ (parents[1]), not at the repo root."""
+    module_file = tmp_path / "host" / "clawd_tank_menubar" / "hooks.py"
+    result = hooks.resolve_plugin_source(False, "python", None, module_file)
+    assert result == tmp_path / "host" / "opencode-plugin" / "clawd-tank-opencode.js"
+
+
+def test_resolve_plugin_source_frozen_layouts_unchanged(tmp_path):
+    res = tmp_path / "Resources"
+    assert hooks.resolve_plugin_source(True, "x", res, "ignored") == (
+        res / "opencode-plugin" / "clawd-tank-opencode.js"
+    )
+    exe = tmp_path / "app" / "MargaritaTank.exe"
+    assert hooks.resolve_plugin_source(True, str(exe), None, "ignored") == (
+        exe.parent / "opencode-plugin" / "clawd-tank-opencode.js"
+    )
+
+
+def test_real_repo_plugin_source_exists():
+    """Guard against silently regressing the lookup path: the shim the module
+    resolves at import time must exist in the real checkout."""
+    real = hooks.resolve_plugin_source(False, sys.executable, None, Path(hooks.__file__).resolve())
+    assert real.is_file(), real

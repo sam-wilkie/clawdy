@@ -89,9 +89,8 @@ tray = Analysis(
     binaries=[(SIM_EXE, ".")] if SIM_EXE else [],
     datas=[
         (os.path.join(HOST_DIR, "clawd_tank_menubar", "icons"), "clawd_tank_menubar/icons"),
-        # Claude Code panel mod, copied to ~/.clawd-tank/claude-mod/ by the menu
-        # toggle (hooks.resolve_mod_source() looks next to the exe).
-        (os.path.join(REPO_ROOT, "claude-mod", "margarita-band"), "claude-mod/margarita-band"),
+        # OpenCode plugin shim, copied into the OpenCode config by hooks.install_opencode_hooks().
+        (os.path.join(REPO_ROOT, "host", "opencode-plugin", "clawd-tank-opencode.js"), "opencode-plugin"),
         (ICON_PATH, "."),
     ],
     hiddenimports=[

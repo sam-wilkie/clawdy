@@ -14,8 +14,6 @@ DEFAULTS = {
     "sim_always_on_top": True,
     # Floating desk pet: the simulator runs with --desk (see controller.toggle_sim_desk).
     "sim_desk_mode": False,
-    # Opt-in: the Margarita side panel inside Claude Code (see hooks.install_mod).
-    "claude_mod_enabled": False,
 }
 PREFS_PATH = Path.home() / ".clawd-tank" / "preferences.json"
 
@@ -28,6 +26,7 @@ def load_preferences(path: Path | None = None) -> dict:
     result = dict(DEFAULTS)
     try:
         stored = json.loads(path.read_text())
+        stored.pop("claude_mod_enabled", None)
         result.update(stored)
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass
@@ -45,5 +44,6 @@ def save_preferences(path: Path | None = None, updates: dict = None) -> None:
         existing = json.loads(path.read_text())
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass
-    existing.update(updates)
+    existing.pop("claude_mod_enabled", None)
+    existing.update({k: v for k, v in updates.items() if k != "claude_mod_enabled"})
     path.write_text(json.dumps(existing, indent=2) + "\n")

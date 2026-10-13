@@ -51,10 +51,12 @@ class SimProcessManager:
     def _find_desktop_pet(self) -> Optional[list]:
         """Return [electron_exe, app_dir] for the Electron desktop pet, or None.
 
-        Looked up in CLAWDY_DESKTOP_DIR, else the repo's desktop/ folder (a source
-        checkout; frozen builds do not ship it). Needs its dependencies installed
-        (pnpm install), which leaves the Electron binary name in
-        node_modules/electron/path.txt. CLAWDY_DESKTOP_PET=0 forces the SDL2 window.
+        Looked up in CLAWDY_DESKTOP_DIR, else the copy bundled with the app
+        (Contents/Resources/desktop on macOS, desktop/ next to the exe on the
+        frozen Windows build), else the repo's desktop/ folder. Needs its
+        dependencies installed (pnpm install), which leaves the Electron binary
+        name in node_modules/electron/path.txt. CLAWDY_DESKTOP_PET=0 forces the
+        SDL2 window.
         """
         if os.environ.get("CLAWDY_DESKTOP_PET") == "0":
             return None
@@ -74,6 +76,16 @@ class SimProcessManager:
                         app_dir = candidate
             except ImportError:
                 pass
+        if not app_dir and getattr(sys, "frozen", False):
+            # The Windows release is a flat PyInstaller onedir, so the pet ships
+            # next to MargaritaTank.exe — the same place _find_binary() looks for
+            # the simulator. Not gated on the platform: a frozen flat layout has
+            # no .app bundle anywhere, and the isfile check below rejects any
+            # build that did not ship the pet. getattr, not sys.frozen, because
+            # tests fake the sys module.
+            candidate = os.path.join(os.path.dirname(sys.executable), "desktop")
+            if os.path.isfile(os.path.join(candidate, "main.js")):
+                app_dir = candidate
         if not app_dir:
             app_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -154,7 +166,8 @@ class SimProcessManager:
             # Desk mode with the Electron pet (desktop/): it speaks the same TCP
             # protocol as the simulator, so the SimClient below drives it unchanged.
             args = list(pet)
-            env = {**os.environ, "CLAWDY_PORT": str(self._port)}
+            env = {**os.environ, "CLAWDY_PORT": str(self._port),
+                   "CLAWDY_PARENT_PID": str(os.getpid())}
         elif not binary:
             logger.error("clawd-tank-sim binary not found")
             return None
@@ -183,32 +196,66 @@ class SimProcessManager:
         return self._client
 
     async def stop(self) -> None:
+        # Send a graceful quit command to the Electron pet / simulator so it
+        # can close its windows and exit on its own before we force-kill it.
+        if self._client and self._client.is_connected:
+            try:
+                await self._client.send_command({"action": "quit"})
+            except Exception:
+                pass  # best effort; force-kill below is the safety net
         if self._client:
             await self._client.disconnect()
             self._client = None
         if self._process and self._process.returncode is None:
             logger.info("Stopping simulator process (PID %d)", self._process.pid)
-            if sys.platform == "win32":
-                # Windows has no SIGTERM: send_signal(SIGTERM) is literally
-                # TerminateProcess, so this is a kill however it is spelled and
-                # the simulator gets no chance to tidy up. Saying terminate()
-                # keeps the code honest about that. The TCP link is already
-                # closed above, which is the only shutdown notice it does get.
-                self._process.terminate()
-            else:
-                self._process.send_signal(signal.SIGTERM)
             try:
-                await asyncio.wait_for(self._process.wait(), timeout=3.0)
+                # Give the process up to 2 s to exit after the quit command.
+                await asyncio.wait_for(self._process.wait(), timeout=2.0)
             except asyncio.TimeoutError:
-                logger.warning("Simulator did not exit, sending SIGKILL")
-                self._process.kill()
-                await self._process.wait()
+                # Still alive — force-kill the whole tree.
+                logger.warning("Simulator did not exit after quit, force-killing")
+                self._kill_process_tree()
+                try:
+                    await asyncio.wait_for(self._process.wait(), timeout=3.0)
+                except asyncio.TimeoutError:
+                    logger.warning("Simulator still alive after tree kill")
             self._process = None
+
+    def _kill_process_tree(self) -> None:
+        """Synchronously kill the process we spawned (and, on Windows, its tree).
+
+        Electron starts GPU/renderer children, and TerminateProcess on the main
+        exe alone leaves them behind. The tree is addressed by the PID of the
+        process we started, never by image name: other Electron apps (editors,
+        IDEs) run on the same machine and must not be touched. Off Windows the
+        plain kill is used. Safe to call repeatedly and from any thread.
+        """
+        process = self._process
+        if process is None or process.returncode is not None:
+            return
+        if sys.platform == "win32":
+            try:
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                    capture_output=True, text=True, timeout=5,
+                )
+                return
+            except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+                logger.warning("taskkill failed for PID %d: %s", process.pid, e)
+        try:
+            process.kill()
+        except (ProcessLookupError, OSError):
+            pass  # already gone
+
+    def kill_sync(self) -> None:
+        """Kill without needing the event loop: the quit path calls this when
+        the daemon loop has already stopped or the async shutdown timed out."""
+        self._kill_process_tree()
 
     async def kill(self) -> None:
         """Immediately kill the simulator process without graceful shutdown."""
         if self._process and self._process.returncode is None:
-            self._process.kill()
+            self._kill_process_tree()
             await self._process.wait()
             self._process = None
 

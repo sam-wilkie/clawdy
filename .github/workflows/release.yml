@@ -91,8 +91,9 @@ jobs:
         run: |
           resources="host/dist/Margarita Tank.app/Contents/Resources/desktop"
           mkdir -p "$resources/node_modules/electron/dist"
-          cp desktop/main.js desktop/preload.js desktop/daemon-bridge.js "$resources/"
+          cp desktop/main.js desktop/preload.js desktop/dashboard-preload.js desktop/daemon-bridge.js desktop/codex-usage.js desktop/agent-usage.js desktop/antigravity-usage.js desktop/session-labels.js desktop/package.json "$resources/"
           cp -R desktop/renderer "$resources/renderer"
+          cp -RL desktop/node_modules/sql.js "$resources/node_modules/sql.js"
           cp desktop/node_modules/electron/path.txt "$resources/node_modules/electron/path.txt"
           cp desktop/node_modules/electron/package.json "$resources/node_modules/electron/package.json"
           cp -R desktop/node_modules/electron/dist/Electron.app "$resources/node_modules/electron/dist/Electron.app"
@@ -102,13 +103,9 @@ jobs:
           resources="host/dist/Margarita Tank.app/Contents/Resources/desktop"
           test -f "$resources/main.js"
           test -f "$resources/renderer/index.html"
+          test -f "$resources/renderer/dashboard.html"
+          test -f "$resources/node_modules/sql.js/dist/sql-wasm.wasm"
           test -x "$resources/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
-
-      - name: Check the bundled Claude Code mod
-        # hooks.resolve_mod_source() reads it from Contents/Resources/claude-mod.
-        run: |
-          test -f "host/dist/Margarita Tank.app/Contents/Resources/claude-mod/margarita-band/.claude-plugin/plugin.json" \
-            || { echo "ERROR: the Claude Code mod is missing from the app bundle"; exit 1; }
 
       - name: Bundle simulator into app
         # Contents/Resources/ is where sim_process.py looks first (helper
@@ -162,6 +159,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Install Electron runtime
+        working-directory: desktop
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.5 --activate
+          pnpm install --frozen-lockfile
+
       - name: Set up MinGW-w64 toolchain
         shell: pwsh
         run: |
@@ -204,15 +212,37 @@ jobs:
         working-directory: host
         run: python -m PyInstaller windows/margarita_tank.spec --noconfirm
 
+      - name: Bundle Electron desktop pet
+        # macOS copies the pet right after py2app because that is when the bundle
+        # exists; here PyInstaller owns dist/MargaritaTank, so it goes in
+        # afterwards. installer.iss already ships everything under
+        # host/dist/MargaritaTank recursively, so nothing there has to change.
+        # Without this the tray's desk pet silently falls back to the SDL2 window.
+        run: |
+          pet="host/dist/MargaritaTank/desktop"
+          mkdir -p "$pet/node_modules/electron"
+          cp desktop/main.js desktop/preload.js desktop/dashboard-preload.js desktop/daemon-bridge.js desktop/codex-usage.js desktop/agent-usage.js desktop/antigravity-usage.js desktop/session-labels.js desktop/package.json "$pet/"
+          cp -R desktop/renderer "$pet/renderer"
+          cp -RL desktop/node_modules/sql.js "$pet/node_modules/sql.js"
+          cp desktop/node_modules/electron/path.txt "$pet/node_modules/electron/path.txt"
+          cp desktop/node_modules/electron/package.json "$pet/node_modules/electron/package.json"
+          cp -R desktop/node_modules/electron/dist "$pet/node_modules/electron/dist"
+
       - name: Check the build
         working-directory: host/dist/MargaritaTank
         run: |
           for f in MargaritaTank.exe margarita-notify.exe margarita-statusline.exe clawd-tank-sim.exe MargaritaTank.ico; do
             test -f "$f" || { echo "ERROR: missing $f"; exit 1; }
           done
-          # The Claude Code mod the menu toggle installs ships next to the exe.
-          test -f claude-mod/margarita-band/.claude-plugin/plugin.json \
-            || { echo "ERROR: missing the Claude Code mod"; exit 1; }
+          # The Electron pet ships next to the exe; without it the tray app
+          # degrades to the SDL2 window at runtime, with no other symptom.
+          for f in desktop/main.js desktop/renderer/index.html desktop/renderer/dashboard.html desktop/node_modules/sql.js/dist/sql-wasm.wasm desktop/node_modules/electron/path.txt; do
+            test -f "$f" || { echo "ERROR: missing $f from the desktop pet bundle"; exit 1; }
+          done
+          # path.txt carries the Electron binary's name (electron.exe here).
+          electron_name=$(tr -d '\r\n' < desktop/node_modules/electron/path.txt)
+          test -f "desktop/node_modules/electron/dist/$electron_name" \
+            || { echo "ERROR: missing the bundled Electron binary ($electron_name)"; exit 1; }
           # The hook handler must run standalone and exit 0 on an ignored event.
           echo '{"hook_event_name":"Ignored"}' | ./margarita-notify.exe
           # The statusLine bridge must run standalone, exit 0 and print nothing

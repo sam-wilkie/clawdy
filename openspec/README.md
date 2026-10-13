@@ -25,10 +25,12 @@ Start a new change with `/sdd-new <change-name>` or run a single phase with `/sd
 | Component | Path | Stack | Test / build |
 | --- | --- | --- | --- |
 | firmware | `firmware/` | ESP-IDF 5.3.2 C, ESP32-C6, LVGL 9.5 | `make test` (in `firmware/test/`), `idf.py build` |
-| host | `host/` | Python asyncio + rumps/pystray | `host\.venv\Scripts\python.exe -m pytest` (735 tests) |
-| claude-mod | `claude-mod/margarita-band/` | TypeScript Claude Code plugin | `claude plugin validate claude-mod/margarita-band` |
+| host | `host/` | Python asyncio + rumps/pystray; five agent adapters | `host\.venv\Scripts\python.exe -m pytest` |
+| desktop | `desktop/` | Electron, JavaScript, HTML/CSS, SVG, sql.js | `npm test` (in `desktop/`, full `node --test` suite) |
 | tools | `tools/` | Python asset pipeline | system Python 3.11 `-m pytest tools/tests` |
 | simulator | `simulator/` | SDL2 (compiles firmware source) | `cmake -B build && cmake --build build` |
 
 See `config.yaml` `testing:` for exact commands and caveats (hanging daemon test,
 separate Python environments).
+
+See [the current local status](../docs/clawdy-desktop-estado-2026-10-13.md) for implementation and validation limits. Active checklists can lag code and do not certify a released build.

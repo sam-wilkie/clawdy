@@ -599,3 +599,18 @@ def test_embedded_permission_message_matches_protocol_converter():
     script_msg.pop("pid", None)
     proto_msg = {k: v for k, v in proto_msg.items() if k != "pid"}
     assert script_msg == proto_msg
+
+
+def test_embedded_codex_aliases_match_the_daemon_copy():
+    """The embedded script duplicates CODEX_TOOL_ALIASES; the tables must be equal
+    and every name must translate identically (the standalone script imports the
+    daemon copy, so it cannot drift)."""
+    from clawd_tank_daemon import codex_protocol
+    from tests.test_codex_protocol import CODEX_ALIAS_CASES, CODEX_PASSTHROUGH
+    namespace = {"__name__": "embedded_copy"}
+    exec(compile(NOTIFY_SCRIPT, "<notify>", "exec"), namespace)
+    assert namespace["CODEX_TOOL_ALIASES"] == codex_protocol.CODEX_TOOL_ALIASES
+    for raw, expected in CODEX_ALIAS_CASES:
+        assert namespace["_codex_tool"](raw) == expected
+    for raw in [r for r, _ in CODEX_ALIAS_CASES] + CODEX_PASSTHROUGH + ["", "mcp__x__y"]:
+        assert namespace["_codex_tool"](raw) == codex_protocol._codex_tool_name(raw)

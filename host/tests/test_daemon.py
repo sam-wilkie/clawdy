@@ -675,6 +675,51 @@ async def test_shutdown_cancels_dynamically_added_transport():
 
 
 @pytest.mark.asyncio
+async def test_shutdown_signals_run_only_after_cleanup_finished():
+    """run() must not return while _shutdown is still cleaning up.
+
+    The menu bar app runs run() with run_until_complete on its own loop; when
+    run() returns early that loop stops and the rest of the cleanup (transport
+    disconnect, socket stop, PID file) is abandoned half-way.
+    """
+    daemon = ClawdDaemon()
+
+    event_set_during_disconnect = []
+    mock_transport = AsyncMock()
+    mock_transport.is_connected = False
+    mock_transport.ensure_connected = AsyncMock()
+    mock_transport.write_notification = AsyncMock(return_value=True)
+
+    async def slow_disconnect():
+        await asyncio.sleep(0)
+        event_set_during_disconnect.append(daemon._shutdown_event.is_set())
+
+    mock_transport.disconnect = AsyncMock(side_effect=slow_disconnect)
+    await daemon.add_transport("sim", mock_transport)
+
+    await daemon._shutdown()
+
+    assert event_set_during_disconnect == [False]
+    assert daemon._shutdown_event.is_set()
+
+
+@pytest.mark.asyncio
+async def test_shutdown_signals_run_even_if_cleanup_raises():
+    daemon = ClawdDaemon()
+
+    mock_transport = AsyncMock()
+    mock_transport.is_connected = False
+    mock_transport.ensure_connected = AsyncMock()
+    mock_transport.disconnect = AsyncMock(side_effect=RuntimeError("boom"))
+    await daemon.add_transport("sim", mock_transport)
+
+    with pytest.raises(RuntimeError):
+        await daemon._shutdown()
+
+    assert daemon._shutdown_event.is_set()
+
+
+@pytest.mark.asyncio
 async def test_handle_message_broadcasts_to_dynamically_added_transport():
     """Messages broadcast to transports added via add_transport."""
     daemon = ClawdDaemon()

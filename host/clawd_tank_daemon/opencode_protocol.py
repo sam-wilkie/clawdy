@@ -122,6 +122,23 @@ def opencode_hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
             msg["source"] = source
         return msg
 
+    if event_type == "chat.message":
+        return {"event": "dismiss", "hook": "UserPromptSubmit",
+                "session_id": session_id, "project": project, "pid": pid}
+
+    if event_type == "session.heartbeat":
+        state = hook.get("state", "registered")
+        if state not in ("registered", "thinking", "working", "waiting"):
+            return None
+        return {"event": "session_heartbeat", "session_id": session_id,
+                "project": project, "state": state,
+                "tool_name": _opencode_tool_name(hook.get("tool", "")),
+                "awaiting_prompt": state == "waiting", "pid": pid}
+
+    if event_type == "session.idle":
+        return {"event": "add", "hook": "Stop", "session_id": session_id,
+                "project": project, "pid": pid, "message": "Esperando tu respuesta"}
+
     if event_type == "session.deleted":
         # Mirror Codex/Kiro's SessionEnd: include `hook: "SessionEnd"` so the
         # daemon's _handle_message removes the session entirely (a plain

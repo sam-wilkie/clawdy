@@ -21,6 +21,8 @@ Two Codex-specific concerns are handled here:
 from pathlib import Path
 from typing import Optional
 
+from .protocol import permission_tool_summary
+
 # Prefix that keeps Codex session IDs from colliding with Claude Code's in the
 # daemon's per-session state. The daemon treats session_id as an opaque key, so a
 # prefix is enough to give each agent its own crab.
@@ -39,7 +41,14 @@ CODEX_TOOL_ALIASES = {
     "shell": "Bash",
     "apply_patch": "Write",
     "local_shell": "Bash",
+    "exec_command": "Bash",
+    "web_search": "WebSearch",
+    "webrun": "WebSearch",
+    "view_image": "Read",
 }
+# Deliberately NOT mapped: "update_plan" (no planning animation exists) and
+# "request_user_input_async" (mapping it to AskUserQuestion would block the crab
+# on a PostToolUse that Codex never sends for that name).
 
 
 def _codex_tool_name(raw: str) -> str:
@@ -105,12 +114,15 @@ def codex_hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
         }
 
     if event_name == "PermissionRequest":
+        tool_name = _codex_tool_name(hook.get("tool_name", ""))
         return {
             "event": "permission",
             "session_id": session_id,
-            "tool_name": _codex_tool_name(hook.get("tool_name", "")),
+            "tool_name": tool_name,
             "project": project,
             "pid": pid,
+            "wait": True,
+            "tool_summary": permission_tool_summary(tool_name, hook.get("tool_input")),
         }
 
     if event_name in ("PreCompact", "PostCompact"):

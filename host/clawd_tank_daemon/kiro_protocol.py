@@ -22,8 +22,9 @@ Payload schema confirmed by capturing live Kiro hook stdin, e.g. PostToolUse::
 
 Kiro trigger names (PascalCase): SessionStart, PreToolUse, PostToolUse, Stop,
 UserPromptSubmit, PreTaskExec, PostTaskExec, PostFileCreate, PostFileSave,
-PostFileDelete. Kiro has no PermissionRequest and no SubagentStart/SubagentStop
-hooks, so those states never arise for a Kiro session.
+PostFileDelete. Kiro has no native PermissionRequest and no
+SubagentStart/SubagentStop hooks. Clawdy uses PreToolUse as an explicit desk
+approval gate, so every Kiro tool invocation waits for Allow/Deny.
 
 Two Kiro-specific concerns are handled here:
   1. Session IDs are namespaced with a "kiro:" prefix so a Kiro session and a
@@ -36,6 +37,8 @@ Two Kiro-specific concerns are handled here:
 
 from pathlib import Path
 from typing import Optional
+
+from .protocol import permission_tool_summary
 
 # Prefix that keeps Kiro session IDs from colliding with Claude Code's or
 # Codex's in the daemon's per-session state. The daemon treats session_id as an
@@ -129,12 +132,15 @@ def kiro_hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
         return msg
 
     if event_name == "PreToolUse":
+        tool_name = _kiro_tool_name(hook.get("tool_name", ""))
         return {
-            "event": "tool_use",
+            "event": "permission",
             "session_id": session_id,
-            "tool_name": _kiro_tool_name(hook.get("tool_name", "")),
+            "tool_name": tool_name,
             "project": project,
             "pid": pid,
+            "wait": True,
+            "tool_summary": permission_tool_summary(tool_name, hook.get("tool_input")),
         }
 
     if event_name == "PostToolUse":

@@ -142,12 +142,12 @@ class RumpsTrayView:
         )
         self._opencode_hooks_item.state = controller.opencode_hooks_installed
 
-        # Claude Code mod: the Margarita side panel inside Claude Code
-        self._claude_mod_item = rumps.MenuItem(
-            "Claude Code Mod (panel)",
-            callback=lambda _sender: controller.toggle_claude_mod(),
+        # Antigravity (agy CLI + IDE) plugin: same enable/disable pattern.
+        self._antigravity_hooks_item = rumps.MenuItem(
+            "Install Antigravity Hooks",
+            callback=lambda _sender: controller.toggle_antigravity_hooks(),
         )
-        self._claude_mod_item.state = controller.claude_mod_enabled
+        self._antigravity_hooks_item.state = controller.antigravity_hooks_installed
 
         # Launch at login
         self._login_item = rumps.MenuItem(
@@ -177,8 +177,8 @@ class RumpsTrayView:
             None,
             self._hooks_item,
             self._kiro_hooks_item,
-            self._claude_mod_item,
             self._opencode_hooks_item,
+            self._antigravity_hooks_item,
             self._login_item,
             None,
             self._version_item,
@@ -262,10 +262,11 @@ class RumpsTrayView:
         for seconds, item in self._session_timeout_items.items():
             item.state = (seconds == state.session_timeout_seconds)
 
-        # --- Hooks / Claude Code mod / login ---
+        # --- Hooks / login ---
         self._hooks_item.state = state.hooks_installed
         self._opencode_hooks_item.state = state.opencode_hooks_installed
-        self._claude_mod_item.state = state.claude_mod_enabled
+        self._opencode_hooks_item.title = "Uninstall OpenCode Hooks" if state.opencode_hooks_installed else "Install OpenCode Hooks"
+        self._antigravity_hooks_item.state = state.antigravity_hooks_installed
         self._login_item.state = state.login_enabled
 
         # --- Icon and global state ---

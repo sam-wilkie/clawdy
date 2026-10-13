@@ -51,6 +51,7 @@ CloseApplications=no
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "kirohooks"; Description: "Install Kiro approval hooks for one workspace"; GroupDescription: "Agent integrations:"; Flags: unchecked
 
 [Files]
 Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -80,6 +81,9 @@ Filename: "{app}\{#AppExeName}"; Parameters: "--uninstall-hooks"; Flags: runhidd
 Filename: "{#PowerShell}"; Parameters: "{code:KillSimParams}"; Flags: runhidden waituntilterminated; RunOnceId: "KillSim"
 
 [Code]
+var
+  KiroWorkspacePage: TInputDirWizardPage;
+
 procedure KillImage(const ImageName: String);
 var
   ResultCode: Integer;
@@ -121,4 +125,60 @@ begin
   KillImage('{#AppExeName}');
   KillSimUnderApp;
   Result := '';
+end;
+
+procedure InitializeWizard;
+begin
+  KiroWorkspacePage := CreateInputDirPage(
+    wpSelectTasks,
+    'Kiro workspace hooks',
+    'Choose the Kiro workspace that Clawdy should protect',
+    'Kiro IDE hooks are installed per workspace. Choose the project folder where you want Allow/Deny prompts from the pet.',
+    False,
+    ''
+  );
+  KiroWorkspacePage.Add('Workspace folder:');
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := Assigned(KiroWorkspacePage) and
+    (PageID = KiroWorkspacePage.ID) and
+    not WizardIsTaskSelected('kirohooks');
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if Assigned(KiroWorkspacePage) and
+     (CurPageID = KiroWorkspacePage.ID) and
+     WizardIsTaskSelected('kirohooks') and
+     (not DirExists(Trim(KiroWorkspacePage.Values[0]))) then
+  begin
+    MsgBox('Choose an existing Kiro workspace folder, or go back and clear the Kiro hooks option.', mbInformation, MB_OK);
+    Result := False;
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+  Params: String;
+begin
+  if CurStep <> ssPostInstall then
+    Exit;
+
+  { Codex hooks are user-wide. Codex still asks the user to trust/review them in /hooks. }
+  if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--install-codex-hooks', '',
+              SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+    MsgBox('Clawdy could not register the Codex hooks. You can retry by reinstalling or updating Clawdy.', mbError, MB_OK);
+
+  { Kiro IDE hooks are workspace-scoped, so only install them when a folder was selected. }
+  if WizardIsTaskSelected('kirohooks') then
+  begin
+    Params := '--install-kiro-hooks ' + AddQuotes(Trim(KiroWorkspacePage.Values[0]));
+    if not Exec(ExpandConstant('{app}\{#AppExeName}'), Params, '',
+                SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+      MsgBox('Clawdy could not install Kiro hooks in the selected workspace. You can install them later from the Clawdy menu.', mbError, MB_OK);
+  end;
 end;

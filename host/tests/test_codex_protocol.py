@@ -143,3 +143,45 @@ def test_empty_session_id_not_prefixed():
         {"hook_event_name": "SessionStart", "session_id": ""}
     )
     assert msg["session_id"] == ""
+
+
+# Codex tool name -> daemon vocabulary (TOOL_ANIMATION_MAP keys). Shared with the
+# embedded notify script test so the copies cannot drift.
+CODEX_ALIAS_CASES = [
+    ("shell", "Bash"),
+    ("local_shell", "Bash"),
+    ("exec_command", "Bash"),
+    ("apply_patch", "Write"),
+    ("web_search", "WebSearch"),
+    ("webrun", "WebSearch"),
+    ("view_image", "Read"),
+]
+
+# Tools deliberately left as-is (no clear daemon equivalent / must not alert).
+CODEX_PASSTHROUGH = ["update_plan", "request_user_input_async", "clocksleep",
+                     "Edit", "Bash", "mcp__srv__tool"]
+
+
+import pytest
+
+
+@pytest.mark.parametrize("raw,expected", CODEX_ALIAS_CASES)
+def test_codex_tool_aliases_map_to_daemon_vocabulary(raw, expected):
+    for event_name, event in (("PreToolUse", "tool_use"), ("PermissionRequest", "permission")):
+        msg = codex_hook_payload_to_daemon_message(
+            {"hook_event_name": event_name, "session_id": "s", "cwd": "/p", "tool_name": raw})
+        assert msg["event"] == event and msg["tool_name"] == expected
+
+
+@pytest.mark.parametrize("raw", CODEX_PASSTHROUGH)
+def test_codex_unmapped_tools_pass_through(raw):
+    msg = codex_hook_payload_to_daemon_message(
+        {"hook_event_name": "PreToolUse", "session_id": "s", "cwd": "/p", "tool_name": raw})
+    assert msg["tool_name"] == raw
+
+
+def test_every_alias_target_has_a_daemon_animation():
+    from clawd_tank_daemon.daemon import TOOL_ANIMATION_MAP
+    from clawd_tank_daemon.codex_protocol import CODEX_TOOL_ALIASES
+    for target in CODEX_TOOL_ALIASES.values():
+        assert target in TOOL_ANIMATION_MAP

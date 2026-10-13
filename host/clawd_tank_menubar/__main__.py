@@ -16,10 +16,12 @@ LOG_FORMAT = "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
 # Run by the Windows uninstaller before it deletes the notify exe, so Claude
 # Code is not left invoking a program that no longer exists on every hook.
 UNINSTALL_HOOKS_FLAG = "--uninstall-hooks"
+INSTALL_CODEX_HOOKS_FLAG = "--install-codex-hooks"
+INSTALL_KIRO_HOOKS_FLAG = "--install-kiro-hooks"
 
 
 def _uninstall_hooks() -> int:
-    """Remove our Claude Code hooks and return the process exit code.
+    """Remove our Claude Code, Codex, tracked Kiro, and Antigravity hooks.
 
     Starts neither the tray nor the daemon. Logs to the usual log file, through
     a handler removed again before returning, since a packaged windowed build
@@ -36,19 +38,41 @@ def _uninstall_hooks() -> int:
     try:
         from . import hooks
         try:
-            removed = hooks.uninstall_hooks()
+            removed_claude = hooks.uninstall_hooks()
+            removed_codex = hooks.uninstall_codex_hooks()
+            removed_kiro = hooks.uninstall_tracked_kiro_hooks()
+            removed_antigravity = hooks.uninstall_antigravity_hooks()
+            removed_opencode = hooks.uninstall_opencode_hooks()
+            removed = (removed_claude and removed_codex and removed_kiro
+                       and removed_antigravity and removed_opencode)
         except Exception:
-            logger.exception("Uninstalling Claude Code hooks failed")
+            logger.exception("Uninstalling agent hooks failed")
             return 1
         if removed:
-            logger.info("Uninstalled Claude Code hooks")
+            logger.info(
+                "Uninstalled Claude Code, Codex, tracked Kiro, and Antigravity hooks"
+            )
             return 0
-        logger.error("Claude Code hooks were not uninstalled")
+        logger.error("One or more agent hooks were not uninstalled")
         return 1
     finally:
         app_logger.removeHandler(handler)
         app_logger.setLevel(previous_level)
         handler.close()
+
+
+def _install_optional_hooks(args: list[str]) -> int | None:
+    """Installer-only entry point for Codex or one selected Kiro workspace."""
+    try:
+        from . import hooks
+        if args == [INSTALL_CODEX_HOOKS_FLAG]:
+            return 0 if hooks.install_codex_hooks() else 1
+        if len(args) == 2 and args[0] == INSTALL_KIRO_HOOKS_FLAG:
+            hooks.install_notify_script()
+            return 0 if hooks.install_kiro_hooks(Path(args[1])) else 1
+    except Exception:
+        return 1
+    return None
 
 
 def _run_macos() -> None:
@@ -116,6 +140,9 @@ def _run_windows() -> None:
 def main() -> None:
     if UNINSTALL_HOOKS_FLAG in sys.argv[1:]:
         sys.exit(_uninstall_hooks())
+    setup_result = _install_optional_hooks(sys.argv[1:])
+    if setup_result is not None:
+        sys.exit(setup_result)
     if sys.platform == "darwin":
         _run_macos()
     else:

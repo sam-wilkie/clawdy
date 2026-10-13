@@ -17,14 +17,23 @@ const label = document.getElementById("crab-label");
 
 // Human-readable product name for the always-visible identity label. Set once:
 // each window renders a single product for its whole lifetime.
-const AGENT_LABELS = { claude: "Claude", codex: "Codex", kiro: "Kiro" };
+const AGENT_LABELS = { claude: "Claude", codex: "Codex", kiro: "Kiro", opencode: "OpenCode", antigravity: "Antigravity" };
 const AGENT = (window.pet && window.pet.agent) || "claude";
 if (label) label.textContent = AGENT_LABELS[AGENT] || AGENT;
 crab.dataset.agent = AGENT;
 
 let overBody = false;
 let dragging = false;
+let permQueue = [];            // pending approvals, oldest first
 let lastX = 0, lastY = 0;
+let pressX = 0, pressY = 0;
+let movedDuringPress = false;
+
+// A pending approval keeps the buttons clickable even when the pointer leaves
+// the pet's body. All paths use the same rule so hover cannot disable a prompt.
+function syncMouseInteractivity() {
+  window.pet.setInteractive(dragging || overBody || permQueue.length > 0);
+}
 
 // --- Shake-to-dizzy detection ------------------------------------------------
 // A "shake" is a fast back-and-forth drag: several horizontal direction
@@ -46,6 +55,7 @@ window.addEventListener("mousemove", (e) => {
   if (dragging) {
     const dx = e.screenX - lastX;
     const dy = e.screenY - lastY;
+    if (Math.hypot(e.screenX - pressX, e.screenY - pressY) > 5) movedDuringPress = true;
     lastX = e.screenX;
     lastY = e.screenY;
     if (dx !== 0 || dy !== 0) window.pet.moveWindow(dx, dy);
@@ -55,7 +65,7 @@ window.addEventListener("mousemove", (e) => {
   const inside = pointInHit(e.clientX, e.clientY);
   if (inside !== overBody) {
     overBody = inside;
-    window.pet.setInteractive(inside);
+    syncMouseInteractivity();
   }
 });
 
@@ -64,6 +74,9 @@ hit.addEventListener("mousedown", (e) => {
   dragging = true;
   lastX = e.screenX;
   lastY = e.screenY;
+  pressX = e.screenX;
+  pressY = e.screenY;
+  movedDuringPress = false;
   crab.dataset.held = "true";
   e.preventDefault();
 });
@@ -72,9 +85,10 @@ window.addEventListener("mouseup", () => {
   if (!dragging) return;
   dragging = false;
   crab.dataset.held = "false";
+  if (!movedDuringPress) window.pet.openPanel();
   shakeDir = 0;
   shakeFlips = [];
-  if (!overBody) window.pet.setInteractive(false);
+  syncMouseInteractivity();
 });
 
 /** Count fast horizontal direction reversals; on enough of them within the
@@ -207,6 +221,11 @@ let base = "idle";       // latest state from the daemon, after mapping
 let shown = null;        // what is on screen right now
 let oneshot = null;      // { name, timer } while a oneshot plays
 let seenFirst = false;   // first product-state received (for walking oneshot)
+let leaving = false;     // going_away is playing; main closes the window after it
+
+// Codex rests at the end of a turn instead of raising its prompt bubble: a
+// "your turn" that needs no action reads better as a quiet idle cloud.
+const CALM_OVERRIDES = AGENT === "codex" ? { waiting_reply: "idle" } : {};
 
 function show(name) {
   if (name === shown) return;
@@ -215,6 +234,7 @@ function show(name) {
 }
 
 function refresh() {
+  if (leaving) return;
   if (!linked) { show("disconnected"); return; }
   if (oneshot) return;
   show(base);
@@ -234,6 +254,8 @@ let conductTimer = null;   // re-evaluates the mapping when CONDUCT_MS elapses
 let lastProduct = null;    // latest product-state, for the timer re-evaluation
 
 function handleProductState(state) {
+  // A state update means main cancelled the leave (the product came back).
+  leaving = false;
   linked = !!state.linked;
   renderBadge(Number(state.count) || 1);
   lastProduct = state;
@@ -254,7 +276,8 @@ function handleProductState(state) {
     conductTimer = setTimeout(() => handleProductState(lastProduct), AnimMap.CONDUCT_MS - conductMs + 20);
   }
 
-  const next = AnimMap.mapAnim(state.anim, bg, conductMs, !!state.exhausted);
+  const mapped = AnimMap.mapAnim(state.anim, bg, conductMs, !!state.exhausted);
+  const next = CALM_OVERRIDES[mapped] || mapped;
   const prev = base;
 
   // First time we see this product's window: play the walking entrance.
@@ -274,6 +297,14 @@ function handleProductState(state) {
 
 window.pet.onProductState(handleProductState);
 
+window.pet.onLeave(() => {
+  if (oneshot) { clearTimeout(oneshot.timer); oneshot = null; }
+  leaving = true;
+  renderBadge(1);
+  shown = "going_away";
+  renderState("going_away");
+});
+
 // --- Permission bubble -------------------------------------------------------
 // A FIFO of pending requests (the daemon can have several); we show the first.
 // Clicking Allow/Deny replies to the daemon and advances to the next, mirroring
@@ -287,7 +318,6 @@ const permSummary = document.getElementById("perm-summary");
 const permAllow = document.getElementById("perm-allow");
 const permDeny = document.getElementById("perm-deny");
 
-let permQueue = [];            // pending requests, oldest first
 // Guard against an accidental click landing on a bubble that just appeared.
 const PERM_CLICK_GUARD_MS = 350;
 let permShownAt = 0;
@@ -295,8 +325,7 @@ let permShownAt = 0;
 function renderPermission() {
   if (permQueue.length === 0) {
     permCard.hidden = true;
-    // Return to click-through unless the pointer is actually over the crab.
-    if (!overBody) window.pet.setInteractive(false);
+    syncMouseInteractivity();
     return;
   }
   const r = permQueue[0];
@@ -307,9 +336,8 @@ function renderPermission() {
   if (permCard.hidden) {
     permCard.hidden = false;
     permShownAt = Date.now();
-    // Capture the mouse so the buttons are clickable over the transparent window.
-    window.pet.setInteractive(true);
   }
+  syncMouseInteractivity();
 }
 
 function answerPermission(decision) {

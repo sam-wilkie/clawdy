@@ -163,11 +163,19 @@ def _translate_payload(payload: dict, source: str):
             kiro_hook_payload_to_daemon_message,
         )
         return kiro_hook_payload_to_daemon_message(payload)
+    if source == "antigravity":
+        from clawd_tank_daemon.antigravity_protocol import (
+            antigravity_hook_payload_to_daemon_message,
+        )
+        return antigravity_hook_payload_to_daemon_message(payload)
     if source == "codex":
         from clawd_tank_daemon.codex_protocol import (
             codex_hook_payload_to_daemon_message,
         )
         return codex_hook_payload_to_daemon_message(payload)
+    if source == "opencode":
+        from clawd_tank_daemon.opencode_protocol import opencode_hook_payload_to_daemon_message
+        return opencode_hook_payload_to_daemon_message(payload)
     from clawd_tank_daemon.protocol import hook_payload_to_daemon_message
     return hook_payload_to_daemon_message(payload)
 
@@ -232,13 +240,61 @@ def _parse_source(argv) -> str:
     embedded NOTIFY_SCRIPT in clawd_tank_menubar/hooks.py: the installed hook
     passes "codex" or "kiro" as argv[1], and no arg at all means Claude Code.
     Unknown values fall back to ``claude``."""
-    known = ("claude", "codex", "kiro")
+    known = ("claude", "codex", "kiro", "opencode", "antigravity")
     value = argv[0] if argv else "claude"
     return value if value in known else "claude"
 
 
+_ALLOW_SENT = False
+
+
+def _write_allow() -> None:
+    """Answer an Antigravity PreToolUse gate: let the agent carry on. Written at
+    most once."""
+    global _ALLOW_SENT
+    if _ALLOW_SENT:
+        return
+    _ALLOW_SENT = True
+    try:
+        sys.stdout.write('{"decision":"allow"}\n')
+        sys.stdout.flush()
+    except Exception:
+        pass
+
+
+def _main_antigravity(event: str) -> None:
+    """Antigravity hook entry point: `clawd-tank-notify antigravity <Event>`.
+
+    The payload on stdin does not name its event, so the installed command
+    passes it as an argument and it is injected as ``hookEventName``. PreToolUse
+    is a gating hook: this script always answers {"decision":"allow"} (it only
+    observes, it must never block the agent) and always exits 0, whatever goes
+    wrong (daemon down, junk stdin, an unexpected error).
+    """
+    gate = event == "PreToolUse"
+    try:
+        raw = sys.stdin.read()
+        payload = json.loads(raw) if raw.strip() else None
+        if gate:
+            _write_allow()
+        if isinstance(payload, dict):
+            if event:
+                payload.setdefault("hookEventName", event)
+            if not is_daemon_running():
+                start_daemon()
+            send_to_daemon(payload, "antigravity")
+    except BaseException:
+        pass
+    finally:
+        if gate:
+            _write_allow()
+    sys.exit(0)
+
+
 def main():
     source = _parse_source(sys.argv[1:])
+    if source == "antigravity":
+        _main_antigravity(sys.argv[2] if len(sys.argv) > 2 else "")
 
     # Read hook payload from stdin
     try:

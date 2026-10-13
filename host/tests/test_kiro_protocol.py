@@ -30,9 +30,14 @@ def test_pre_tool_use_execute_pwsh_maps_to_bash():
         "session_id": "sess_1",
         "cwd": "o:\\tmp",
         "tool_name": "execute_pwsh",
+        "tool_input": {"command": "Get-ChildItem"},
     }
     msg = kiro_hook_payload_to_daemon_message(hook)
-    assert msg["event"] == "tool_use"
+    # PreToolUse is a permission request the desktop answers with Allow/Deny.
+    assert msg["event"] == "permission"
+    assert msg["wait"] is True
+    # The summary is built from the already-mapped tool name: Bash -> command.
+    assert msg["tool_summary"] == "Get-ChildItem"
     # Kiro "execute_pwsh" -> daemon "Bash" (building animation).
     assert msg["tool_name"] == "Bash"
     assert msg["session_id"] == KIRO_SESSION_PREFIX + "sess_1"

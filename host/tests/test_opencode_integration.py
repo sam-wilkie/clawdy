@@ -8,6 +8,7 @@ without any transport or hardware.
 """
 
 import asyncio
+import json
 
 from clawd_tank_daemon.daemon import ClawdDaemon
 from clawd_tank_daemon.opencode_protocol import (
@@ -37,6 +38,71 @@ def feed_opencode(d, hook):
 
 
 # --- Lifecycle: session.created -> tool.execute.before -> .after ----------
+
+def test_v2_resumed_prompt_creates_separate_pet_then_waits_for_reply():
+    d = make_daemon()
+    # A restored conversation has no session.created event in this process.
+    feed_opencode(d, {"type": "chat.message", "sessionID": "restored",
+                      "directory": "/work/project"})
+    state = d._compute_display_state()
+    assert state["products"][0]["agent"] == "opencode"
+    assert state["sessions"][0]["state"] == "thinking"
+    feed_opencode(d, {"type": "session.idle", "sessionID": "restored"})
+    state = d._compute_display_state()
+    assert state["sessions"][0]["agent"] == "opencode"
+    assert state["sessions"][0]["state"] == "waiting"
+    assert d._session_states["opencode:restored"]["awaiting_prompt"] is True
+
+
+def test_heartbeat_keeps_quiet_session_alive_but_unload_still_expires_it(monkeypatch):
+    import clawd_tank_daemon.daemon as daemon_module
+    clock = [0.0]
+    monkeypatch.setattr(daemon_module.time, "monotonic", lambda: clock[0])
+    d = make_daemon()
+    feed_opencode(d, {"type": "chat.message", "sessionID": "quiet"})
+    clock[0] = 80.0
+    feed_opencode(d, {"type": "session.heartbeat", "sessionID": "quiet", "state": "thinking"})
+    clock[0] = 160.0
+    d._evict_stale_sessions()
+    assert "opencode:quiet" in d._session_states
+    clock[0] = 171.0
+    d._evict_stale_sessions()
+    assert "opencode:quiet" not in d._session_states
+
+
+def test_heartbeat_recovers_after_restart_without_clearing_a_permission():
+    d = make_daemon()
+    feed_opencode(d, {"type": "session.heartbeat", "sessionID": "restored",
+                      "state": "waiting", "directory": "/work/project"})
+    assert d._compute_display_state()["agents"] == ["opencode"]
+    assert d._session_states["opencode:restored"]["awaiting_prompt"]
+    feed_opencode(d, {"type": "permission.ask", "sessionID": "restored", "tool": "bash"})
+    before = dict(d._session_states["opencode:restored"])
+    feed_opencode(d, {"type": "session.heartbeat", "sessionID": "restored", "state": "thinking"})
+    current = d._session_states["opencode:restored"]
+    assert current["state"] == "waiting"
+    assert not current.get("awaiting_prompt")
+    assert current["tool_name"] == before["tool_name"]
+
+
+def test_heartbeat_respects_disabled_opencode():
+    d = make_daemon()
+    d._preferences["enable_opencode"] = False
+    feed_opencode(d, {"type": "session.heartbeat", "sessionID": "disabled", "state": "thinking"})
+    assert "opencode:disabled" not in d._session_states
+
+
+def test_recovered_opencode_session_is_sent_to_esp_without_desktop_metadata():
+    d = make_daemon()
+    d._transport_versions["ble"] = 3
+    feed_opencode(d, {"type": "session.heartbeat", "sessionID": "hardware",
+                      "state": "thinking", "directory": "/work/project"})
+    payload = json.loads(d._set_sessions_payload_for("ble", d._compute_display_state()))
+    assert payload["action"] == "set_sessions"
+    assert payload["anims"] == ["thinking"]
+    assert len(payload["ids"]) == 1
+    assert "sessions" not in payload
+    assert "products" not in payload
 
 def test_opencode_session_lifecycle_drives_anim_through_daemon():
     """A full OpenCode lifecycle (session.created -> tool.execute.before ->

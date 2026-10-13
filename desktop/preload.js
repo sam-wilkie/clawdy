@@ -2,7 +2,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 // Which AI product this window represents, passed by main.js as a launch arg
-// (--clawdy-agent=claude|codex|kiro). Defaults to "claude" if absent.
+// (--clawdy-agent=claude|codex|kiro|opencode|antigravity). Defaults to "claude" if absent.
 function readAgent() {
   const arg = process.argv.find((a) => a.startsWith("--clawdy-agent="));
   return arg ? arg.slice("--clawdy-agent=".length) : "claude";
@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld("pet", {
   requestState: () => ipcRenderer.send("ready-for-state"),
   // Receive this product's state: { agent, count, anim, linked }.
   onProductState: (cb) => ipcRenderer.on("product-state", (_e, state) => cb(state)),
+  // This product's sessions are gone: play the exit before main closes the window.
+  onLeave: (cb) => ipcRenderer.on("product-leave", () => cb()),
   // A permission prompt to show over this crab: { id, nonce, agent, project, tool, summary }.
   onPermissionRequest: (cb) => ipcRenderer.on("permission-request", (_e, req) => cb(req)),
   // Take down a permission bubble (answered elsewhere / timed out): { id }.
@@ -27,4 +29,5 @@ contextBridge.exposeInMainWorld("pet", {
   // Send a permission allow/deny decision back to the daemon. Pass the full
   // {event:"permission_decision", id, nonce, decision} object.
   sendPermissionDecision: (decision) => ipcRenderer.send("permission-decision", decision),
+  openPanel: () => ipcRenderer.send("open-panel", readAgent()),
 });

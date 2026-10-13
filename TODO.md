@@ -1,6 +1,25 @@
 # Clawd Notification Display — TODO
 
-## Status (v1.4.0)
+## Estado actual del checkout (2026-10-13)
+
+- [x] Retirado el mod de terminal de Claude: sin menu, activacion, fuentes ni empaquetado. Limpieza de instalaciones antiguas conserva otros plugins y hooks.
+
+- [x] Electron: mascotas y panel para Claude Code, Codex, Kiro, OpenCode y Antigravity.
+- [x] Consumo: Claude por statusLine, Codex por app-server, Kiro IDE por cache y OpenCode/Antigravity por historial (dia/mes/acumulado); Antigravity no informa costo monetario.
+- [x] Reinicios concedidos de Codex con confirmacion y reutilizacion de clave ante respuestas inciertas.
+- [x] npm test ejecuta la suite completa mediante node --test.
+- [x] OpenCode 2.0.27: adaptador setup v2 instalado; el usuario confirmo que la mascota aparece. Protocolo/integracion/standalone: 28 pruebas aprobadas.
+- [x] Etiqueta local para claude/opencode: Terminal - permisos de OpenCode; no cambia el agente.
+- [x] Escritorio (2026-10-13): 43 aprobadas, sin fallos. Corregido el doble de ventana; cubiertos adaptador OpenCode v2 y etiquetas de sesion.
+- [ ] Ejecutar de nuevo la suite completa del host; las cifras historicas no certifican este checkout.
+- [ ] Validar bandeja + Electron reales y Antigravity con agy real.
+- [x] Lista macOS actualizada: incluye antigravity-usage.js y session-labels.js.
+- [ ] Construir y verificar el bundle macOS actualizado.
+- [ ] Confirmar contenido de instaladores publicados y preparar entrega de cambios locales.
+
+Detalle: [estado tecnico actual](docs/clawdy-desktop-estado-2026-10-13.md). Las secciones siguientes conservan historial; no implican disponibilidad en una release.
+
+## Base historica (v1.4.0)
 
 Firmware builds, flashes, and runs on the Waveshare ESP32-C6-LCD-1.47 board.
 BLE advertising works, notifications can be sent and dismissed via BLE GATT writes.
@@ -23,6 +42,30 @@ Firmware uses RGB565A8 pixel format + cropped sprites to fit multi-session in ~2
 Custom app icon. Proactive BLE reconnection with full state sync on disconnect.
 
 ---
+
+## Antigravity + OpenCode products � adapter done, desktop labels done (real agy untested)
+
+- [x] Antigravity adapter: `antigravity_protocol.py`, plugin installer, 139 tests passing.
+- [x] Antigravity Stop/StopFailure cards now title the session by the workspace folder (not "Antigravity CLI"); product name is only a fallback (`project_fallback` flag) and the daemon never lets it overwrite a stored project. Fixed in the translator, the notify-script copy and `daemon.py`.
+- [x] Desktop pet treats `antigravity` and `opencode` as first-class products: order after kiro (`AGENT_ORDER` in `desktop/main.js`), labels "OpenCode"/"Antigravity" in `renderer.js` and `dashboard.js`; `desktop/test/agent-products.test.js` covers order, labels and unknown-product fallback.
+- [ ] Untested against a real `agy` on a clean Windows machine: the `.cmd` wrapper, re-install of an already installed plugin, MCP tool naming, an IDE without `agy` on PATH.
+- [x] 11 pre-existing failing host tests (tests updated to the new contract; production unchanged): 10 in `tests/test_session_state.py` (`daemon.py` now adds a `sessions` key) and `tests/test_kiro_protocol.py::test_pre_tool_use_execute_pwsh_maps_to_bash` (Kiro PreToolUse now emits `permission` with wait True).
+- [ ] `tests/test_daemon.py::test_ble_connects_and_reconnects_by_itself_after_a_scan_error` hangs.
+- [x] npm test now runs the full desktop suite (node --test); see the current result above.
+- [ ] Not verified in a real Electron window: new product labels and window ordering.
+
+## PID-less end-of-turn sessions never expired - Fixed (option A)
+
+- [x] Cause: `_evict_stale_sessions` skipped every `waiting` session, so an Antigravity (or PID-less Codex/Kiro/OpenCode) session resting after Stop/idle_prompt (`awaiting_prompt`) had no SessionEnd and no liveness checker and lived until a daemon restart.
+- [x] OpenCode plugin installer looked for the shim at `<repo>/opencode-plugin/` (`parents[2]`) instead of `host/opencode-plugin/`, so the tray said "OpenCode Plugin Not Installed"; `resolve_plugin_source` now uses `parents[1]` (tests incl. a real-repo existence guard), PR1/PR2 wording removed from the toast and log.
+- [x] Now a `waiting` + `awaiting_prompt` session with no PID and no subagents expires with the normal `_session_staleness_timeout` (600 s default, not the 90 s no-PID one). Blocked waits (permission/AskUserQuestion) and PID-backed sessions are still never time-evicted. Tests in `tests/test_session_state.py`; `test_staleness_does_not_evict_end_of_turn_waiting` now sets a PID.
+- [ ] Option B: resolve the real PID (`agy.exe` / Antigravity language server) in the hook so the liveness checker works for Antigravity.
+
+## Tray quit leaves the Electron pet running - Fixed (real tray untested)
+
+- [x] Cause: `quit()` waited 8 s on `_shutdown_sequence()`, but its last step (`daemon._shutdown()`) lets `run()` return, which ends the loop with that coroutine still pending, so the future never completed -> `TimeoutError` -> force exit. Nothing killed the pet outside that coroutine, and `kill()` only terminated the main exe (not Electron's child processes).
+- [x] `SimProcessManager.kill_sync()` (loop-independent; Windows: `taskkill /F /T /PID <our pid>`, never by image name) is called from `controller.quit()` on every path (success, timeout, dead loop). Async `kill()` also tree-kills. macOS/Linux unchanged. Tests: `test_sim_process.py`, `test_controller.py` (quit cases).
+- [ ] Not verified with the real tray + Electron. Open: after an orphan survives (crash, kill -9 of the tray), the next start still waits ~5 s and fails with "Port still in use"; needs a stale-pet cleanup by pid file (not by image name).
 
 ## Permission bubble (desk window Allow/Deny) — simulator side Implemented
 
@@ -66,22 +109,15 @@ Custom app icon. Proactive BLE reconnection with full state sync on disconnect.
 - [ ] Check click-through outside the sprite and drag on the real window.
 - [x] Tray toggle "Floating desk pet" (Windows pystray, top-level item right after Simulator; mirrored in rumps_view.py as "(untested on macOS)"). `controller.toggle_sim_desk()`: ON persists `sim_desk_mode`, enables the simulator and restarts it via `SimProcessManager(desk=True)` (args `--listen <port> --desk`, visible, no `--hidden`/`--pinned`); OFF persists false and stops AND disables the simulator (`sim_enabled=false`, no fallback to the normal window; Simulator > Enabled brings that back). One sim process/port, so the two modes are exclusive; Simulator > Enabled OFF also clears desk mode. Show Window / Always on Top are greyed out and ignored in desk mode. `sim_desk_mode` saved true => the crab starts automatically at tray start. Run the tray from source with `ver-tray.bat`.
 - [ ] Manual check needed: click the real tray item on Windows (unit tests use fakes only); packaged PyInstaller flow unchanged (it already bundles the simulator exe).
-- Known limits: notification cards and the usage/time HUD are hidden in desk mode; the mod's own band still shows in the terminal.
+- Known limits: notification cards and the usage/time HUD are hidden in desk mode.
 
-## Claude Code mod — no auto-shown crab (band tried and removed)
+## Mod de terminal Claude - retirado (2026-10-13)
 
-- [x] `margarita-band` no longer opens the side pane at session start and no longer draws an `AbovePrompt` band. The crab is shown on the desk by the simulator's `--desk` window instead. `/margarita` still opens the pane on demand.
-- [x] The band at `BAND_SCALE = 1/3` looked blocky (the v2 art was downscaled too far), so it was dropped.
-- [ ] `claude plugin test` has 4 failures in `usage-cache.test.ts` on Windows (path separators `/` vs `\`); not addressed.
+La funcion fue eliminada. Las notas anteriores quedan en el historial de Git; Electron y los hooks de actividad de Claude continuan disponibles.
 
-## Claude Code mod (side panel) — Implemented (Windows and a real Claude session untested)
+## Mod de terminal Claude - retirado (2026-10-13)
 
-- [x] `claude-mod/margarita-band/` added to the repo and bundled (py2app `DATA_FILES`, PyInstaller `datas`; the release workflow checks both).
-- [x] `hooks.install_mod()` / `enable_mod()` / `disable_mod()` copy the mod to `~/.clawd-tank/claude-mod/margarita-band/` and add/remove only our folder in `settings.json` `env.CLAUDE_CODE_PLUGIN_DIRS`; `uninstall_hooks()` removes it too.
-- [x] `claude_mod_enabled` preference (default off), `controller.toggle_claude_mod()`, refresh on app start, and the "Claude Code Mod (panel)" item in the macOS menu and Windows tray.
-- [ ] Click the menu item in the real macOS app and start a new Claude Code session to see the panel load from `CLAUDE_CODE_PLUGIN_DIRS` (docks right from ~110 columns in fullscreen).
-- [ ] Same check on Windows (frozen build: the mod is read from next to `MargaritaTank.exe`; separator `;`).
-- [ ] Decide whether the mod should also show the daemon's real per-session state (today it derives it from Claude Code's own events).
+La funcion fue eliminada. Las notas anteriores quedan en el historial de Git; Electron y los hooks de actividad de Claude continuan disponibles.
 
 ## statusLine bridge — Implemented (Windows paths untested on real Windows)
 
@@ -134,10 +170,6 @@ Proposed behaviour:
   (`downgrade_display_state`, `MIN_PROTOCOL_FOR_...`).
 - [ ] Flash the board and check it on hardware (the simulator compiles the same sources, so
   it can be checked there first).
-- [x] Claude Code mod (`margarita-band`, `claude-mod/margarita-band/`) already mirrors it:
-  `happy` for 8 ticks (~3.6 s) after the turn, then a looping `waiting_reply` pose with the
-  text `esperando tu respuesta` until the next prompt (`hooks/select.ts`, covered by
-  `hooks/select.test.ts`).
 
 ## Windows Claude PID resolution — Complete
 
@@ -334,7 +366,8 @@ Multi-agent review of the attention-hooks work surfaced 15 findings; fixes:
 ## Out-of-credits detection — Part A implemented, Part B proposal only
 
 - [x] **Claude Code `StopFailure` exhaustion** — `protocol.classify_exhaustion()` matches `error`/`stop_reason`/`error_type`/`error_details` (case-insensitive: credit, quota, billing, insufficient, usage limit, `rate_limit` token). Match -> card "Out of credits" / "Usage limit reached" (red alert flash kept) and session state `out_of_credits`, which renders as `low_battery` (v2 transports downgrade it to idle). No firmware change. Verified from the Claude Code hooks docs: StopFailure error types include `billing_error` and `rate_limit`; assumed: the exact payload field names beyond `error`.
-- [ ] **Codex/Kiro exhausted credits** — no hook fires. Codex rollout `event_msg/token_count` carries `rate_limits` (`credits.has_credits`, `rate_limit_reached_type`, `primary/secondary.used_percent`), but the exhausted values were never observed, so nothing is implemented. Kiro: no local log/hook signal found. Fallback proposal: stall hint for codex/kiro sessions stuck thinking/working for N minutes (false positives on long tool calls).
+- [x] **Kiro exhausted credits**: kiro_log_watcher.py reads session creation and UsageLimitReachedError from local logs, producing normalized session/exhaustion events. Dedicated tests exist; live validation remains pending.
+- [ ] **Codex exhausted credits animation**: account-limit queries in the panel are implemented; a verified end-to-end exhaustion signal for the pet still needs real payload validation.
 
 ## Future Considerations (Out of Scope)
 
@@ -342,3 +375,8 @@ Multi-agent review of the attention-hooks work surfaced 15 findings; fixes:
 - Multiple host device support (pairing with more than one Mac)
 - OTA firmware updates over WiFi
 - Per-session project name display during working animations
+
+### Codex alert stuck + tool aliases
+- [x] Daemon clears the permission alert when the wait resolves: allow -> working, deny / hook hangup -> thinking (broadcast + persist); AskUserQuestion and newer state (question, Stop) are never overwritten. Timeout / no pet keeps the alert; Codex-only fallback expires it after `CODEX_PERMISSION_ALERT_SECONDS` (120s) via `_evict_stale_sessions`.
+- [x] `CODEX_TOOL_ALIASES` (daemon + embedded notify script, drift test): exec_command->Bash, web_search/webrun->WebSearch, view_image->Read. `update_plan` / `request_user_input_async` left passthrough on purpose.
+- [ ] Verify with a real Codex that the hook process is killed when the permission is answered in Codex's own UI (assumed for the hook-hangup path).

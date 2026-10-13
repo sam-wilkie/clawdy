@@ -109,3 +109,21 @@ desktop/node_modules/
 # local until permission and licensing are settled, see NOTICE.md.
 /desktop/renderer/assets/codex/
 /tools/codex_cloud_pixel.py
+
+# Locally generated mascot art and the throwaway scripts that produce it, same
+# reasoning as the Codex cloud above. Recreated on demand, never committed.
+/assets/pet-samples/
+/tools/pet_monster_*.py
+/tools/pet_samples*.py
+/tools/reload_clawdy_pet.ps1
+/tools/install_opencode_v2_fix.py
+/tools/remove_claude_mod_source.py
+/tools/restart_clawdy_tray.ps1
+/tools/cleanup_retired_claude_mod.py
+
+# pnpm's content-addressable store, when a local run hoists it to the repo root
+# instead of desktop/node_modules.
+/.pnpm-store/
+
+# Captured pytest output kept around while debugging a run.
+/host/tests/_*.txt

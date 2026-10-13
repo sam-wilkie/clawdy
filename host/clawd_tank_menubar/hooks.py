@@ -8,7 +8,9 @@ import ntpath
 import os
 import re
 import shlex
+import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -19,6 +21,8 @@ from clawd_tank_daemon.protocol import (
     DISPLAY_NAME,
     PERMISSION_WAIT_SECONDS,
 )
+
+from .version import get_version
 
 logger = logging.getLogger("clawd-tank.hooks")
 
@@ -433,7 +437,15 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
     # with clawd_tank_daemon/codex_protocol.py.
     CODEX_SESSION_PREFIX = "codex:"
     CODEX_DISPLAY_NAME = "Codex"
-    CODEX_TOOL_ALIASES = {"shell": "Bash", "apply_patch": "Write", "local_shell": "Bash"}
+    CODEX_TOOL_ALIASES = {
+        "shell": "Bash",
+        "apply_patch": "Write",
+        "local_shell": "Bash",
+        "exec_command": "Bash",
+        "web_search": "WebSearch",
+        "webrun": "WebSearch",
+        "view_image": "Read",
+    }
 
 
     def _codex_tool(raw):
@@ -558,12 +570,211 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
         return None
 
 
-    _AGENT_TRANSLATORS = {"codex": codex_hook_to_message, "kiro": kiro_hook_to_message}
+    # Antigravity (agy CLI + IDE): camelCase payload that does not name its
+    # event, so the installed command passes it as argv[2] and main() injects it
+    # as "hookEventName". Keep this in sync with
+    # clawd_tank_daemon/antigravity_protocol.py.
+    ANTIGRAVITY_SESSION_PREFIX = "antigravity:"
+    ANTIGRAVITY_TOOL_ALIASES = {
+        "view_file": "Read", "list_dir": "Read", "find_by_name": "Glob",
+        "grep_search": "Grep", "write_to_file": "Write",
+        "replace_file_content": "Edit", "multi_replace_file_content": "Edit",
+        "run_command": "Bash", "search_web": "WebSearch",
+        "read_url_content": "WebFetch", "invoke_subagent": "Agent",
+        "manage_subagents": "Agent", "ask_question": "AskUserQuestion",
+        "ask_permission": "AskUserQuestion",
+    }
+
+
+    def _antigravity_tool(raw):
+        if not raw:
+            return ""
+        if raw.startswith("mcp__"):
+            return raw
+        return ANTIGRAVITY_TOOL_ALIASES.get(raw, "passthrough")
+
+
+    def _antigravity_card_name(hook):
+        transcript = str(hook.get("transcriptPath") or "").replace("\\\\", "/")
+        if "antigravity-cli" in transcript:
+            return "Antigravity CLI"
+        if "antigravity-ide" in transcript:
+            return "Antigravity IDE"
+        return "Antigravity"
+
+
+    def _antigravity_stop_project(hook, project):
+        if project:
+            return {"project": project}
+        return {"project": _antigravity_card_name(hook), "project_fallback": True}
+
+
+    def antigravity_hook_to_message(hook):
+        """Convert an Antigravity hook payload to a daemon message (namespaced)."""
+        event_name = hook.get("hookEventName", "")
+        conversation_id = hook.get("conversationId", "")
+        if not conversation_id:
+            return None
+        session_id = ANTIGRAVITY_SESSION_PREFIX + conversation_id
+        workspaces = hook.get("workspacePaths") or []
+        project = Path(workspaces[0]).name if workspaces else ""
+        tool_call = hook.get("toolCall") or {}
+
+        if event_name == "PreInvocation":
+            return {"event": "dismiss", "hook": "UserPromptSubmit", "session_id": session_id, "project": project, "pid": None}
+        if event_name == "PreToolUse":
+            return {"event": "tool_use", "session_id": session_id, "tool_name": _antigravity_tool(tool_call.get("name", "")), "project": project, "pid": None}
+        if event_name == "PostToolUse":
+            kind = "tool_failed" if hook.get("error") else "tool_done"
+            return {"event": kind, "session_id": session_id, "tool_name": _antigravity_tool(tool_call.get("name", "")), "project": project, "pid": None}
+        if event_name == "Stop":
+            error = hook.get("error") or ""
+            if error or hook.get("terminationReason") == "error":
+                exhausted = _classify_exhaustion(hook)
+                msg = {
+                    "event": "add", "hook": "StopFailure", "session_id": session_id,
+                    **_antigravity_stop_project(hook, project),
+                    "message": exhausted or error or "Agent error", "pid": None,
+                }
+                if exhausted:
+                    msg["exhausted"] = True
+                return msg
+            if hook.get("fullyIdle") is False:
+                return None
+            return {"event": "add", "hook": "Stop", "session_id": session_id, **_antigravity_stop_project(hook, project), "message": "Waiting for your reply", "pid": None}
+        return None
+
+
+    # OpenCode: the plugin shim (host/opencode-plugin/clawd-tank-opencode.js)
+    # posts {type, sessionID, directory, tool, args}. Keep this in sync with
+    # clawd_tank_daemon/opencode_protocol.py.
+    OPENCODE_SESSION_PREFIX = "opencode:"
+
+
+    def _opencode_tool(raw):
+        if not raw:
+            return ""
+        if raw.startswith("mcp__"):
+            return raw
+        return "passthrough"
+
+
+    def opencode_hook_to_message(hook):
+        """Convert an OpenCode plugin payload to a daemon message (namespaced)."""
+        event_type = hook.get("type", "")
+        raw_sid = hook.get("sessionID", "") or hook.get("session_id", "")
+        if not raw_sid:
+            return None
+        session_id = OPENCODE_SESSION_PREFIX + raw_sid
+        directory = hook.get("directory", "") or hook.get("cwd", "")
+        project = Path(directory).name if directory else ""
+        pid = None
+
+        if event_type == "session.created":
+            return {"event": "session_start", "session_id": session_id, "project": project, "pid": pid}
+        if event_type == "chat.message":
+            return {"event": "dismiss", "hook": "UserPromptSubmit", "session_id": session_id, "project": project, "pid": pid}
+        if event_type == "session.heartbeat":
+            state = hook.get("state", "registered")
+            if state not in ("registered", "thinking", "working", "waiting"):
+                return None
+            return {"event": "session_heartbeat", "session_id": session_id, "project": project, "state": state, "tool_name": _opencode_tool(hook.get("tool", "")), "awaiting_prompt": state == "waiting", "pid": pid}
+        if event_type == "session.idle":
+            return {"event": "add", "hook": "Stop", "session_id": session_id, "project": project, "pid": pid, "message": "Esperando tu respuesta"}
+        if event_type == "session.deleted":
+            return {"event": "dismiss", "hook": "SessionEnd", "session_id": session_id, "pid": pid}
+        if event_type == "tool.execute.before":
+            return {"event": "tool_use", "session_id": session_id, "tool_name": _opencode_tool(hook.get("tool", "")), "project": project, "pid": pid}
+        if event_type == "tool.execute.after":
+            return {"event": "tool_done", "session_id": session_id, "tool_name": _opencode_tool(hook.get("tool", "")), "project": project, "pid": pid}
+        if event_type == "permission.ask":
+            tool_name = _opencode_tool(hook.get("tool", ""))
+            return {
+                "event": "permission", "session_id": session_id,
+                "tool_name": tool_name, "project": project, "pid": pid,
+                "wait": True,
+                "tool_summary": _tool_summary(tool_name, hook.get("args")),
+            }
+        if event_type == "experimental.session.compacting":
+            return {"event": "compact", "session_id": session_id, "pid": pid}
+        return None
+
+
+    _AGENT_TRANSLATORS = {
+        "codex": codex_hook_to_message,
+        "kiro": kiro_hook_to_message,
+        "antigravity": antigravity_hook_to_message,
+        "opencode": opencode_hook_to_message,
+    }
+
+
+    _ALLOW_SENT = False
+
+
+    def _write_allow():
+        """Answer an Antigravity PreToolUse gate: let the agent carry on. Written
+        at most once."""
+        global _ALLOW_SENT
+        if _ALLOW_SENT:
+            return
+        _ALLOW_SENT = True
+        try:
+            sys.stdout.write('{"decision":"allow"}\\n')
+            sys.stdout.flush()
+        except Exception:
+            pass
+
+
+    def _send_message(msg):
+        """Fire-and-forget delivery of one message (no reply is awaited)."""
+        if sys.platform == "win32":
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        else:
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            sock.settimeout(3.0)
+            if sys.platform == "win32":
+                with open(SOCKET_PATH, encoding="utf-8") as f:
+                    endpoint = json.load(f)
+                sock.connect(("127.0.0.1", endpoint["port"]))
+                sock.sendall(endpoint["token"].encode("utf-8") + b"\\n")
+            else:
+                sock.connect(SOCKET_PATH)
+            sock.sendall(json.dumps(msg).encode("utf-8") + b"\\n")
+        finally:
+            sock.close()
+
+
+    def _main_antigravity(event):
+        """Antigravity hook entry: `<notify> antigravity <Event>`. PreToolUse is
+        a gating hook, so this always answers {"decision":"allow"} (it only
+        observes; it must never block the agent) and always exits 0, whatever
+        goes wrong (daemon down, junk stdin, an unexpected error)."""
+        gate = event == "PreToolUse"
+        try:
+            raw = sys.stdin.read()
+            payload = json.loads(raw) if raw.strip() else None
+            if gate:
+                _write_allow()
+            if isinstance(payload, dict):
+                if event:
+                    payload.setdefault("hookEventName", event)
+                msg = antigravity_hook_to_message(payload)
+                if msg is not None:
+                    _send_message(msg)
+        except BaseException:
+            pass
+        finally:
+            if gate:
+                _write_allow()
+        sys.exit(0)
 
 
     def main():
         # The agent is the first CLI arg ("codex"/"kiro"); default is Claude Code.
         agent = sys.argv[1] if len(sys.argv) > 1 else "claude"
+        if agent == "antigravity":
+            _main_antigravity(sys.argv[2] if len(sys.argv) > 2 else "")
         try:
             raw = sys.stdin.read()
             if not raw.strip():
@@ -1604,65 +1815,14 @@ def _write_settings_atomic(settings: dict) -> None:
         raise
 
 
-# --- Claude Code mod (the Margarita side panel) -------------------------------
-#
-# The mod is a plain Claude Code plugin folder shipped with the app (claude-mod/
-# in a checkout, bundled as data in the packaged builds). The app copies it to
-# ~/.clawd-tank/claude-mod/margarita-band and enables it by listing that folder
-# in settings.json env.CLAUDE_CODE_PLUGIN_DIRS: Claude Code loads every folder in
-# that os.pathsep-separated list like `--plugin-dir`. It is opt-in and separate
-# from the hooks, and enabling or disabling touches only our own entry.
-
+# --- Cleanup for the retired Claude terminal panel ---------------------------
+# Only removal remains, so older installations stop loading our own plugin.
 MOD_NAME = "margarita-band"
 MOD_DIR = CLAWD_DIR / "claude-mod" / MOD_NAME
 PLUGIN_DIRS_ENV = "CLAUDE_CODE_PLUGIN_DIRS"
 
-# Never copied: dependency/cache folders and OS litter.
-_MOD_SKIP_DIRS = frozenset({"node_modules", "__pycache__"})
-_MOD_SKIP_FILES = frozenset({".DS_Store", "Thumbs.db"})
-# Typings Claude Code generates when the mod is developed. Not part of the mod,
-# so they are neither copied nor deleted from the installed copy.
-_MOD_GENERATED_DIR = (".claude-plugin", "types")
-
-
-def resolve_mod_source(frozen: bool, executable: str, resourcepath, module_file) -> Path:
-    """Where the mod shipped with this build lives.
-
-    A py2app bundle keeps data files under Contents/Resources (RESOURCEPATH); a
-    PyInstaller onedir build puts them next to the exe; a checkout keeps the
-    mod at the repository root, two folders above this package.
-    """
-    if frozen:
-        base = Path(resourcepath) if resourcepath else Path(executable).parent
-    else:
-        base = Path(module_file).parents[2]
-    return base / "claude-mod" / MOD_NAME
-
-
-MOD_SOURCE_DIR = resolve_mod_source(
-    bool(getattr(sys, "frozen", False)),
-    sys.executable,
-    os.environ.get("RESOURCEPATH"),
-    Path(__file__).resolve(),
-)
-
-
-def _iter_mod_files(root: Path):
-    """Relative path of every file the mod consists of under `root`."""
-    for dirpath, dirnames, filenames in os.walk(root):
-        rel_dir = Path(dirpath).relative_to(root)
-        dirnames[:] = sorted(
-            d for d in dirnames
-            if d not in _MOD_SKIP_DIRS and (rel_dir / d).parts != _MOD_GENERATED_DIR
-        )
-        for name in sorted(filenames):
-            if name not in _MOD_SKIP_FILES:
-                yield rel_dir / name
-
-
 def _write_bytes_atomic(path: Path, data: bytes) -> None:
-    """Temp file + os.replace, so a Claude Code session loading the mod while the
-    app refreshes it never reads a half-written file."""
+    """Write helper/plugin files atomically so readers never see partial content."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
     try:
@@ -1677,38 +1837,6 @@ def _write_bytes_atomic(path: Path, data: bytes) -> None:
         raise
 
 
-def install_mod_files() -> bool:
-    """Make MOD_DIR an exact copy of the bundled mod. Safe to run on every start:
-    only files whose content differs are written, files the mod no longer ships
-    are removed, and the typings Claude Code generated in the copy are kept.
-
-    Returns False — without raising — when the build carries no mod or the copy
-    fails, so a caller can tell the user instead of crashing the tray app."""
-    if not MOD_SOURCE_DIR.is_dir():
-        logger.error("Not installing the Claude Code mod: %s not found", MOD_SOURCE_DIR)
-        return False
-    try:
-        wanted = set(_iter_mod_files(MOD_SOURCE_DIR))
-        MOD_DIR.mkdir(parents=True, exist_ok=True)
-        for rel in sorted(wanted):
-            data = (MOD_SOURCE_DIR / rel).read_bytes()
-            target = MOD_DIR / rel
-            if target.is_file() and target.read_bytes() == data:
-                continue
-            _write_bytes_atomic(target, data)
-        for rel in list(_iter_mod_files(MOD_DIR)):
-            if rel not in wanted:
-                (MOD_DIR / rel).unlink()
-        # Folders emptied by the removals above (deepest first; the root stays).
-        for dirpath, _dirs, _files in os.walk(MOD_DIR, topdown=False):
-            rel_dir = Path(dirpath).relative_to(MOD_DIR)
-            if rel_dir.parts and rel_dir.parts[:2] != _MOD_GENERATED_DIR and not any(Path(dirpath).iterdir()):
-                Path(dirpath).rmdir()
-    except OSError:
-        logger.exception("Could not install the Claude Code mod into %s", MOD_DIR)
-        return False
-    logger.info("Installed Claude Code mod: %s", MOD_DIR)
-    return True
 
 
 def _is_our_mod_entry(entry: str) -> bool:
@@ -1768,34 +1896,6 @@ def is_mod_enabled() -> bool:
     return any(_is_our_mod_entry(e) for e in entries or [])
 
 
-def enable_mod() -> bool:
-    """Add MOD_DIR to env.CLAUDE_CODE_PLUGIN_DIRS, after the user's own folders.
-    Idempotent: the file is not rewritten when our folder is already listed.
-
-    Returns False — leaving the file untouched — when the settings file cannot be
-    parsed, or `env` / the variable has a shape we cannot extend safely."""
-    CLAUDE_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    settings = _load_settings()
-    if settings is None:
-        logger.warning(
-            "Not enabling the Claude Code mod: %s is not a readable JSON object; left untouched",
-            CLAUDE_SETTINGS_PATH,
-        )
-        return False
-    env, entries = _plugin_dir_entries(settings)
-    if entries is None:
-        logger.warning(
-            "Not enabling the Claude Code mod: env.%s in %s is not a string; left untouched",
-            PLUGIN_DIRS_ENV, CLAUDE_SETTINGS_PATH,
-        )
-        return False
-    if any(_is_our_mod_entry(e) for e in entries):
-        return True
-    env[PLUGIN_DIRS_ENV] = os.pathsep.join([e for e in entries if e.strip()] + [str(MOD_DIR)])
-    settings["env"] = env
-    _write_settings_atomic(settings)
-    logger.info("Enabled Claude Code mod in %s", CLAUDE_SETTINGS_PATH)
-    return True
 
 
 def disable_mod() -> bool:
@@ -1814,6 +1914,9 @@ def disable_mod() -> bool:
             CLAUDE_SETTINGS_PATH,
         )
         return False
+    if _plugin_dir_entries(settings)[1] is None:
+        logger.warning("Cannot clean retired mod: plugin folder configuration is invalid")
+        return False
     if not _remove_mod_entry(settings):
         return True
     _write_settings_atomic(settings)
@@ -1821,10 +1924,20 @@ def disable_mod() -> bool:
     return True
 
 
-def install_mod() -> bool:
-    """Copy (or refresh) the mod files, then enable the mod. The settings file is
-    only touched once the folder it points at exists."""
-    return install_mod_files() and enable_mod()
+def cleanup_retired_mod() -> bool:
+    """Remove the retired panel's config entry and only its installed directory."""
+    if not disable_mod():
+        return False
+    if MOD_DIR.is_symlink():
+        MOD_DIR.unlink()
+    elif MOD_DIR.exists():
+        target = MOD_DIR.resolve()
+        if target.name != MOD_NAME or not target.is_relative_to(CLAWD_DIR.resolve()):
+            raise ValueError("Retired mod directory is outside Clawdy storage")
+        shutil.rmtree(MOD_DIR)
+    return True
+
+
 
 
 def are_hooks_installed() -> bool:
@@ -1967,19 +2080,17 @@ def uninstall_hooks() -> bool:
 
 # --- OpenCode plugin installer ----------------------------------------------
 #
-# OpenCode is MiniMax's AI coding assistant (https://opencode.ai). Unlike
+# OpenCode is an AI coding assistant (https://opencode.ai). Unlike
 # Claude Code (settings.json edits) and Codex (hooks.json edits), OpenCode is
 # configured by a single opencode.json file whose `plugin` array holds file://
 # URLs to plugin shims. The installer copies our plugin shim from its bundled
-# source into ~/.config/opencode/plugins/clawd-tank.js (POSIX) or
-# %APPDATA%\opencode\plugins\clawd-tank.js (Windows), and merges the
+# source into ~/.config/opencode/plugins/clawd-tank.js on all platforms
+# (or under XDG_CONFIG_HOME), and merges the
 # corresponding file:// URL into the user's opencode.json plugin array.
 #
-# PR1 NOTE: the actual plugin shim source (clawd-tank-opencode.js) lands in
-# PR2. PR1 ships the installer; resolve_plugin_source() returns the path the
-# file will live at, but the file at that path does NOT exist yet, so
-# install_opencode_hooks() refuses (logs a warning) until PR2 drops the file
-# at OPENCODE_PLUGIN_SOURCE.
+# The shim source (host/opencode-plugin/clawd-tank-opencode.js) is bundled by
+# setup.py / margarita_tank.spec; install_opencode_hooks() refuses (logs a
+# warning) when it is not found at OPENCODE_PLUGIN_SOURCE.
 
 OPENCODE_PLUGIN_FILENAME = "clawd-tank.js"
 OPENCODE_BACKUP_SUFFIX = ".clawd-tank.bak"
@@ -1987,21 +2098,14 @@ _OPENCODE_BUNDLE_DIR = "opencode-plugin"
 
 
 def _opencode_config_path() -> Path:
-    """Path to the user's opencode.json. POSIX follows the XDG convention
-    (~/.config/opencode/opencode.json); Windows uses %APPDATA%\\opencode\\
-    opencode.json, mirroring how CLAWD_DIR is resolved."""
-    if sys.platform == "win32":
-        # APPDATA is the roaming profile path; OpenCode matches the convention
-        # used by VS Code, Discord, Slack, etc.
-        base = Path(os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming"))
-    else:
-        base = Path.home() / ".config"
+    """OpenCode uses XDG config paths on every platform, including Windows."""
+    base = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
     return base / "opencode" / "opencode.json"
 
 
 def _opencode_plugin_path() -> Path:
     """Path the plugin shim is copied to (next to opencode.json in
-    ~/.config/opencode/plugins/ or %APPDATA%\\opencode\\plugins\\)."""
+    ~/.config/opencode/plugins/ on all platforms)."""
     return _opencode_config_path().parent / "plugins" / OPENCODE_PLUGIN_FILENAME
 
 
@@ -2014,19 +2118,18 @@ OPENCODE_PLUGIN_PATH = _opencode_plugin_path()
 def resolve_plugin_source(frozen: bool, executable: str, resourcepath, module_file) -> Path:
     """Where the bundled OpenCode plugin shim ships from.
 
-    PR1: the file at this path is NOT yet checked in. PR2 drops
-    ``clawd-tank-opencode.js`` at host/opencode-plugin/clawd-tank-opencode.js
-    (relative to the repo root); the macOS py2app bundle places it under
+    The shim lives at host/opencode-plugin/clawd-tank-opencode.js in the
+    source tree (non-frozen runs resolve relative to host/); the macOS py2app bundle places it under
     Contents/Resources/opencode-plugin/, and the PyInstaller onedir build
-    places it next to the exe. Mirrors resolve_mod_source() exactly so the
+    places it next to the exe. Uses the standard bundled-resource lookup so the
     installer reads the same shape regardless of platform.
 
-    Returns the path the file WILL live at, even when nothing is there yet.
+    Returns the expected path even if the file is missing.
     """
     if frozen:
         base = Path(resourcepath) if resourcepath else Path(executable).parent
     else:
-        base = Path(module_file).parents[2]
+        base = Path(module_file).parents[1]  # host/ (hooks.py is in host/clawd_tank_menubar/)
     return base / _OPENCODE_BUNDLE_DIR / "clawd-tank-opencode.js"
 
 
@@ -2037,6 +2140,11 @@ OPENCODE_PLUGIN_SOURCE = resolve_plugin_source(
     os.environ.get("RESOURCEPATH"),
     Path(__file__).resolve(),
 )
+
+
+def _opencode_command_path() -> Path:
+    """Where the installer leaves the notify command line for the shim."""
+    return OPENCODE_PLUGIN_PATH.with_name("clawd-tank.command")
 
 
 def _opencode_plugin_entry() -> str:
@@ -2078,11 +2186,10 @@ def _load_opencode_config() -> dict | None:
 def install_opencode_hooks() -> bool:
     """Install the OpenCode plugin shim and register it in opencode.json.
 
-    PR1 note: the bundled plugin source (clawd-tank-opencode.js) lands in
-    PR2; until the file exists at OPENCODE_PLUGIN_SOURCE this returns False
-    and leaves opencode.json untouched. Once PR2 drops the file, install
-    copies it to OPENCODE_PLUGIN_PATH and merges the file:// URL into the
-    user's `plugin` array.
+    Copies the bundled plugin source (OPENCODE_PLUGIN_SOURCE) to
+    OPENCODE_PLUGIN_PATH and merges the file:// URL into the user's `plugin`
+    array. If the bundled source is missing this returns False and leaves
+    opencode.json untouched.
 
     Returns False, leaving opencode.json untouched, when the file cannot be
     parsed or the bundled plugin source is missing.
@@ -2090,7 +2197,7 @@ def install_opencode_hooks() -> bool:
     if not OPENCODE_PLUGIN_SOURCE.is_file():
         logger.warning(
             "Not installing OpenCode plugin: bundled source %s not found "
-            "(lands in PR2 — see resolve_plugin_source in hooks.py)",
+            "(see resolve_plugin_source in hooks.py)",
             OPENCODE_PLUGIN_SOURCE,
         )
         return False
@@ -2130,6 +2237,8 @@ def install_opencode_hooks() -> bool:
     # error on every start).
     OPENCODE_PLUGIN_PATH.parent.mkdir(parents=True, exist_ok=True)
     OPENCODE_PLUGIN_PATH.write_bytes(OPENCODE_PLUGIN_SOURCE.read_bytes())
+    # The shim runs this notify command with the agent argument "opencode".
+    _opencode_command_path().write_text(HOOK_COMMAND, encoding="utf-8")
 
     logger.info(
         "Installed OpenCode plugin: shim at %s, entry in %s",
@@ -2154,6 +2263,10 @@ def uninstall_opencode_hooks() -> bool:
         OPENCODE_PLUGIN_PATH.unlink(missing_ok=True)
     except OSError:
         logger.warning("Could not remove OpenCode plugin file %s", OPENCODE_PLUGIN_PATH)
+    try:
+        _opencode_command_path().unlink(missing_ok=True)
+    except OSError:
+        pass
 
     if not OPENCODE_CONFIG_PATH.exists():
         # No config to clean up; backup file (if any) is orphaned, drop it.
@@ -2206,3 +2319,257 @@ def are_opencode_hooks_installed() -> bool:
     if not isinstance(plugins, list):
         return False
     return any(_is_our_opencode_plugin(e) for e in plugins)
+
+
+# --- Antigravity (agy CLI + Antigravity IDE) plugin ---------------------------
+#
+# Antigravity loads hooks from plugins (a project-level .agents/hooks.json was
+# verified NOT to load). So we write a local plugin folder (plugin.json +
+# hooks.json), mirror it under ~/.clawd-tank and register it with
+# `agy plugin install <dir>`; uninstall is `agy plugin uninstall margarita-tank`
+# plus deleting our mirror. Other plugins are never touched.
+#
+# The hook payload does not name its event, so every registered command passes
+# it as the last argument: `<notify> antigravity <Event>`.
+ANTIGRAVITY_PLUGIN_NAME = "margarita-tank"
+ANTIGRAVITY_PLUGIN_DIR = CLAWD_DIR / "antigravity-plugin" / ANTIGRAVITY_PLUGIN_NAME
+ANTIGRAVITY_WRAPPER_PATH = CLAWD_DIR / "clawd-tank-antigravity.cmd"
+ANTIGRAVITY_HOOK_TIMEOUT_SECONDS = 10
+# (hook event, whether it carries a tool matcher). PostInvocation is not
+# registered: the daemon has nothing to do with it.
+ANTIGRAVITY_EVENTS = (
+    ("PreInvocation", False),
+    ("PreToolUse", True),
+    ("PostToolUse", True),
+    ("Stop", False),
+)
+AGY_COMMAND_TIMEOUT_SECONDS = 60
+
+
+def build_antigravity_hook_command(
+    platform: str, frozen: bool, executable, script_path, wrapper_path, event: str,
+) -> str:
+    """The command Antigravity runs for one hook event.
+
+    agy's hook runner wraps and quotes commands badly on Windows: a quoted
+    absolute interpreter path ends up as `node "C:\\a\\"C:\\a\\hook.js""` and
+    fails. So on Windows the command is NEVER quoted. It names the executable
+    (and script) directly when none of their paths contain whitespace, else it
+    goes through a tiny space-free .cmd wrapper under ~/.clawd-tank
+    (`wrapper_path`, see `antigravity_wrapper_script`); if even that path has
+    whitespace there is no safe spelling and ValueError is raised.
+
+    No `; exit 0` suffix on Windows: the runner's shell is unknown and cmd.exe
+    would pass "PreToolUse;" to the program. The notify script exits 0 by
+    itself, and the .cmd wrapper ends with `exit /b 0`. POSIX shells get the
+    suffix explicitly.
+    """
+    if platform == "win32":
+        if frozen:
+            parts = [ntpath.join(ntpath.dirname(str(executable)), NOTIFY_EXE_NAME)]
+        else:
+            interpreter = str(executable)
+            if ntpath.basename(interpreter).lower() == "pythonw.exe":
+                interpreter = ntpath.join(ntpath.dirname(interpreter), "python.exe")
+            parts = [interpreter, str(script_path)]
+        if not any(c.isspace() for p in parts for c in p):
+            return " ".join(parts + ["antigravity", event])
+        if any(c.isspace() for c in str(wrapper_path)):
+            raise ValueError(
+                f"cannot build an Antigravity hook command: {wrapper_path} has "
+                "whitespace and agy cannot run quoted commands on Windows"
+            )
+        return f"{wrapper_path} {event}"
+    return f"{shlex.quote(str(script_path))} antigravity {event}; exit 0"
+
+
+def antigravity_wrapper_script(frozen: bool, executable, script_path) -> str:
+    """Contents of the Windows .cmd wrapper used when the interpreter/script
+    paths contain spaces. Quotes are fine INSIDE the .cmd file (cmd.exe parses
+    it itself); only the plugin command string cannot carry them. It forwards
+    just the event (%1) and ends with `exit /b 0` so the agent never sees a
+    failing hook."""
+    if frozen:
+        program = f'"{ntpath.join(ntpath.dirname(str(executable)), NOTIFY_EXE_NAME)}"'
+    else:
+        interpreter = str(executable)
+        if ntpath.basename(interpreter).lower() == "pythonw.exe":
+            interpreter = ntpath.join(ntpath.dirname(interpreter), "python.exe")
+        program = f'"{interpreter}" "{script_path}"'
+    return "\r\n".join([
+        "@echo off",
+        "rem Generated by Margarita Tank. Do not edit.",
+        f"{program} antigravity %1",
+        "exit /b 0",
+        "",
+    ])
+
+
+def build_antigravity_hooks_json(commands: dict) -> dict:
+    """The plugin's hooks.json: one named hook set ("margarita-tank") with a
+    command per event in `commands` (event name -> command string). Tool events
+    take a matcher group ("*" = every tool); the others are plain command lists."""
+    body: dict = {"enabled": True}
+    for event, with_matcher in ANTIGRAVITY_EVENTS:
+        entry = {
+            "type": "command",
+            "command": commands[event],
+            "timeout": ANTIGRAVITY_HOOK_TIMEOUT_SECONDS,
+        }
+        body[event] = [{"matcher": "*", "hooks": [entry]}] if with_matcher else [entry]
+    return {ANTIGRAVITY_PLUGIN_NAME: body}
+
+
+def build_antigravity_plugin_json(version: str) -> dict:
+    return {"name": ANTIGRAVITY_PLUGIN_NAME, "version": version}
+
+
+def antigravity_plugin_version(raw: str) -> str:
+    """A stable semver for plugin.json. The app version in a dev checkout
+    ("branch+N@sha-dirty") changes on every commit, which would look like an
+    outdated plugin forever, so only a real X.Y.Z is used; anything else is
+    0.0.0."""
+    match = re.search(r"(\d+\.\d+\.\d+)", raw or "")
+    return match.group(1) if match else "0.0.0"
+
+
+def _find_agy() -> str | None:
+    """Path to the agy CLI, or None when it is not installed. A tray app often
+    has a thinner PATH than a terminal, so the Windows install location is a
+    fallback."""
+    found = shutil.which("agy")
+    if found:
+        return found
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        candidate = Path(local) / "agy" / "bin" / "agy.exe"
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def _run_agy(argv: list) -> bool:
+    """Run an agy command (argv[0] is agy itself). True on exit code 0; any
+    failure to run (missing binary, timeout, permissions) is False, never an
+    exception."""
+    try:
+        result = subprocess.run(
+            argv, capture_output=True, text=True, shell=False,
+            timeout=AGY_COMMAND_TIMEOUT_SECONDS, stdin=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("Could not run %s: %s", " ".join(map(str, argv[:3])), exc)
+        return False
+    if result.returncode != 0:
+        logger.warning(
+            "%s exited with %s: %s", " ".join(map(str, argv[:3])),
+            result.returncode, (result.stderr or result.stdout or "").strip()[:200],
+        )
+        return False
+    return True
+
+
+def _antigravity_plan(platform, frozen, executable, script_path, wrapper_path):
+    """The per-event hook commands, plus the .cmd wrapper text when the commands
+    go through it (None otherwise). Raises ValueError when no safe command can
+    be built (see build_antigravity_hook_command)."""
+    commands = {
+        event: build_antigravity_hook_command(
+            platform, frozen, executable, script_path, wrapper_path, event)
+        for event, _ in ANTIGRAVITY_EVENTS
+    }
+    uses_wrapper = any(str(wrapper_path) in command for command in commands.values())
+    wrapper = antigravity_wrapper_script(frozen, executable, script_path) if uses_wrapper else None
+    return commands, wrapper
+
+
+def _antigravity_expected_files() -> tuple[dict, dict, str | None]:
+    commands, wrapper = _antigravity_plan(
+        sys.platform, getattr(sys, "frozen", False), sys.executable,
+        NOTIFY_SCRIPT_PATH, ANTIGRAVITY_WRAPPER_PATH,
+    )
+    plugin = build_antigravity_plugin_json(antigravity_plugin_version(get_version()))
+    return plugin, build_antigravity_hooks_json(commands), wrapper
+
+
+def are_antigravity_hooks_installed() -> bool:
+    """True iff our mirrored plugin folder is present and current (same
+    plugin.json, hooks.json and, when used, wrapper as install would write)."""
+    if not ANTIGRAVITY_PLUGIN_DIR.is_dir():
+        return False  # cheap exit: no need to compute the expected files
+    try:
+        plugin, hooks_json, wrapper = _antigravity_expected_files()
+        on_disk_plugin = json.loads(
+            (ANTIGRAVITY_PLUGIN_DIR / "plugin.json").read_text(encoding="utf-8-sig"))
+        on_disk_hooks = json.loads(
+            (ANTIGRAVITY_PLUGIN_DIR / "hooks.json").read_text(encoding="utf-8-sig"))
+        if wrapper is not None and (
+            not ANTIGRAVITY_WRAPPER_PATH.is_file()
+            or ANTIGRAVITY_WRAPPER_PATH.read_bytes() != wrapper.encode("utf-8")
+        ):
+            return False
+    except (OSError, ValueError):
+        return False
+    return on_disk_plugin == plugin and on_disk_hooks == hooks_json
+
+
+def _remove_antigravity_mirror() -> None:
+    shutil.rmtree(ANTIGRAVITY_PLUGIN_DIR, ignore_errors=True)
+    try:
+        ANTIGRAVITY_WRAPPER_PATH.unlink(missing_ok=True)
+    except OSError:
+        logger.warning("Could not remove %s", ANTIGRAVITY_WRAPPER_PATH)
+    try:
+        ANTIGRAVITY_PLUGIN_DIR.parent.rmdir()  # only when empty: others may live there
+    except OSError:
+        pass
+
+
+def install_antigravity_hooks() -> bool:
+    """Write our local agy plugin and register it with `agy plugin install`.
+
+    Does nothing (False) when agy is not installed. Idempotent: an already
+    current plugin is not rewritten or re-registered. Only our own folder is
+    ever written, and agy is only asked about our own plugin. Never raises."""
+    agy = _find_agy()
+    if agy is None:
+        logger.warning("Not installing Antigravity hooks: agy was not found")
+        return False
+    try:
+        if are_antigravity_hooks_installed():
+            return True
+        plugin, hooks_json, wrapper = _antigravity_expected_files()
+    except ValueError as exc:
+        logger.warning("Not installing Antigravity hooks: %s", exc)
+        return False
+    try:
+        if wrapper is not None:
+            _write_bytes_atomic(ANTIGRAVITY_WRAPPER_PATH, wrapper.encode("utf-8"))
+        _write_json_atomic(ANTIGRAVITY_PLUGIN_DIR / "plugin.json", plugin)
+        _write_json_atomic(ANTIGRAVITY_PLUGIN_DIR / "hooks.json", hooks_json)
+    except OSError:
+        logger.warning("Could not write the Antigravity plugin to %s", ANTIGRAVITY_PLUGIN_DIR)
+        _remove_antigravity_mirror()
+        return False
+    if not _run_agy([agy, "plugin", "install", str(ANTIGRAVITY_PLUGIN_DIR)]):
+        _remove_antigravity_mirror()
+        return False
+    logger.info("Installed Antigravity plugin %s", ANTIGRAVITY_PLUGIN_NAME)
+    return True
+
+
+def uninstall_antigravity_hooks() -> bool:
+    """`agy plugin uninstall margarita-tank` and delete our mirror. A no-op
+    (True) when we never installed. Without agy there is nothing to
+    unregister, so only the mirror goes. The mirror is always removed; the
+    result is False only when agy itself refused. Never touches other plugins."""
+    if not ANTIGRAVITY_PLUGIN_DIR.exists():
+        return True
+    agy = _find_agy()
+    ok = True
+    if agy is not None:
+        ok = _run_agy([agy, "plugin", "uninstall", ANTIGRAVITY_PLUGIN_NAME])
+    _remove_antigravity_mirror()
+    if ok:
+        logger.info("Uninstalled Antigravity plugin %s", ANTIGRAVITY_PLUGIN_NAME)
+    return ok

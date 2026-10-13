@@ -1,5 +1,7 @@
 # Clawdy Desktop Pet — Estado y decisiones (2026-10-10)
 
+> **Documento histórico.** Consulta [el estado del 2026-10-13](clawdy-desktop-estado-2026-10-13.md) para Electron, compatibilidad, consumo y pendientes actuales. Electron ya está implementado en el checkout; las propuestas de este documento corresponden al 10 de octubre.
+
 > Documento de traspaso. Engram no respondía en esta sesión (todas las llamadas
 > `mem_save` / `mem_doctor` se cancelaron), así que el contexto queda acá.
 

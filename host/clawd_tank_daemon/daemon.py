@@ -87,6 +87,10 @@ SIM_PROTOCOL_VERSION = 3
 # before the hook gives up on its side.
 PERMISSION_DAEMON_WAIT_SECONDS = PERMISSION_WAIT_SECONDS - 5
 PERMISSION_DECISIONS = ("allow", "deny")
+# Codex registers PostToolUse only for AskUserQuestion, so nothing tells the daemon
+# that a permission it could not resolve (timeout, no desktop pet) was answered in
+# Codex's own prompt. Its permission alert therefore expires after this long.
+CODEX_PERMISSION_ALERT_SECONDS = 120
 # Defensive caps on what is shown in the bubble (the hook already truncates).
 _PERMISSION_FIELD_MAX = {"project": 64, "tool": 64, "summary": 120}
 
@@ -165,8 +169,9 @@ def _state_to_anim(state: dict, has_subagents: bool, usage_low: bool) -> str:
 
 # Which AI product a session belongs to, derived from the session-id prefix the
 # translators add (codex_protocol "codex:", kiro_protocol "kiro:",
-# opencode_protocol "opencode:", Claude none). Grouped by PRODUCT: a Kiro IDE
-# session and a Kiro CLI session are both "kiro". Lets the desktop pet pick a
+# opencode_protocol "opencode:", antigravity_protocol "antigravity:", Claude
+# none). Grouped by PRODUCT: a Kiro IDE session and a Kiro CLI session are both
+# "kiro", and the agy CLI and the Antigravity IDE are both "antigravity". Lets the desktop pet pick a
 # per-product crab (and group/count by product) without the daemon storing
 # anything new — the prefix is the single source of truth. Unknown/unprefixed
 # ids are Claude Code, the original agent.
@@ -174,6 +179,7 @@ SESSION_AGENT_PREFIXES = (
     ("codex:", "codex"),
     ("kiro:", "kiro"),
     ("opencode:", "opencode"),
+    ("antigravity:", "antigravity"),
 )
 
 
@@ -188,7 +194,7 @@ def _session_agent(session_id: str) -> str:
 # Path to the per-product preference file used by both the menubar app and the
 # daemon. PR1 adds `enable_opencode` here; existing keys (`ble_enabled`,
 # `sim_enabled`, `sim_window_visible`, `sim_always_on_top`, `sim_desk_mode`,
-# `claude_mod_enabled`) live in clawd_tank_menubar.preferences but the daemon
+# preferences) live in clawd_tank_menubar.preferences but the daemon
 # only reads the keys it cares about.
 _PREFERENCES_PATH = Path.home() / ".clawd-tank" / "preferences.json"
 
@@ -210,18 +216,20 @@ def _load_preferences() -> dict:
 # Priority of each animation when several sessions of the SAME product are
 # collapsed into one per-product crab (Phase 2 xN grouping). The product crab
 # shows its most actionable session: "needs you" (alert) outranks active work,
-# which outranks thinking, which outranks error/confused states, which outrank
-# an idle-but-conducting crab, which outranks a plain resting crab. Any anim not
-# listed (future additions) sorts at 0, below everything explicit here.
+# which outranks thinking, which outranks the end-of-turn wait, which outranks
+# error/confused states, which outrank an idle-but-conducting crab, which outranks
+# a plain resting crab. Any anim not listed (future additions) sorts at 0, below
+# everything explicit here.
 _ANIM_PRIORITY = {
     "alert": 100,
-    # End-of-turn wait: still "your turn", so above active work, but below a
-    # blocked sibling (alert) so an urgent prompt is never masked by a calm one.
-    "waiting_reply": 90,
-    # Active work — all equal; the specific tool anim is kept as-is.
-    "typing": 80, "building": 80, "debugger": 80, "wizard": 80,
-    "beacon": 80, "sweeping": 80,
+    # Active work — all equal; the specific tool anim is kept as-is. It outranks
+    # the end-of-turn wait so a session that finished its turn cannot hide a
+    # sibling that is still running (the crab would otherwise look idle).
+    "typing": 90, "building": 90, "debugger": 90, "wizard": 90,
+    "beacon": 90, "sweeping": 90,
     "thinking": 60,
+    # End-of-turn wait: "your turn", but calm, so it yields to any active sibling.
+    "waiting_reply": 55,
     "hat_mishap": 40, "confused": 40, "dizzy": 40,
     "conducting": 20,
     "low_battery": 10,
@@ -491,6 +499,29 @@ class ClawdDaemon:
         if (session_id.startswith("opencode:")
                 and not self._preferences.get("enable_opencode", True)):
             return
+        if event == "session_heartbeat":
+            # A heartbeat is liveness, not a new tool or an approval answer.
+            # Preserve the current state (especially a pending permission).
+            if not session_id.startswith("opencode:"):
+                return
+            state = self._session_states.get(session_id)
+            if state is None:
+                snapshot = msg.get("state")
+                if snapshot not in ("registered", "thinking", "working", "waiting"):
+                    return
+                state = {"state": snapshot, "project": msg.get("project", ""),
+                         "tool_name": msg.get("tool_name", "")}
+                if snapshot == "waiting":
+                    state["awaiting_prompt"] = True
+                self._session_states[session_id] = state
+                if session_id not in [sid for sid, _ in self._session_order]:
+                    self._session_order.append((session_id, self._next_display_id))
+                    self._next_display_id += 1
+            state["last_event"] = time.time()
+            state["last_event_monotonic"] = time.monotonic()
+            self._persist_sessions()
+            await self._broadcast_display_state_if_changed()
+            return
         # Kiro's log reports a new session that a hook may already have
         # registered; re-registering it would reset its state.
         if from_log and event == "session_start" and session_id in self._session_states:
@@ -505,8 +536,13 @@ class ClawdDaemon:
             self._cancel_session_permissions(session_id)
         # Store project name on session if provided
         project = msg.get("project", "")
+        # A translator-flagged fallback title (e.g. a product name used when no
+        # workspace is known) must never replace a real project already stored.
+        project_is_fallback = bool(msg.get("project_fallback"))
         if project and session_id and session_id in self._session_states:
-            self._session_states[session_id]["project"] = project
+            if not (project_is_fallback
+                    and self._session_states[session_id].get("project")):
+                self._session_states[session_id]["project"] = project
         elif project and session_id:
             # Will be stored after _update_session_state creates the entry
             pass
@@ -577,7 +613,9 @@ class ClawdDaemon:
 
         # Store project name after session state is created
         if project and session_id and session_id in self._session_states:
-            self._session_states[session_id]["project"] = project
+            if not (project_is_fallback
+                    and self._session_states[session_id].get("project")):
+                self._session_states[session_id]["project"] = project
         if from_log and session_id in self._session_states:
             self._session_states[session_id]["log_seen"] = True
 
@@ -698,12 +736,41 @@ class ClawdDaemon:
             )
             if future in done:
                 decision = future.result()
+            elif hook_gone in done:
+                # The hook process went away: the product moved on (answered in its
+                # own prompt, or gave up), so the block is over, outcome unknown.
+                self._resolve_permission_block(msg, "gone")
+            if decision in PERMISSION_DECISIONS:
+                self._resolve_permission_block(msg, decision)
         finally:
             hook_gone.cancel()
             # No-op when a decision already closed the request; otherwise the
             # hook hung up, we timed out or were cancelled: close it as "none".
             self._finish_permission(request_id, "none")
+        # Always refresh the display: a resolved block just changed the state.
+        await self._broadcast_display_state_if_changed()
+        self._persist_sessions()
         await reply.send({"decision": decision})
+
+    def _resolve_permission_block(self, msg: dict, outcome: str) -> None:
+        """Take a session out of the permission alert once the block is resolved.
+
+        allow -> working (the tool runs); deny/gone -> thinking (the model carries
+        on, same state an answered AskUserQuestion returns to). A timeout leaves
+        the alert (the product's own prompt may still be open). Only acts while the
+        session is still in THAT permission block: newer activity (a question, end
+        of turn) wins, and an AskUserQuestion wait is never a permission."""
+        session_id = msg.get("session_id", "")
+        tool = msg.get("tool_name", "")
+        s = self._session_states.get(session_id)
+        if (s is None or tool == ASK_USER_QUESTION_TOOL or s.get("state") != "waiting"
+                or s.get("awaiting_prompt") or s.get("tool_name") != tool
+                or "permission_since_monotonic" not in s):
+            return
+        s["state"] = "working" if outcome == "allow" else "thinking"
+        s.pop("permission_since_monotonic", None)
+        s["last_event"] = time.time()
+        s["last_event_monotonic"] = time.monotonic()
 
     def _finish_permission(self, request_id: str, decision: str) -> bool:
         """Close a pending request with `decision`. First close wins; returns
@@ -926,6 +993,7 @@ class ClawdDaemon:
         # Every "waiting" entered here is a blocked one (permission/question);
         # only Stop/idle_prompt mark the calm end-of-turn wait.
         s.pop("awaiting_prompt", None)
+        s.pop("permission_since_monotonic", None)
 
     def _update_session_state(
         self, event: str, hook: str, session_id: str,
@@ -981,6 +1049,8 @@ class ClawdDaemon:
             # PreToolUse always precedes a real permission prompt, so never create a
             # missing session — a late event must not resurrect an ended one.
             self._enter_state(session_id, "waiting", tool_name, now, create=False)
+            if session_id in self._session_states:
+                self._session_states[session_id]["permission_since_monotonic"] = now_mono
         elif event == "tool_failed":
             # PostToolUseFailure: a tool genuinely errored (not a non-zero shell exit).
             # A transient "that didn't work" snag → confused, lighter than the API-error
@@ -1071,9 +1141,29 @@ class ClawdDaemon:
         now_mono = time.monotonic()
         stale = []
         for sid, s in self._session_states.items():
-            # 'waiting' sessions are blocked on the human and legitimately emit no
-            # events; time-based eviction would drop the alert while the user is away.
+            # 'waiting' sessions legitimately emit no events, so they are exempt
+            # from time-based eviction: a blocked one (permission/AskUserQuestion,
+            # no awaiting_prompt) must keep its alert while the user is away, and a
+            # PID-backed end-of-turn rest is covered by the liveness checker.
+            # The one exception is an end-of-turn rest (awaiting_prompt) with no
+            # PID and no running subagents: nothing else would ever remove it
+            # (Antigravity and other PID-less agents send no SessionEnd), so it
+            # expires with the NORMAL timeout below (the user may be thinking, so
+            # not the short no-PID one).
             if s.get("state") == "waiting":
+                since = s.get("permission_since_monotonic")
+                if (since is not None and not s.get("awaiting_prompt")
+                        and _session_agent(sid) == "codex"
+                        and now_mono - since > CODEX_PERMISSION_ALERT_SECONDS):
+                    logger.info("Codex permission alert expired: %s", sid[:12])
+                    s["state"] = "thinking"
+                    s.pop("permission_since_monotonic", None)
+                    continue
+                if not (s.get("awaiting_prompt") and s.get("pid") is None
+                        and not s.get("subagents")):
+                    continue
+                if now_mono - s.get("last_event_monotonic", now_mono) > self._session_staleness_timeout:
+                    stale.append(sid)
                 continue
             # Adaptive timeout: PID-backed sessions are already covered by the
             # liveness checker (evicted the instant the process dies), so they
@@ -1399,8 +1489,15 @@ class ClawdDaemon:
         logger.info("Shutting down...")
         self._running = False
         self._cancel_all_permissions()
-        self._shutdown_event.set()
+        try:
+            await self._cleanup()
+        finally:
+            # Wake run() only once cleanup is done (or has failed). Waking it
+            # first lets the owner stop the event loop mid-cleanup, which
+            # abandons the transport disconnect, socket stop and PID removal.
+            self._shutdown_event.set()
 
+    async def _cleanup(self) -> None:
         if hasattr(self, '_staleness_task'):
             self._staleness_task.cancel()
             try:

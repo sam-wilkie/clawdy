@@ -79,7 +79,9 @@ def test_uninstall_flag_also_removes_the_claude_code_mod(monkeypatch, no_tray):
     hooks.CLAUDE_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     hooks.CLAUDE_SETTINGS_PATH.write_text(
         json.dumps({"env": {hooks.PLUGIN_DIRS_ENV: "/my/mods/a"}}), encoding="utf-8")
-    assert hooks.install_mod()
+    settings = json.loads(hooks.CLAUDE_SETTINGS_PATH.read_text())
+    settings["env"][hooks.PLUGIN_DIRS_ENV] += __import__("os").pathsep + str(hooks.MOD_DIR)
+    hooks.CLAUDE_SETTINGS_PATH.write_text(json.dumps(settings))
     assert hooks.is_mod_enabled()
 
     assert _run_main(monkeypatch, "--uninstall-hooks") == 0

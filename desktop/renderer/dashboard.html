@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Clawdy · Actividad</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <main class="panel">
+    <header class="topbar" title="Arrastra el encabezado para mover el panel">
+      <div class="brand">
+        <img id="agent-avatar" src="assets/clawd-idle-living-v2.svg#svgView(viewBox(-1,-3,18,21))" alt="" class="brand-agent">
+        <div>
+          <p class="eyebrow">MI BUDDY CLAWDY</p>
+          <h1 id="panel-title">Actividad</h1>
+        </div>
+      </div>
+      <div class="connection" id="connection" role="status" aria-live="polite">
+        <span class="connection-dot" aria-hidden="true"></span>
+        <span id="connection-label">Conectando</span>
+      </div>
+    </header>
+
+    <section class="usage" aria-labelledby="usage-title">
+      <div class="section-heading">
+        <h2 id="usage-title">Uso</h2>
+        <span id="reset-label" class="reset-label"></span>
+      </div>
+      <div class="usage-row" id="session-usage-row">
+        <div class="usage-copy"><span id="session-label">Sesión · 5 h</span><strong id="session-value">—</strong></div>
+        <div class="meter" role="progressbar" aria-label="Uso de la sesión de 5 horas" aria-valuemin="0" aria-valuemax="100" id="session-meter"><span></span></div>
+      </div>
+      <div class="usage-row" id="weekly-usage-row">
+        <div class="usage-copy"><span id="weekly-label">Semana</span><strong id="weekly-value">—</strong></div>
+        <div class="meter weekly" role="progressbar" aria-label="Uso semanal" aria-valuemin="0" aria-valuemax="100" id="weekly-meter"><span></span></div>
+        <span id="weekly-reset-label" class="reset-label"></span>
+      </div>
+      <p id="usage-note" class="usage-note" role="status" aria-live="polite">Esperando datos de uso…</p>
+      <dl id="usage-metrics" class="usage-metrics" hidden></dl>
+      <div id="spending" class="spending" hidden>
+        <div class="period-picker" role="group" aria-label="Período de consumo">
+          <button type="button" data-period="day" id="period-day" aria-pressed="false">Hoy</button>
+          <button type="button" data-period="month" id="period-month" aria-pressed="false">Este mes</button>
+          <button type="button" data-period="all" id="period-all" aria-pressed="true">Acumulado</button>
+        </div>
+        <dl class="spend-amount">
+          <dt>Costo registrado <span class="reset-label">· USD</span></dt>
+          <dd id="spend-value">—</dd>
+        </dl>
+        <dl id="spend-metrics" class="usage-metrics"></dl>
+        <p id="spend-note" class="usage-note" role="status" aria-live="polite"></p>
+      </div>
+      <div id="reset-controls" class="reset-controls" hidden>
+        <div class="reset-action-row">
+          <span id="reset-credit-count" class="reset-label"></span>
+          <button id="request-reset-button" type="button">Reiniciar uso</button>
+        </div>
+        <div id="reset-confirm" class="reset-confirm" hidden>
+          <p>Se usará 1 reinicio disponible para restablecer los límites elegibles de tu cuenta de Codex.</p>
+          <div class="reset-buttons">
+            <button id="confirm-reset-button" class="primary-button" type="button">Confirmar reinicio</button>
+            <button id="cancel-reset-button" type="button">Cancelar</button>
+          </div>
+        </div>
+        <p id="reset-message" class="usage-note" role="status" aria-live="polite" hidden></p>
+      </div>
+    </section>
+
+    <section class="sessions" aria-labelledby="sessions-title">
+      <div class="section-heading session-heading">
+        <h2 id="sessions-title">Sesiones abiertas</h2>
+        <span id="session-count" class="count">0</span>
+      </div>
+      <div id="session-list" class="session-list" aria-live="polite"></div>
+      <div id="empty-state" class="empty-state" hidden>
+        <span class="empty-mark" aria-hidden="true">…</span>
+        <p id="empty-title">Clawdy está esperando a tu agente.</p>
+        <span id="empty-copy">Abre una sesión para ver su actividad aquí.</span>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Los datos se quedan en este equipo</span>
+    </footer>
+  </main>
+  <script src="dashboard.js"></script>
+</body>
+</html>

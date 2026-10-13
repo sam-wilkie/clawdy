@@ -91,6 +91,7 @@ class FakeSimProcess:
         self.desk = desk
         self.calls: list[tuple] = []
         self.killed = False
+        self.killed_sync = 0
         self.stopped = False
 
     async def start(self):
@@ -104,6 +105,9 @@ class FakeSimProcess:
     async def kill(self):
         self.calls.append(("kill",))
         self.killed = True
+
+    def kill_sync(self):
+        self.killed_sync += 1
 
     async def show_window(self):
         self.calls.append(("show_window",))
@@ -387,7 +391,7 @@ def test_start_launches_the_simulator_in_desk_mode_from_saved_preference(prefs_p
     controller, _view = make_controller(prefs_path)
     started = []
     monkeypatch.setattr(controller, "_start_simulator", lambda: started.append(controller.sim_desk))
-    monkeypatch.setattr(controller, "refresh_claude_mod", lambda: None)
+    monkeypatch.setattr(controller, "cleanup_legacy_claude_mod", lambda: None)
 
     class _D:
         def __init__(self, **kw):
@@ -545,6 +549,52 @@ def test_quit_force_exits_on_failure_without_crashing_the_test(prefs_path, loop_
     assert view.quit_called is False
 
 
+class HangingKillSim(FakeSimProcess):
+    """kill() never completes: stands in for a daemon loop that stopped while
+    the shutdown sequence was still pending (run() returning ends the loop)."""
+
+    async def kill(self):
+        await asyncio.Event().wait()
+
+
+def test_quit_kills_the_sim_even_when_the_shutdown_sequence_never_completes(
+    prefs_path, loop_thread
+):
+    """Field failure: 'Error during quit, force-killing' (8 s timeout), after
+    which the Electron pet stayed alive on port 19872."""
+    controller, view = make_controller(prefs_path)
+    sim = HangingKillSim()
+    controller._daemon = FakeDaemon()
+    controller._loop = loop_thread
+    controller._sim_process = sim
+    controller._quit_timeout = 0.3
+    exit_calls = []
+    controller._force_exit = lambda code: exit_calls.append(code)
+
+    controller.quit()
+
+    assert exit_calls == [1]
+    assert sim.killed_sync >= 1
+
+
+def test_quit_kills_the_sim_when_the_daemon_loop_is_already_dead(prefs_path):
+    controller, view = make_controller(prefs_path)
+    dead_loop = asyncio.new_event_loop()  # never run: coroutines cannot execute
+    sim = FakeSimProcess()
+    controller._daemon = FakeDaemon()
+    controller._loop = dead_loop
+    controller._sim_process = sim
+    controller._quit_timeout = 0.3
+    exit_calls = []
+    controller._force_exit = lambda code: exit_calls.append(code)
+
+    controller.quit()
+    dead_loop.close()
+
+    assert exit_calls == [1]
+    assert sim.killed_sync >= 1
+
+
 # --- Observer callbacks / icon logic -------------------------------------------
 
 
@@ -690,251 +740,22 @@ def test_daemon_thread_logs_system_exit(prefs_path, monkeypatch, caplog):
     assert view.renders[-1].icon == "disconnected"
 
 
-# --- Claude Code mod (the side panel) ------------------------------------------
-
-
-PLUGIN_DIRS = "CLAUDE_CODE_PLUGIN_DIRS"
-
-
-def _mod_installed() -> bool:
-    return (hooks.MOD_DIR / ".claude-plugin" / "plugin.json").is_file()
-
-
-def test_claude_mod_is_off_by_default_and_reaches_the_view(prefs_path):
-    controller, view = make_controller(prefs_path)
-    assert controller.claude_mod_enabled is False
-    controller.toggle_sim_window()  # any render
-    assert view.renders[-1].claude_mod_enabled is False
-
-
-def test_claude_mod_preference_is_the_initial_state(prefs_path):
-    prefs_path.write_text(json.dumps({"claude_mod_enabled": True}))
-    controller, _view = make_controller(prefs_path)
-    assert controller.claude_mod_enabled is True
-
-
-def test_toggle_claude_mod_on_installs_enables_saves_and_asks_for_a_restart(prefs_path):
-    controller, view = make_controller(prefs_path)
-
-    controller.toggle_claude_mod()
-
-    assert _mod_installed()
-    assert hooks.is_mod_enabled()
-    assert controller.claude_mod_enabled is True
-    assert load_preferences(prefs_path)["claude_mod_enabled"] is True
-    assert view.renders[-1].claude_mod_enabled is True
-    title, message = view.alerts[-1]
-    assert title == "Claude Code Mod Enabled"
-    assert "Restart your Claude Code sessions" in message
-
-
-def test_toggle_claude_mod_off_removes_only_our_folder_and_asks_for_a_restart(prefs_path):
-    hooks.CLAUDE_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    hooks.CLAUDE_SETTINGS_PATH.write_text(
-        json.dumps({"env": {PLUGIN_DIRS: "/my/mods/a"}}), encoding="utf-8")
-    controller, view = make_controller(prefs_path)
-    controller.toggle_claude_mod()
-    assert hooks.is_mod_enabled()
-
-    controller.toggle_claude_mod()
-
-    assert not hooks.is_mod_enabled()
-    settings = json.loads(hooks.CLAUDE_SETTINGS_PATH.read_text(encoding="utf-8"))
-    assert settings == {"env": {PLUGIN_DIRS: "/my/mods/a"}}
-    assert controller.claude_mod_enabled is False
-    assert load_preferences(prefs_path)["claude_mod_enabled"] is False
-    assert view.renders[-1].claude_mod_enabled is False
-    title, message = view.alerts[-1]
-    assert title == "Claude Code Mod Disabled"
-    assert "Restart your Claude Code sessions" in message
-
-
-def test_toggle_claude_mod_updates_the_check_before_the_blocking_alert(prefs_path):
-    # rumps.alert is modal: whatever is not rendered before it opens stays stale
-    # on screen until the user dismisses it, which reads as "the click did nothing".
-    controller, view = make_controller(prefs_path)
-    seen_at_alert = []
-    original_alert = view.alert
-
-    def alert(title, message):
-        seen_at_alert.append(view.renders[-1].claude_mod_enabled)
-        original_alert(title, message)
-
-    view.alert = alert
-    controller.toggle_claude_mod()
-    controller.toggle_claude_mod()
-
-    assert seen_at_alert == [True, False]
-
-
-def test_toggle_claude_mod_preserves_other_preference_keys(prefs_path):
-    prefs_path.write_text(json.dumps({"sim_enabled": False}))
-    controller, _view = make_controller(prefs_path)
-    controller.toggle_claude_mod()
-    prefs = load_preferences(prefs_path)
-    assert prefs["sim_enabled"] is False
-    assert prefs["ble_enabled"] is True
-
-
-def test_toggle_claude_mod_on_stays_off_when_settings_are_unparseable(prefs_path):
-    hooks.CLAUDE_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    hooks.CLAUDE_SETTINGS_PATH.write_text('{"model": "opus",}', encoding="utf-8")
-    controller, view = make_controller(prefs_path)
-
-    controller.toggle_claude_mod()
-
-    assert hooks.CLAUDE_SETTINGS_PATH.read_text(encoding="utf-8") == '{"model": "opus",}'
-    assert controller.claude_mod_enabled is False
-    assert load_preferences(prefs_path)["claude_mod_enabled"] is False
-    assert view.renders[-1].claude_mod_enabled is False
-    assert view.alerts[-1][0] == "Claude Code Mod Not Enabled"
-
-
-def test_toggle_claude_mod_on_stays_off_when_the_build_has_no_mod(prefs_path, tmp_path, monkeypatch):
-    monkeypatch.setattr(hooks, "MOD_SOURCE_DIR", tmp_path / "missing")
-    controller, view = make_controller(prefs_path)
-
-    controller.toggle_claude_mod()
-
-    assert not hooks.CLAUDE_SETTINGS_PATH.exists()
-    assert controller.claude_mod_enabled is False
-    assert view.alerts[-1][0] == "Claude Code Mod Not Enabled"
-
-
-def test_toggle_claude_mod_off_stays_on_when_settings_are_unparseable(prefs_path):
-    controller, view = make_controller(prefs_path)
-    controller.toggle_claude_mod()
-    hooks.CLAUDE_SETTINGS_PATH.write_text("{nope", encoding="utf-8")
-
-    controller.toggle_claude_mod()
-
-    assert hooks.CLAUDE_SETTINGS_PATH.read_text(encoding="utf-8") == "{nope"
-    assert controller.claude_mod_enabled is True
-    assert load_preferences(prefs_path)["claude_mod_enabled"] is True
-    assert view.renders[-1].claude_mod_enabled is True
-    assert view.alerts[-1][0] == "Claude Code Mod Not Disabled"
-
-
-def test_refresh_claude_mod_updates_an_enabled_mod_silently(prefs_path):
-    prefs_path.write_text(json.dumps({"claude_mod_enabled": True}))
-    controller, view = make_controller(prefs_path)
-    assert not _mod_installed()
-
-    controller.refresh_claude_mod()
-
-    assert _mod_installed()
-    assert hooks.is_mod_enabled()
-    assert view.alerts == []
-
-
-def test_refresh_claude_mod_fixes_a_stale_installed_copy(prefs_path):
-    prefs_path.write_text(json.dumps({"claude_mod_enabled": True}))
-    controller, _view = make_controller(prefs_path)
-    controller.refresh_claude_mod()
-    register = hooks.MOD_DIR / "hooks" / "register.tsx"
-    register.write_text("// outdated", encoding="utf-8")
-
-    controller.refresh_claude_mod()
-
-    assert register.read_text(encoding="utf-8") \
-        == (hooks.MOD_SOURCE_DIR / "hooks" / "register.tsx").read_text(encoding="utf-8")
-
-
-def test_refresh_claude_mod_does_nothing_while_the_mod_is_off(prefs_path):
-    controller, view = make_controller(prefs_path)
-
-    controller.refresh_claude_mod()
-
-    assert not hooks.MOD_DIR.exists()
-    assert not hooks.CLAUDE_SETTINGS_PATH.exists()
-    assert view.alerts == []
-
-
-def test_refresh_claude_mod_survives_unparseable_settings(prefs_path, caplog):
-    prefs_path.write_text(json.dumps({"claude_mod_enabled": True}))
-    hooks.CLAUDE_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    hooks.CLAUDE_SETTINGS_PATH.write_text("{nope", encoding="utf-8")
-    controller, view = make_controller(prefs_path)
-
-    with caplog.at_level("WARNING"):
-        controller.refresh_claude_mod()
-
-    assert hooks.CLAUDE_SETTINGS_PATH.read_text(encoding="utf-8") == "{nope"
-    assert controller.claude_mod_enabled is True  # the user's choice is not undone
-    assert view.alerts == []
-    assert any("mod" in r.getMessage().lower() for r in caplog.records)
-
-
-def test_start_refreshes_the_mod_when_enabled(prefs_path, monkeypatch):
-    import clawd_tank_menubar.controller as controller_mod
-
-    class QuietDaemon:
-        def __init__(self, **kwargs):
-            pass
-
-        async def run(self):
-            return None
-
-    monkeypatch.setattr(controller_mod, "ClawdDaemon", QuietDaemon)
-    prefs_path.write_text(json.dumps(
-        {"ble_enabled": False, "sim_enabled": False, "claude_mod_enabled": True}))
-    controller, _view = make_controller(prefs_path)
-
-    controller.start()
-    controller._daemon_thread.join(timeout=2)
-
-    assert _mod_installed()
-    assert hooks.is_mod_enabled()
-
-
-def test_refresh_claude_mod_survives_an_oserror_from_the_settings_write(prefs_path, monkeypatch, caplog):
-    """enable_mod() rewrites settings.json; a read-only file or a full disk
-    raises OSError, which used to escape refresh_claude_mod() into start()."""
-    prefs_path.write_text(json.dumps({"claude_mod_enabled": True}))
-    controller, view = make_controller(prefs_path)
-
-    def boom(_settings):
-        raise PermissionError("settings.json is read-only")
-
-    monkeypatch.setattr(hooks, "_write_settings_atomic", boom)
-
-    with caplog.at_level("ERROR"):
-        controller.refresh_claude_mod()  # must not raise
-
-    assert controller.claude_mod_enabled is True  # the user's choice is not undone
-    assert load_preferences(prefs_path)["claude_mod_enabled"] is True
-    assert view.alerts == []
-    assert any(
-        r.levelname == "ERROR" and "mod" in r.getMessage().lower() and r.exc_info
-        for r in caplog.records
-    )
-
-
-def test_start_still_starts_the_daemon_when_refreshing_the_mod_raises(prefs_path, monkeypatch):
-    import clawd_tank_menubar.controller as controller_mod
-
-    ran = []
-
-    class QuietDaemon:
-        def __init__(self, **kwargs):
-            pass
-
-        async def run(self):
-            ran.append(True)
-
-    monkeypatch.setattr(controller_mod, "ClawdDaemon", QuietDaemon)
-    monkeypatch.setattr(hooks, "install_mod", lambda: (_ for _ in ()).throw(OSError("disk full")))
-    prefs_path.write_text(json.dumps(
-        {"ble_enabled": False, "sim_enabled": False, "claude_mod_enabled": True}))
-    controller, _view = make_controller(prefs_path)
-
-    controller.start()
-    controller._daemon_thread.join(timeout=2)
-
-    assert ran == [True]
-
-
 # --- Kiro hooks (per-workspace, folder-picked) -------------------------------
+
+def test_retired_mod_cleanup_removes_old_preference_without_changing_others(prefs_path):
+    prefs_path.write_text(json.dumps({"claude_mod_enabled": True, "sim_enabled": False}))
+    controller, _view = make_controller(prefs_path)
+    controller.cleanup_legacy_claude_mod()
+    assert json.loads(prefs_path.read_text()) == {"sim_enabled": False}
+
+
+def test_retired_mod_cleanup_failure_is_nonfatal(prefs_path, monkeypatch, caplog):
+    controller, _view = make_controller(prefs_path)
+    def fail():
+        raise PermissionError("read-only settings")
+    monkeypatch.setattr(hooks, "cleanup_retired_mod", fail)
+    controller.cleanup_legacy_claude_mod()
+    assert "retired Claude panel" in caplog.text
 
 
 def _redirect_hooks_paths(monkeypatch, tmp_path):

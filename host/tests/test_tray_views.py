@@ -1,4 +1,4 @@
-"""The "Claude Code Mod (panel)" menu item in both tray views.
+"""Tray menu behavior, including removal of the retired Claude panel.
 
 The macOS view is built for real with rumps against a stand-in app object. The
 Windows view needs pystray, which is not installed off Windows, so it runs
@@ -22,7 +22,7 @@ def _state(**overrides) -> TrayState:
         icon="connected", ble_enabled=True, ble_connected=True, sim_enabled=True,
         sim_connected=True, sim_window_visible=True, sim_pinned=True, brightness=102,
         brightness_enabled=True, session_timeout_seconds=300, hooks_installed=True,
-        login_enabled=False, claude_mod_enabled=False, sim_desk=False,
+        login_enabled=False, sim_desk=False,
     )
     values.update(overrides)
     return TrayState(**values)
@@ -37,12 +37,9 @@ class _Controller:
     hooks_installed = True
     login_enabled = False
 
-    def __init__(self, claude_mod_enabled=False):
-        self.claude_mod_enabled = claude_mod_enabled
+    def __init__(self):
         self.calls = []
 
-    def toggle_claude_mod(self):
-        self.calls.append("toggle_claude_mod")
 
     def install_hooks(self):
         self.calls.append("install_hooks")
@@ -68,38 +65,12 @@ def _mac_item(app, title):
     return next(i for i in app.menu if i is not None and i.title == title)
 
 
-def test_mac_menu_lists_the_mod_item_right_after_the_hooks_item(mac_view):
-    view, app, _rumps = mac_view
-    view.build(_Controller())
-    titles = [i.title if i is not None else None for i in app.menu]
-    assert titles.index(LABEL) == titles.index(HOOKS_LABEL) + 1
 
 
-@pytest.mark.parametrize("enabled", [False, True])
-def test_mac_mod_item_starts_with_the_saved_choice(mac_view, enabled):
-    view, app, _rumps = mac_view
-    view.build(_Controller(claude_mod_enabled=enabled))
-    assert bool(_mac_item(app, LABEL).state) is enabled
 
 
-def test_mac_clicking_the_mod_item_toggles_through_the_controller(mac_view):
-    view, app, _rumps = mac_view
-    controller = _Controller()
-    view.build(controller)
-    item = _mac_item(app, LABEL)
-    item.callback(item)
-    assert controller.calls == ["toggle_claude_mod"]
 
 
-def test_mac_repaint_follows_the_controller_state(mac_view):
-    view, app, _rumps = mac_view
-    view.build(_Controller())
-    item = _mac_item(app, LABEL)
-
-    view._paint(_state(claude_mod_enabled=True))
-    assert bool(item.state) is True
-    view._paint(_state(claude_mod_enabled=False))
-    assert bool(item.state) is False
 
 
 # --- Windows --------------------------------------------------------------------
@@ -150,34 +121,10 @@ def _win_item(view, text):
     return next(i for i in _win_items(view) if i.text == text)
 
 
-def test_windows_menu_lists_the_mod_item_right_after_the_kiro_hooks_item(windows_view):
-    # Order: Install Claude Code Hooks -> Install Kiro Hooks -> Claude Code Mod.
-    view = windows_view.WindowsTrayView()
-    view.build(_Controller())
-    texts = [i.text for i in _win_items(view)]
-    assert texts.index(KIRO_HOOKS_LABEL) == texts.index(HOOKS_LABEL) + 1
-    assert texts.index(LABEL) == texts.index(KIRO_HOOKS_LABEL) + 1
 
 
-def test_windows_mod_item_is_checked_from_the_rendered_state(windows_view):
-    view = windows_view.WindowsTrayView()
-    view.build(_Controller())
-    item = _win_item(view, LABEL)
-    assert item.checked(item) is False  # nothing rendered yet
-
-    view.render(_state(claude_mod_enabled=True))
-    assert item.checked(item) is True
-    view.render(_state(claude_mod_enabled=False))
-    assert item.checked(item) is False
 
 
-def test_windows_clicking_the_mod_item_toggles_through_the_controller(windows_view):
-    view = windows_view.WindowsTrayView()
-    controller = _Controller()
-    view.build(controller)
-    item = _win_item(view, LABEL)
-    item.action(item)
-    assert controller.calls == ["toggle_claude_mod"]
 
 
 KIRO_HOOKS_LABEL = "Install Kiro Hooks (choose folder)..."
@@ -209,12 +156,36 @@ def test_mac_alert_brings_the_menu_bar_app_to_the_front_first(mac_view, monkeypa
     monkeypatch.setattr(rumps_view, "_bring_to_front", lambda: calls.append("front"))
     monkeypatch.setattr(rumps, "alert", lambda **kw: calls.append(("alert", kw["title"])))
 
-    view.alert(title="Claude Code Mod Enabled", message="Restart your sessions")
+    view.alert(title="Hooks Installed", message="Restart your sessions")
 
-    assert calls == ["front", ("alert", "Claude Code Mod Enabled")]
+    assert calls == ["front", ("alert", "Hooks Installed")]
 
 
 DESK = "Floating desk pet"
+
+
+def test_windows_menu_has_no_retired_mod_option(windows_view):
+    view = windows_view.WindowsTrayView()
+    view.build(_Controller())
+    assert LABEL not in [item.text for item in _win_items(view)]
+
+
+def test_windows_opencode_label_describes_install_or_uninstall(windows_view):
+    view = windows_view.WindowsTrayView()
+    view.build(_Controller())
+    view.render(_state(opencode_hooks_installed=False))
+    labels = [item.text(item) if callable(item.text) else item.text for item in _win_items(view)]
+    assert "Install OpenCode Hooks" in labels
+    view.render(_state(opencode_hooks_installed=True))
+    labels = [item.text(item) if callable(item.text) else item.text for item in _win_items(view)]
+    assert "Uninstall OpenCode Hooks" in labels
+    assert "Install OpenCode Hooks" not in labels
+
+
+def test_mac_menu_has_no_retired_mod_option(mac_view):
+    view, app, _rumps = mac_view
+    view.build(_Controller())
+    assert LABEL not in [item.title for item in app.menu if item is not None]
 
 
 def _sim_entry(view):

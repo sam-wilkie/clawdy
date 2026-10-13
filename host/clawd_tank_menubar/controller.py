@@ -60,7 +60,6 @@ class TrayState:
     session_timeout_seconds: int
     hooks_installed: bool
     login_enabled: bool
-    claude_mod_enabled: bool
     # Floating desk pet: the simulator runs as a transparent crab-only window.
     # Implies sim_enabled; the window/pin items do not apply while it is on.
     sim_desk: bool = False
@@ -69,6 +68,9 @@ class TrayState:
     # Claude hooks_installed field — a fresh read on every render() so the
     # checkmark always matches disk state.
     opencode_hooks_installed: bool = False
+    # Antigravity (agy CLI + IDE) plugin installed? Reflects
+    # hooks.are_antigravity_hooks_installed(), same pattern as OpenCode above.
+    antigravity_hooks_installed: bool = False
 
 
 class TrayView(Protocol):
@@ -136,7 +138,7 @@ class ClawdTankController(DaemonObserver):
 
         self._hooks_installed = hooks.are_hooks_installed()
         self._opencode_hooks_installed = hooks.are_opencode_hooks_installed()
-        self._claude_mod_enabled = bool(prefs.get("claude_mod_enabled", False))
+        self._antigravity_hooks_installed = hooks.are_antigravity_hooks_installed()
 
         if autostart.is_enabled() and autostart.is_stale():
             logger.info("Autostart entry is stale, updating to current executable")
@@ -191,13 +193,14 @@ class ClawdTankController(DaemonObserver):
     def login_enabled(self) -> bool:
         return self._login_enabled
 
-    @property
-    def claude_mod_enabled(self) -> bool:
-        return self._claude_mod_enabled
 
     @property
     def opencode_hooks_installed(self) -> bool:
         return self._opencode_hooks_installed
+
+    @property
+    def antigravity_hooks_installed(self) -> bool:
+        return self._antigravity_hooks_installed
 
     @property
     def session_timeout_seconds(self) -> int:
@@ -241,9 +244,9 @@ class ClawdTankController(DaemonObserver):
             session_timeout_seconds=self._session_timeout_seconds,
             hooks_installed=self._hooks_installed,
             login_enabled=self._login_enabled,
-            claude_mod_enabled=self._claude_mod_enabled,
             sim_desk=self._sim_desk,
             opencode_hooks_installed=self._opencode_hooks_installed,
+            antigravity_hooks_installed=self._antigravity_hooks_installed,
         )
         self._view.render(state)
 
@@ -253,7 +256,7 @@ class ClawdTankController(DaemonObserver):
         """Start the daemon's asyncio event loop in a background thread and
         wire up transports according to preferences. Moved verbatim from
         app.py's _start_daemon_thread()."""
-        self.refresh_claude_mod()
+        self.cleanup_legacy_claude_mod()
 
         self._daemon = ClawdDaemon(observer=self, headless=False)
 
@@ -292,18 +295,40 @@ class ClawdTankController(DaemonObserver):
             # _sim_desk was derived from the same preferences in __init__.
             self._start_simulator()
 
+    # Seconds the async shutdown sequence may take before quit gives up.
+    _quit_timeout = 8
+
     def quit(self) -> None:
+        sim = self._sim_process
         try:
             if self._loop and self._daemon:
                 future = asyncio.run_coroutine_threadsafe(
                     self._shutdown_sequence(), self._loop
                 )
-                future.result(timeout=8)
+                future.result(timeout=self._quit_timeout)
             self._view.quit()
         except Exception:
             logger.exception("Error during quit, force-killing")
+            self._kill_sim_now(sim)
             logging.shutdown()
             self._force_exit(1)
+        else:
+            self._kill_sim_now(sim)
+
+    @staticmethod
+    def _kill_sim_now(sim) -> None:
+        """Last-resort, loop-independent kill of the simulator / desktop pet.
+
+        The async sequence can fail to finish (the daemon loop stops as soon as
+        run() returns, abandoning a still-pending shutdown), and then nothing
+        else would kill the child. Idempotent after a successful kill.
+        """
+        if sim is None:
+            return
+        try:
+            sim.kill_sync()
+        except Exception:
+            logger.exception("Could not kill the simulator process")
 
     async def _shutdown_sequence(self) -> None:
         # Remove sim transport from daemon first (avoids double-disconnect).
@@ -459,6 +484,18 @@ class ClawdTankController(DaemonObserver):
             payload = json.dumps({"brightness": value})
             asyncio.run_coroutine_threadsafe(self._daemon.write_config(payload), self._loop)
 
+    def cleanup_legacy_claude_mod(self) -> None:
+        """Migrate older installations without interrupting daemon startup."""
+        try:
+            if not hooks.cleanup_retired_mod():
+                logger.warning("Could not remove retired Claude panel; settings left untouched")
+            if self._prefs_path.exists():
+                stored = json.loads(self._prefs_path.read_text(encoding="utf-8"))
+                if isinstance(stored, dict) and "claude_mod_enabled" in stored:
+                    save_preferences(self._prefs_path, updates={})
+        except (OSError, ValueError):
+            logger.exception("Could not clean up the retired Claude panel")
+
     def install_hooks(self) -> None:
         was_installed = hooks.are_hooks_installed()
         hooks.install_notify_script()
@@ -560,9 +597,9 @@ class ClawdTankController(DaemonObserver):
                     title="OpenCode Plugin Not Installed",
                     message=(
                         "The Clawdy plugin could not be installed: the bundled "
-                        "plugin shim is missing (this is the PR1 build — the shim "
-                        "ships in PR2), or opencode.json could not be parsed and "
-                        "was left untouched. See the log for details."
+                        "plugin shim is missing from this build, or opencode.json "
+                        "could not be parsed and was left untouched. See the "
+                        "log for details."
                     ),
                 )
                 self._render()
@@ -578,71 +615,58 @@ class ClawdTankController(DaemonObserver):
             )
         self._render()
 
-    def toggle_claude_mod(self) -> None:
-        """Turn the Margarita side panel in Claude Code on or off. The choice is
-        saved only once settings.json really changed, so the menu check never
-        claims a state that did not happen."""
-        if self._claude_mod_enabled:
-            if not hooks.disable_mod():
+    def toggle_antigravity_hooks(self) -> None:
+        """Toggle the Antigravity plugin (agy CLI + Antigravity IDE): install it
+        when missing, uninstall it when present. Same stateless UX as the
+        OpenCode toggle; the notify script is (re)installed first on install."""
+        if hooks.are_antigravity_hooks_installed():
+            if not hooks.uninstall_antigravity_hooks():
                 self._view.alert(
-                    title="Claude Code Mod Not Disabled",
+                    title="Antigravity Plugin Not Removed",
                     message=(
-                        "~/.claude/settings.json could not be parsed, so it was left "
-                        "untouched. Fix the file and try again."
+                        "agy could not uninstall the margarita-tank plugin. "
+                        "Run `agy plugin uninstall margarita-tank` yourself or "
+                        "check the log."
                     ),
                 )
+                self._antigravity_hooks_installed = hooks.are_antigravity_hooks_installed()
                 self._render()
                 return
-            self._claude_mod_enabled = False
-            save_preferences(self._prefs_path, updates={"claude_mod_enabled": False})
-            # The alert is modal: render first so the check is already right.
+            self._antigravity_hooks_installed = False
             self._render()
             self._view.alert(
-                title="Claude Code Mod Disabled",
+                title="Antigravity Plugin Removed",
                 message=(
-                    "The Clawdy panel was removed from ~/.claude/settings.json. "
-                    "Restart your Claude Code sessions for the change to take effect."
+                    "The Clawdy plugin was removed from Antigravity. Restart "
+                    "your Antigravity sessions for the change to take effect."
                 ),
             )
-        else:
-            if not hooks.install_mod():
-                self._view.alert(
-                    title="Claude Code Mod Not Enabled",
-                    message=(
-                        "The Clawdy panel could not be installed: its files could not "
-                        "be copied, or ~/.claude/settings.json could not be parsed and "
-                        "was left untouched. See the log for details."
-                    ),
-                )
-                self._render()
-                return
-            self._claude_mod_enabled = True
-            save_preferences(self._prefs_path, updates={"claude_mod_enabled": True})
+            return
+        hooks.install_notify_script()
+        if not hooks.install_antigravity_hooks():
+            self._antigravity_hooks_installed = False
             self._render()
             self._view.alert(
-                title="Claude Code Mod Enabled",
+                title="Antigravity Plugin Not Installed",
                 message=(
-                    "The Clawdy panel was added to Claude Code. Restart your Claude "
-                    "Code sessions for it to appear; type /margarita to open it."
+                    "The Clawdy plugin could not be installed. The agy CLI must "
+                    "be installed (it was not found, or it refused the plugin), "
+                    "and the install path must have no spaces it cannot avoid. "
+                    "See the log for details."
                 ),
             )
+            return
+        self._antigravity_hooks_installed = True
         self._render()
+        self._view.alert(
+            title="Antigravity Plugin Installed",
+            message=(
+                "The Clawdy plugin was added to Antigravity. Restart your "
+                "Antigravity sessions for the hooks to take effect."
+            ),
+        )
 
-    def refresh_claude_mod(self) -> None:
-        """On app start, bring an enabled mod up to date with the bundled one
-        (same idea as the hooks auto-update). Silent: a failure only reaches the
-        log, and never undoes the user's choice or keeps the app from starting.
-        install_mod() reports a file it cannot parse by returning False, but a
-        settings file that cannot be written (read-only, disk full) raises."""
-        if not self._claude_mod_enabled:
-            return
-        try:
-            refreshed = hooks.install_mod()
-        except OSError:
-            logger.exception("Could not refresh the Claude Code mod")
-            return
-        if not refreshed:
-            logger.warning("Could not refresh the Claude Code mod; see earlier log lines")
+
 
     def toggle_login(self) -> None:
         if autostart.is_enabled():
