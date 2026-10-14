@@ -1,4 +1,4 @@
-# host/setup.py — py2app configuration for the Margarita Tank menubar app
+# host/setup.py — py2app configuration for the Clawdy menubar app
 import subprocess
 from pathlib import Path
 from setuptools import setup

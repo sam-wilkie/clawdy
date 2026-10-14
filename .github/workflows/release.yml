@@ -89,7 +89,7 @@ jobs:
 
       - name: Bundle Electron desktop pet
         run: |
-          resources="host/dist/Margarita Tank.app/Contents/Resources/desktop"
+          resources="host/dist/Clawdy.app/Contents/Resources/desktop"
           mkdir -p "$resources/node_modules/electron/dist"
           cp desktop/main.js desktop/preload.js desktop/dashboard-preload.js desktop/daemon-bridge.js desktop/codex-usage.js desktop/agent-usage.js desktop/antigravity-usage.js desktop/session-labels.js desktop/package.json "$resources/"
           cp -R desktop/renderer "$resources/renderer"
@@ -100,7 +100,7 @@ jobs:
 
       - name: Check the bundled Electron desktop pet
         run: |
-          resources="host/dist/Margarita Tank.app/Contents/Resources/desktop"
+          resources="host/dist/Clawdy.app/Contents/Resources/desktop"
           test -f "$resources/main.js"
           test -f "$resources/renderer/index.html"
           test -f "$resources/renderer/dashboard.html"
@@ -111,20 +111,20 @@ jobs:
         # Contents/Resources/ is where sim_process.py looks first (helper
         # binaries in Contents/MacOS/ can be mistaken for the main executable).
         run: |
-          cp simulator/build-static/clawd-tank-sim "host/dist/Margarita Tank.app/Contents/Resources/clawd-tank-sim"
+          cp simulator/build-static/clawd-tank-sim "host/dist/Clawdy.app/Contents/Resources/clawd-tank-sim"
 
       - name: Ad-hoc sign app bundle
         # Copying the simulator in breaks the seal py2app signed; a downloaded
         # app with a broken signature is reported as "damaged" by Gatekeeper.
         run: |
-          codesign --force --deep --sign - "host/dist/Margarita Tank.app"
-          codesign --verify --deep --strict --verbose=2 "host/dist/Margarita Tank.app"
+          codesign --force --deep --sign - "host/dist/Clawdy.app"
+          codesign --verify --deep --strict --verbose=2 "host/dist/Clawdy.app"
 
       - name: Create DMG
         working-directory: host
         run: |
           mkdir -p dmg-staging
-          cp -R "dist/Margarita Tank.app" dmg-staging/
+          cp -R "dist/Clawdy.app" dmg-staging/
           ln -s /Applications dmg-staging/Applications
           # hdiutil intermittently fails with "Resource busy" on hosted
           # runners (a system process holds the volume); retry a few times.
