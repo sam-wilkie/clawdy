@@ -33,3 +33,14 @@ Branch `feat/gentle-shell-pets` off `feat/hotbar-daemon` (worktree `O:\Proyectos
 - L7 (not done) gitnexus_impact / detect_changes not run: tool unavailable in this session. Reported as a gap.
 - L8 (not done) macOS rumps item verified by py_compile and unit-free diff only.
 - Nothing committed: waiting for explicit user request.
+
+## Evidence: real Pi session (isolated, 2026-10-14)
+
+- L9 (evidence, 9a) Daemon round trip with a fake pet keyed on `action` (the sim protocol key): `permission_request` sent, pet answered `allow`, daemon closed `allow`.
+- L10 (evidence, 9b) Pi end to end, isolated `HOME`, `PI_CODING_AGENT_DIR` and port 19996, model `minimax/MiniMax-M3.1-Flash-Preview`, tool `bash`:
+  - Allow: daemon closed `allow`, `tool_done` received. The bash output text was NOT inspected.
+  - Deny: daemon closed `deny`; Pi `tool_execution_end` result was `Denied from the Clawd Tank pet`.
+- L11 (correction) An earlier "marker in JSONL" check was invalid: the marker is in the prompt. Discarded.
+- L12 (correction) An earlier fake pet filtered on `event` instead of `action`, so it never answered. The daemon was not at fault.
+- Not verified: the user's real tray, the user's installed notify (`~/.clawd-tank/clawd-tank-notify.py` has no `pi` source), the packaged `Clawdy.exe`, and a real session with the user's pet. The user's pet on 19872 was not touched.
+- Next (user decision): run the tray from a clean worktree on this branch, reinstall the notify, install the extension with the tray toggle, and test one real session. Merge to the main line is a separate decision.
