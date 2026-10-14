@@ -34,7 +34,7 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 
 - T11 L35 · live trial: reload the pet, fake-daemon mochi demo · inline · commit: 9393577
 
-- T12 L37-L41 · Mochi shown at 80 % by CSS · inline · commit: pending
+- T12 L37-L41 · Mochi shown at 80 % by CSS · inline · commit: a080959
 
 ## Log
 
