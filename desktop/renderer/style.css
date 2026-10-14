@@ -43,8 +43,8 @@ html, body {
 img.crab-layer[hidden] { display: none; }
 /* While a non-idle state plays, hide the inline idle crab so only the overlay shows. */
 #crab:not([data-state="idle"]) #crab-idle { visibility: hidden; }
-/* The Codex window paints its own idle cloud as an animated SVG overlay. */
-#crab[data-agent="codex"] #crab-idle { display: none; }
+/* The Codex cloud and the default monster paint their own idle as an animated SVG overlay. */
+#crab:not([data-art="crab"]) #crab-idle { display: none; }
 
 /* Interactive body: this is the ONLY area that captures the mouse. Everything
    else in the window is click-through (main.js setIgnoreMouseEvents). */

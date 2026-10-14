@@ -43,6 +43,20 @@ function rendererLabel(agent) {
   return element("crab-label").textContent;
 }
 
+function rendererArt(agent) {
+  const noop = () => {};
+  const pet = new Proxy({ agent }, { get: (t, k) => (k in t ? t[k] : noop) });
+  const els = new Map();
+  const element = (id) => (els.has(id) ? els.get(id) : els.set(id, stubElement()).get(id));
+  const context = vm.createContext({
+    document: { getElementById: element, createElement: stubElement }, window: { pet, addEventListener: noop },
+    setTimeout, clearTimeout, setInterval: noop, requestAnimationFrame: noop, Image: class {},
+  });
+  vm.runInContext(read("renderer/renderer.js"), context);
+  return { art: element("crab").dataset.art, idle: vm.runInContext("ART_STATES.idle && ART_STATES.idle.src", context),
+    typing: vm.runInContext("ART_STATES.typing.src", context) };
+}
+
 test("product order places opencode and antigravity after kiro", () => {
   const ctx = mainContext();
   const sorted = vm.runInContext(
@@ -69,4 +83,28 @@ test("dashboard names include new products", () => {
   vm.runInContext(read("renderer/dashboard.js"), ctx);
   assert.equal(vm.runInContext("AGENT_NAMES.antigravity", ctx), "Antigravity");
   assert.equal(vm.runInContext("AGENT_NAMES.opencode", ctx), "OpenCode");
+});
+
+test("agents without their own art get the monster pet; claude and codex keep theirs", () => {
+  assert.deepEqual(rendererArt("claude"), { art: "crab", idle: null, typing: "assets/clawd-working-typing-v2.svg" });
+  assert.deepEqual(rendererArt("codex"),
+    { art: "cloud", idle: "assets/codex/cloud-idle-v2.svg", typing: "assets/codex/cloud-typing-v2.svg" });
+  for (const agent of ["kiro", "opencode", "antigravity", "mystery"]) {
+    assert.deepEqual(rendererArt(agent),
+      { art: "monster", idle: "assets/monster/monster-idle-v2.svg", typing: "assets/monster/monster-typing-v2.svg" }, agent);
+  }
+});
+
+test("every monster art file the renderer can request exists", () => {
+  for (const agent of ["kiro"]) {
+    const noop = () => {};
+    const pet = new Proxy({ agent }, { get: (t, k) => (k in t ? t[k] : noop) });
+    const context = vm.createContext({
+      document: { getElementById: () => stubElement(), createElement: stubElement }, window: { pet, addEventListener: noop },
+      setTimeout, clearTimeout, setInterval: noop, requestAnimationFrame: noop, Image: class {},
+    });
+    vm.runInContext(read("renderer/renderer.js"), context);
+    const srcs = JSON.parse(vm.runInContext("JSON.stringify(Object.values(ART_STATES).filter(Boolean).map((s) => s.src))", context));
+    for (const src of srcs) assert.ok(fs.existsSync(path.resolve(__dirname, "..", "renderer", src)), src);
+  }
 });

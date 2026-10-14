@@ -160,7 +160,18 @@ const CODEX_STATES = Object.fromEntries(
     { src: `assets/codex/cloud-${state}-v2.svg`, vb: (STATES[state] && STATES[state].vb) || FULL_VB },
   ]),
 );
-const ART_STATES = AGENT === "codex" ? CODEX_STATES : STATES;
+// The brand monster (tools/monster_pixel.py) is the default pet: every agent with
+// no art set of its own (kiro, opencode, antigravity, unknown) uses
+// assets/monster/monster-<state>-v2.svg, with the same states and vb as Codex.
+const MONSTER_STATES = Object.fromEntries(
+  Object.keys(CODEX_STATES).map((state) => [
+    state,
+    { src: `assets/monster/monster-${state}-v2.svg`, vb: CODEX_STATES[state].vb },
+  ]),
+);
+const ART = AGENT === "claude" ? "crab" : AGENT === "codex" ? "cloud" : "monster";
+crab.dataset.art = ART;
+const ART_STATES = { crab: STATES, cloud: CODEX_STATES, monster: MONSTER_STATES }[ART];
 
 const ALIAS = {
   working_1: "typing", working_2: "typing", working_3: "typing",
