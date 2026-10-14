@@ -380,3 +380,5 @@ Multi-agent review of the attention-hooks work surfaced 15 findings; fixes:
 - [x] Daemon clears the permission alert when the wait resolves: allow -> working, deny / hook hangup -> thinking (broadcast + persist); AskUserQuestion and newer state (question, Stop) are never overwritten. Timeout / no pet keeps the alert; Codex-only fallback expires it after `CODEX_PERMISSION_ALERT_SECONDS` (120s) via `_evict_stale_sessions`.
 - [x] `CODEX_TOOL_ALIASES` (daemon + embedded notify script, drift test): exec_command->Bash, web_search/webrun->WebSearch, view_image->Read. `update_plan` / `request_user_input_async` left passthrough on purpose.
 - [ ] Verify with a real Codex that the hook process is killed when the permission is answered in Codex's own UI (assumed for the hook-hangup path).
+
+- [x] **Tauri hotbar, Change 1 / PR1**: `host/clawd_tank_daemon/claude_usage.py` per-project Claude usage reader + `host/tests/test_claude_usage.py` (25 tests). PRICES verified against the Anthropic pricing page 2026-10-13; `claude-haiku-5-5` left unpriced (price depends on per-request prompt length). Next: PR2 `set_project_usage` transport.
