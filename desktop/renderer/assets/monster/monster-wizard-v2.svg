@@ -1,342 +1,89 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500" shape-rendering="crispEdges">
-  <!-- Monster v2 wizard: 2.4 s loop, poses at 10 fps (24 frames); appearance swaps step-end, motion interpolated. Wizard hat on the top lobe, slow bob, the right puff hand waves a star wand that sheds sparkles, one blink. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500">
+  
+  <!-- Monster v2 wizard: the Claude crab's clawd-wizard-v2.svg (same scene and timing) with the monster's body, eyes and mittens. -->
   <defs>
     <style>
-      .sh-v { animation: sh-v 2.4s infinite step-end; }
-      .sh-s-v { animation: sh-s-v 2.4s infinite step-end; }
-      .f-eye-rings-v { animation: f-eye-rings-v 2.4s infinite step-end; }
-      .f-eyes-open-v { animation: f-eyes-open-v 2.4s infinite step-end; }
-      .f-eyes-shut-m { animation: f-eyes-shut-m 2.4s infinite step-end; }
-      .f-eyes-shut-v { animation: f-eyes-shut-v 2.4s infinite step-end; }
-      .hat-m { animation: hat-m 2.4s infinite linear; }
-      .wand-m { animation: wand-m 2.4s infinite linear; }
-      .hl-m { animation: hl-m 2.4s infinite linear; }
-      .hr-m { animation: hr-m 2.4s infinite linear; }
-      .spk0-sparkle-m { animation: spk0-sparkle-m 2.4s infinite linear; }
-      .spk0-sparkle-v { animation: spk0-sparkle-v 2.4s infinite step-end; }
-      .spk1-sparkle-p-m { animation: spk1-sparkle-p-m 2.4s infinite linear; }
-      .spk1-sparkle-p-v { animation: spk1-sparkle-p-v 2.4s infinite step-end; }
-      .spk2-sparkle-c-m { animation: spk2-sparkle-c-m 2.4s infinite linear; }
-      .spk2-sparkle-c-v { animation: spk2-sparkle-c-v 2.4s infinite step-end; }
-      .rig-m { animation: rig-m 2.4s infinite linear; }
-      @keyframes sh-v {
-        0.0000% { opacity: 1; }
-        50.0000% { opacity: 0; }
+      .bob   { animation: bob 2.4s ease-in-out infinite; }
+      .wave  { transform-box: fill-box; transform-origin: 0% 100%; animation: wave 1.2s ease-in-out infinite; }
+      .spk   { animation: spk 2.4s ease-out infinite; }
+      .k2 { animation-delay: -0.6s; } .k3 { animation-delay: -1.2s; } .k4 { animation-delay: -1.8s; }
+      .ey-open { animation: ey-open 2.4s steps(1) infinite; }
+      .ey-shut { animation: ey-shut 2.4s steps(1) infinite; }
+
+      @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1px); } }
+      @keyframes wave {
+        0%, 100% { transform: rotate(-18deg); }
+        50%      { transform: rotate(14deg); }
       }
-      @keyframes sh-s-v {
-        0.0000% { opacity: 0; }
-        50.0000% { opacity: 1; }
+      @keyframes spk {
+        0%   { transform: translate(0, 0) scale(0.4); opacity: 0; }
+        12%  { transform: translate(1px, -2px) scale(1); opacity: 1; }
+        100% { transform: translate(4px, -18px) scale(0.6); opacity: 0; }
       }
-      @keyframes f-eye-rings-v {
-        0.0000% { opacity: 1; }
-        83.3333% { opacity: 0; }
-        91.6667% { opacity: 1; }
-      }
-      @keyframes f-eyes-open-v {
-        0.0000% { opacity: 1; }
-        83.3333% { opacity: 0; }
-        91.6667% { opacity: 1; }
-      }
-      @keyframes f-eyes-shut-m {
-        0.0000% { transform: translate(0px, -1px); }
-        50.0000% { transform: translate(0px, 0px); }
-      }
-      @keyframes f-eyes-shut-v {
-        0.0000% { opacity: 0; }
-        83.3333% { opacity: 1; }
-        91.6667% { opacity: 0; }
-      }
-      @keyframes hat-m {
-        0.0000% { transform: translate(6px, -7.438px); }
-        12.5000% { transform: translate(6px, -7.112px); }
-        20.8333% { transform: translate(6px, -7.005px); }
-        22.9167% { transform: translate(6px, -7px); }
-        31.9444% { transform: translate(6px, -7.086px); }
-        44.4444% { transform: translate(6px, -7.397px); }
-        61.1111% { transform: translate(6px, -7.859px); }
-        69.4444% { transform: translate(6px, -7.986px); }
-        72.9167% { transform: translate(6px, -8px); }
-        81.9444% { transform: translate(6px, -7.914px); }
-        94.4444% { transform: translate(6px, -7.603px); }
-        100.0000% { transform: translate(6px, -7.438px); }
-      }
-      @keyframes wand-m {
-        0.0000% { transform: translate(29.593px, 0.58px); }
-        1.3889% { transform: translate(29.739px, 0.799px); }
-        2.7778% { transform: translate(29.878px, 0.946px); }
-        4.1667% { transform: translate(30px, 1px); }
-        5.5556% { transform: translate(30.122px, 0.977px); }
-        8.3333% { transform: translate(30.407px, 0.815px); }
-        12.5000% { transform: translate(30.815px, 0.407px); }
-        15.2778% { transform: translate(30.977px, 0.122px); }
-        16.6667% { transform: translate(31px, 0px); }
-        18.0556% { transform: translate(30.977px, -0.122px); }
-        20.8333% { transform: translate(30.815px, -0.407px); }
-        25.0000% { transform: translate(30.407px, -0.815px); }
-        27.7778% { transform: translate(30.122px, -0.977px); }
-        29.1667% { transform: translate(30px, -1px); }
-        31.9444% { transform: translate(29.739px, -0.921px); }
-        34.7222% { transform: translate(29.446px, -0.716px); }
-        37.5000% { transform: translate(29.185px, -0.439px); }
-        40.2778% { transform: translate(29.023px, -0.141px); }
-        41.6667% { transform: translate(29px, 0px); }
-        43.0556% { transform: translate(29.074px, 0.168px); }
-        44.4444% { transform: translate(29.259px, 0.379px); }
-        47.2222% { transform: translate(29.741px, 0.801px); }
-        48.6111% { transform: translate(29.926px, 0.945px); }
-        50.0000% { transform: translate(30px, 1px); }
-        51.3889% { transform: translate(30px, 0.903px); }
-        52.7778% { transform: translate(30px, 0.667px); }
-        55.5556% { transform: translate(30px, 0.102px); }
-        56.2500% { transform: translate(30px, 0px); }
-        56.9444% { transform: translate(30.013px, -0.083px); }
-        58.3333% { transform: translate(30.104px, -0.238px); }
-        61.1111% { transform: translate(30.45px, -0.514px); }
-        63.8889% { transform: translate(30.825px, -0.76px); }
-        65.2778% { transform: translate(30.951px, -0.88px); }
-        66.6667% { transform: translate(31px, -1px); }
-        68.0556% { transform: translate(30.977px, -1.13px); }
-        70.8333% { transform: translate(30.815px, -1.421px); }
-        75.0000% { transform: translate(30.407px, -1.822px); }
-        77.7778% { transform: translate(30.122px, -1.978px); }
-        79.1667% { transform: translate(30px, -2px); }
-        81.9444% { transform: translate(29.739px, -1.925px); }
-        84.7222% { transform: translate(29.446px, -1.729px); }
-        87.5000% { transform: translate(29.185px, -1.457px); }
-        90.2778% { transform: translate(29.023px, -1.151px); }
-        91.6667% { transform: translate(29px, -1px); }
-        93.0556% { transform: translate(29.023px, -0.814px); }
-        95.8333% { transform: translate(29.185px, -0.284px); }
-        98.6111% { transform: translate(29.446px, 0.312px); }
-        100.0000% { transform: translate(29.593px, 0.58px); }
-      }
-      @keyframes hl-m {
-        0.0000% { transform: translate(-1px, 18.5px); }
-        13.8889% { transform: translate(-1px, 18.874px); }
-        22.2222% { transform: translate(-1px, 18.991px); }
-        30.5556% { transform: translate(-1px, 18.966px); }
-        40.2778% { transform: translate(-1px, 18.777px); }
-        62.5000% { transform: translate(-1px, 18.156px); }
-        72.2222% { transform: translate(-1px, 18.009px); }
-        75.0000% { transform: translate(-1px, 18px); }
-        83.3333% { transform: translate(-1px, 18.074px); }
-        95.8333% { transform: translate(-1px, 18.376px); }
-        100.0000% { transform: translate(-1px, 18.5px); }
-      }
-      @keyframes hr-m {
-        0.0000% { transform: translate(27.593px, 5.58px); }
-        1.3889% { transform: translate(27.739px, 5.799px); }
-        2.7778% { transform: translate(27.878px, 5.946px); }
-        4.1667% { transform: translate(28px, 6px); }
-        5.5556% { transform: translate(28.122px, 5.977px); }
-        8.3333% { transform: translate(28.407px, 5.815px); }
-        12.5000% { transform: translate(28.815px, 5.407px); }
-        15.2778% { transform: translate(28.977px, 5.122px); }
-        16.6667% { transform: translate(29px, 5px); }
-        18.0556% { transform: translate(28.977px, 4.878px); }
-        20.8333% { transform: translate(28.815px, 4.593px); }
-        25.0000% { transform: translate(28.407px, 4.185px); }
-        27.7778% { transform: translate(28.122px, 4.023px); }
-        29.1667% { transform: translate(28px, 4px); }
-        31.9444% { transform: translate(27.739px, 4.079px); }
-        34.7222% { transform: translate(27.446px, 4.284px); }
-        37.5000% { transform: translate(27.185px, 4.561px); }
-        40.2778% { transform: translate(27.023px, 4.859px); }
-        41.6667% { transform: translate(27px, 5px); }
-        43.0556% { transform: translate(27.074px, 5.168px); }
-        44.4444% { transform: translate(27.259px, 5.379px); }
-        47.2222% { transform: translate(27.741px, 5.801px); }
-        48.6111% { transform: translate(27.926px, 5.945px); }
-        50.0000% { transform: translate(28px, 6px); }
-        51.3889% { transform: translate(28px, 5.903px); }
-        52.7778% { transform: translate(28px, 5.667px); }
-        55.5556% { transform: translate(28px, 5.102px); }
-        56.2500% { transform: translate(28px, 5px); }
-        56.9444% { transform: translate(28.013px, 4.917px); }
-        58.3333% { transform: translate(28.104px, 4.762px); }
-        61.1111% { transform: translate(28.45px, 4.486px); }
-        63.8889% { transform: translate(28.825px, 4.24px); }
-        65.2778% { transform: translate(28.951px, 4.12px); }
-        66.6667% { transform: translate(29px, 4px); }
-        68.0556% { transform: translate(28.977px, 3.87px); }
-        70.8333% { transform: translate(28.815px, 3.579px); }
-        75.0000% { transform: translate(28.407px, 3.178px); }
-        77.7778% { transform: translate(28.122px, 3.022px); }
-        79.1667% { transform: translate(28px, 3px); }
-        81.9444% { transform: translate(27.739px, 3.075px); }
-        84.7222% { transform: translate(27.446px, 3.271px); }
-        87.5000% { transform: translate(27.185px, 3.543px); }
-        90.2778% { transform: translate(27.023px, 3.849px); }
-        91.6667% { transform: translate(27px, 4px); }
-        93.0556% { transform: translate(27.023px, 4.186px); }
-        95.8333% { transform: translate(27.185px, 4.716px); }
-        98.6111% { transform: translate(27.446px, 5.312px); }
-        100.0000% { transform: translate(27.593px, 5.58px); }
-      }
-      @keyframes spk0-sparkle-m {
-        0.0000% { transform: translate(34px, -3px); }
-        4.1667% { transform: translate(34px, -4px); }
-        8.3333% { transform: translate(34px, -5px); }
-        9.7222% { transform: translate(34.259px, -5.333px); }
-        11.1111% { transform: translate(34.741px, -5.667px); }
-        12.5000% { transform: translate(35px, -6px); }
-        16.6667% { transform: translate(35px, -7px); }
-        20.8333% { transform: translate(35px, -8px); }
-        22.2222% { transform: translate(35.259px, -8.333px); }
-        23.6111% { transform: translate(35.741px, -8.667px); }
-        25.0000% { transform: translate(36px, -9px); }
-        37.5000% { transform: translate(36px, -12px); }
-        37.5100% { transform: translate(34px, -3px); }
-        100.0000% { transform: translate(34px, -3px); }
-      }
-      @keyframes spk0-sparkle-v {
-        0.0000% { opacity: 1; }
-        37.5000% { opacity: 0; }
-      }
-      @keyframes spk1-sparkle-p-m {
-        0.0000% { transform: translate(38px, -5px); }
-        33.3333% { transform: translate(38px, -5px); }
-        37.5000% { transform: translate(38px, -6px); }
-        41.6667% { transform: translate(38px, -7px); }
-        43.0556% { transform: translate(38.259px, -7.333px); }
-        44.4444% { transform: translate(38.741px, -7.667px); }
-        45.8333% { transform: translate(39px, -8px); }
-        50.0000% { transform: translate(39px, -9px); }
-        54.1667% { transform: translate(39px, -10px); }
-        55.5556% { transform: translate(39.259px, -10.333px); }
-        56.9444% { transform: translate(39.741px, -10.667px); }
-        58.3333% { transform: translate(40px, -11px); }
-        62.5000% { transform: translate(40px, -12px); }
-        66.6667% { transform: translate(40px, -13px); }
-        70.8333% { transform: translate(40px, -14px); }
-        70.8433% { transform: translate(38px, -5px); }
-        100.0000% { transform: translate(38px, -5px); }
-      }
-      @keyframes spk1-sparkle-p-v {
-        0.0000% { opacity: 0; }
-        33.3333% { opacity: 1; }
-        70.8333% { opacity: 0; }
-      }
-      @keyframes spk2-sparkle-c-m {
-        0.0000% { transform: translate(35px, -12px); }
-        4.1667% { transform: translate(35px, -13px); }
-        4.1767% { transform: translate(33px, -4px); }
-        66.6667% { transform: translate(33px, -4px); }
-        75.0000% { transform: translate(33px, -6px); }
-        76.3889% { transform: translate(33.259px, -6.333px); }
-        77.7778% { transform: translate(33.741px, -6.667px); }
-        79.1667% { transform: translate(34px, -7px); }
-        87.5000% { transform: translate(34px, -9px); }
-        88.8889% { transform: translate(34.259px, -9.333px); }
-        90.2778% { transform: translate(34.741px, -9.667px); }
-        91.6667% { transform: translate(35px, -10px); }
-        100.0000% { transform: translate(35px, -12px); }
-      }
-      @keyframes spk2-sparkle-c-v {
-        0.0000% { opacity: 1; }
-        4.1667% { opacity: 0; }
-        66.6667% { opacity: 1; }
-      }
-      @keyframes rig-m {
-        0.0000% { transform: translate(0px, -0.438px); }
-        12.5000% { transform: translate(0px, -0.112px); }
-        20.8333% { transform: translate(0px, -0.005px); }
-        22.9167% { transform: translate(0px, 0px); }
-        31.9444% { transform: translate(0px, -0.086px); }
-        44.4444% { transform: translate(0px, -0.397px); }
-        61.1111% { transform: translate(0px, -0.859px); }
-        69.4444% { transform: translate(0px, -0.986px); }
-        72.9167% { transform: translate(0px, -1px); }
-        81.9444% { transform: translate(0px, -0.914px); }
-        94.4444% { transform: translate(0px, -0.603px); }
-        100.0000% { transform: translate(0px, -0.438px); }
-      }
-      @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+      @keyframes ey-open { 0% { opacity: 0; } 40% { opacity: 1; } 70% { opacity: 0; } }
+      @keyframes ey-shut { 0% { opacity: 1; } 40% { opacity: 0; } 70% { opacity: 1; } }
     </style>
-    <g id="shadow">
-      <path fill="#000000" fill-opacity="0.3" d="M5 30h20v1h-20z"/>
-      <path fill="#000000" fill-opacity="0.15" d="M8 31h14v1h-14z"/>
-    </g>
-    <g id="shadow-sm">
-      <path fill="#000000" fill-opacity="0.3" d="M7 30h16v1h-16z"/>
-      <path fill="#000000" fill-opacity="0.15" d="M10 31h10v1h-10z"/>
-    </g>
-    <!-- round body: white left, cherry crescent right, tonal 1 px outline, light top/left -->
-    <g id="cloud">
-      <path fill="#5E4B5A" d="M2 8h1v1h-1zM2 9h1v1h-1zM1 10h1v1h-1zM1 11h1v1h-1zM1 12h1v1h-1zM1 13h1v1h-1zM1 14h1v1h-1zM1 15h1v1h-1zM1 16h1v1h-1zM1 17h1v1h-1zM1 18h1v1h-1zM1 19h1v1h-1zM1 20h1v1h-1zM2 21h1v1h-1zM2 22h1v1h-1zM3 23h1v1h-1zM4 24h1v1h-1zM5 25h1v1h-1zM6 26h2v1h-2zM8 27h2v1h-2zM10 28h4v1h-4zM16 28h2v1h-2zM14 29h2v1h-2z"/>
+
+    <!-- ===== v2 rig ===== -->
+    <g id="leg1"></g>
+    <g id="leg2"></g>
+    <g id="leg3"></g>
+    <g id="leg4"></g>
+    <g id="torso">      <path fill="#5E4B5A" d="M2 8h1v1h-1zM2 9h1v1h-1zM1 10h1v1h-1zM1 11h1v1h-1zM1 12h1v1h-1zM1 13h1v1h-1zM1 14h1v1h-1zM1 15h1v1h-1zM1 16h1v1h-1zM1 17h1v1h-1zM1 18h1v1h-1zM1 19h1v1h-1zM1 20h1v1h-1zM2 21h1v1h-1zM2 22h1v1h-1zM3 23h1v1h-1zM4 24h1v1h-1zM5 25h1v1h-1zM6 26h2v1h-2zM8 27h2v1h-2zM10 28h4v1h-4zM16 28h2v1h-2zM14 29h2v1h-2z"/>
       <path fill="#7C1E2B" d="M14 1h2v1h-2zM10 2h4v1h-4zM16 2h4v1h-4zM8 3h2v1h-2zM20 3h2v1h-2zM6 4h2v1h-2zM22 4h2v1h-2zM5 5h1v1h-1zM24 5h1v1h-1zM4 6h1v1h-1zM25 6h1v1h-1zM3 7h1v1h-1zM26 7h1v1h-1zM27 8h1v1h-1zM27 9h1v1h-1zM28 10h1v1h-1zM28 11h1v1h-1zM28 12h1v1h-1zM28 13h1v1h-1zM28 14h1v1h-1zM28 15h1v1h-1zM28 16h1v1h-1zM28 17h1v1h-1zM28 18h1v1h-1zM28 19h1v1h-1zM28 20h1v1h-1zM27 21h1v1h-1zM27 22h1v1h-1zM26 23h1v1h-1zM25 24h1v1h-1zM24 25h1v1h-1zM22 26h2v1h-2zM20 27h2v1h-2zM18 28h2v1h-2z"/>
       <path fill="#FFFFFF" d="M4 7h1v1h-1zM3 8h1v1h-1zM3 9h1v1h-1zM2 10h1v1h-1zM2 11h1v1h-1zM2 12h1v1h-1zM2 13h1v1h-1zM2 14h1v1h-1zM2 15h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1z"/>
       <path fill="#F2848D" d="M14 2h1v1h-1zM10 3h4v1h-4zM16 3h3v1h-3zM8 4h2v1h-2zM20 4h1v1h-1zM6 5h2v1h-2zM22 5h1v1h-1zM5 6h1v1h-1z"/>
       <path fill="#F6F1F0" d="M6 6h8v1h-8zM5 7h12v1h-12zM4 8h14v1h-14zM4 9h15v1h-15zM3 10h17v1h-17zM3 11h18v1h-18zM3 12h18v1h-18zM3 13h19v1h-19zM3 14h19v1h-19zM3 15h20v1h-20zM3 16h20v1h-20zM3 17h20v1h-20zM3 18h20v1h-20zM3 19h20v1h-20zM3 20h20v1h-20zM4 21h18v1h-18zM5 22h17v1h-17zM6 23h16v1h-16zM8 24h13v1h-13zM10 25h10v1h-10zM14 26h2v1h-2z"/>
       <path fill="#DE4553" d="M14 3h2v1h-2zM10 4h10v1h-10zM8 5h14v1h-14zM14 6h10v1h-10zM17 7h8v1h-8zM18 8h8v1h-8zM19 9h7v1h-7zM20 10h7v1h-7zM21 11h6v1h-6zM21 12h6v1h-6zM22 13h5v1h-5zM22 14h5v1h-5zM23 15h4v1h-4zM23 16h4v1h-4zM23 17h4v1h-4zM23 18h4v1h-4zM23 19h4v1h-4zM23 20h4v1h-4zM22 21h4v1h-4zM22 22h3v1h-3zM22 23h2v1h-2zM21 24h1v1h-1z"/>
       <path fill="#D9CDD2" d="M2 19h1v1h-1zM2 20h1v1h-1zM3 21h1v1h-1zM3 22h2v1h-2zM4 23h2v1h-2zM5 24h3v1h-3zM6 25h4v1h-4zM20 25h1v1h-1zM8 26h6v1h-6zM16 26h4v1h-4zM10 27h9v1h-9zM14 28h2v1h-2z"/>
-      <path fill="#B32F40" d="M15 2h1v1h-1zM19 3h1v1h-1zM21 4h1v1h-1zM23 5h1v1h-1zM24 6h1v1h-1zM25 7h1v1h-1zM26 8h1v1h-1zM26 9h1v1h-1zM27 10h1v1h-1zM27 11h1v1h-1zM27 12h1v1h-1zM27 13h1v1h-1zM27 14h1v1h-1zM27 15h1v1h-1zM27 16h1v1h-1zM27 17h1v1h-1zM27 18h1v1h-1zM27 19h1v1h-1zM27 20h1v1h-1zM26 21h1v1h-1zM25 22h2v1h-2zM24 23h2v1h-2zM22 24h3v1h-3zM21 25h3v1h-3zM20 26h2v1h-2zM19 27h1v1h-1z"/>
-    </g>
-    <g id="cloud-puff">
-      <path fill="#5E4B5A" d="M2 7h1v1h-1zM1 8h1v1h-1zM1 9h1v1h-1zM0 10h1v1h-1zM0 11h1v1h-1zM0 12h1v1h-1zM0 13h1v1h-1zM0 14h1v1h-1zM0 15h1v1h-1zM0 16h1v1h-1zM0 17h1v1h-1zM0 18h1v1h-1zM0 19h1v1h-1zM0 20h1v1h-1zM1 21h1v1h-1zM1 22h1v1h-1zM2 23h1v1h-1zM3 24h1v1h-1zM3 25h1v1h-1zM4 26h2v1h-2zM6 27h1v1h-1zM7 28h2v1h-2zM9 29h5v1h-5zM16 29h2v1h-2zM14 30h2v1h-2z"/>
-      <path fill="#7C1E2B" d="M14 0h2v1h-2zM9 1h5v1h-5zM16 1h5v1h-5zM7 2h2v1h-2zM21 2h2v1h-2zM6 3h1v1h-1zM23 3h1v1h-1zM4 4h2v1h-2zM24 4h2v1h-2zM3 5h1v1h-1zM26 5h1v1h-1zM3 6h1v1h-1zM26 6h1v1h-1zM27 7h1v1h-1zM28 8h1v1h-1zM28 9h1v1h-1zM29 10h1v1h-1zM29 11h1v1h-1zM29 12h1v1h-1zM29 13h1v1h-1zM29 14h1v1h-1zM29 15h1v1h-1zM29 16h1v1h-1zM29 17h1v1h-1zM29 18h1v1h-1zM29 19h1v1h-1zM29 20h1v1h-1zM28 21h1v1h-1zM28 22h1v1h-1zM27 23h1v1h-1zM26 24h1v1h-1zM26 25h1v1h-1zM24 26h2v1h-2zM23 27h1v1h-1zM21 28h2v1h-2zM18 29h3v1h-3z"/>
-      <path fill="#FFFFFF" d="M4 6h1v1h-1zM3 7h1v1h-1zM2 8h1v1h-1zM2 9h1v1h-1zM1 10h1v1h-1zM1 11h1v1h-1zM1 12h1v1h-1zM1 13h1v1h-1zM1 14h1v1h-1zM1 15h1v1h-1zM1 16h1v1h-1zM1 17h1v1h-1zM1 18h1v1h-1z"/>
-      <path fill="#F2848D" d="M14 1h1v1h-1zM9 2h5v1h-5zM16 2h4v1h-4zM7 3h2v1h-2zM21 3h1v1h-1zM6 4h1v1h-1zM4 5h2v1h-2zM24 5h1v1h-1z"/>
-      <path fill="#F6F1F0" d="M7 5h6v1h-6zM5 6h11v1h-11zM4 7h14v1h-14zM3 8h16v1h-16zM3 9h17v1h-17zM2 10h19v1h-19zM2 11h19v1h-19zM2 12h20v1h-20zM2 13h20v1h-20zM2 14h21v1h-21zM2 15h21v1h-21zM2 16h21v1h-21zM2 17h21v1h-21zM2 18h21v1h-21zM2 19h21v1h-21zM2 20h21v1h-21zM3 21h20v1h-20zM4 22h19v1h-19zM4 23h18v1h-18zM6 24h16v1h-16zM7 25h15v1h-15zM9 26h12v1h-12zM14 27h2v1h-2z"/>
-      <path fill="#DE4553" d="M14 2h2v1h-2zM9 3h12v1h-12zM7 4h16v1h-16zM6 5h1v1h-1zM13 5h11v1h-11zM16 6h9v1h-9zM18 7h8v1h-8zM19 8h8v1h-8zM20 9h7v1h-7zM21 10h7v1h-7zM21 11h7v1h-7zM22 12h6v1h-6zM22 13h6v1h-6zM23 14h5v1h-5zM23 15h5v1h-5zM23 16h5v1h-5zM23 17h5v1h-5zM23 18h5v1h-5zM23 19h5v1h-5zM23 20h5v1h-5zM23 21h4v1h-4zM23 22h3v1h-3zM22 23h4v1h-4zM22 24h2v1h-2zM22 25h1v1h-1z"/>
-      <path fill="#D9CDD2" d="M1 19h1v1h-1zM1 20h1v1h-1zM2 21h1v1h-1zM2 22h2v1h-2zM3 23h1v1h-1zM4 24h2v1h-2zM4 25h3v1h-3zM6 26h3v1h-3zM7 27h7v1h-7zM16 27h4v1h-4zM9 28h10v1h-10zM14 29h2v1h-2z"/>
-      <path fill="#B32F40" d="M15 1h1v1h-1zM20 2h1v1h-1zM22 3h1v1h-1zM23 4h1v1h-1zM25 5h1v1h-1zM25 6h1v1h-1zM26 7h1v1h-1zM27 8h1v1h-1zM27 9h1v1h-1zM28 10h1v1h-1zM28 11h1v1h-1zM28 12h1v1h-1zM28 13h1v1h-1zM28 14h1v1h-1zM28 15h1v1h-1zM28 16h1v1h-1zM28 17h1v1h-1zM28 18h1v1h-1zM28 19h1v1h-1zM28 20h1v1h-1zM27 21h1v1h-1zM26 22h2v1h-2zM26 23h1v1h-1zM24 24h2v1h-2zM23 25h3v1h-3zM21 26h3v1h-3zM20 27h3v1h-3zM19 28h2v1h-2z"/>
-    </g>
-    <g id="cloud-squash">
-      <path fill="#5E4B5A" d="M10 5h3v1h-3zM7 6h3v1h-3zM5 7h2v1h-2zM4 8h1v1h-1zM3 9h1v1h-1zM2 10h1v1h-1zM1 11h1v1h-1zM0 12h1v1h-1zM0 13h1v1h-1zM0 14h1v1h-1zM-1 15h1v1h-1zM-1 16h1v1h-1zM-1 17h1v1h-1zM-1 18h1v1h-1zM0 19h1v1h-1zM0 20h1v1h-1zM0 21h1v1h-1zM1 22h1v1h-1zM2 23h1v1h-1zM2 24h2v1h-2zM4 25h1v1h-1zM5 26h2v1h-2zM7 27h2v1h-2zM9 28h12v1h-12z"/>
-      <path fill="#7C1E2B" d="M13 5h7v1h-7zM20 6h3v1h-3zM23 7h2v1h-2zM25 8h1v1h-1zM26 9h1v1h-1zM27 10h1v1h-1zM28 11h1v1h-1zM29 12h1v1h-1zM29 13h1v1h-1zM29 14h1v1h-1zM30 15h1v1h-1zM30 16h1v1h-1zM30 17h1v1h-1zM30 18h1v1h-1zM29 19h1v1h-1zM29 20h1v1h-1zM29 21h1v1h-1zM28 22h1v1h-1zM27 23h1v1h-1zM26 24h2v1h-2zM25 25h1v1h-1zM23 26h2v1h-2zM21 27h2v1h-2z"/>
-      <path fill="#FFFFFF" d="M10 6h6v1h-6zM7 7h3v1h-3zM5 8h2v1h-2zM4 9h1v1h-1zM3 10h1v1h-1zM2 11h1v1h-1zM1 12h1v1h-1zM1 13h1v1h-1zM1 14h1v1h-1zM0 15h1v1h-1zM0 16h1v1h-1zM1 19h1v1h-1z"/>
-      <path fill="#F2848D" d="M16 6h3v1h-3zM20 7h2v1h-2zM23 8h1v1h-1z"/>
-      <path fill="#F6F1F0" d="M10 7h8v1h-8zM7 8h12v1h-12zM5 9h15v1h-15zM4 10h17v1h-17zM3 11h19v1h-19zM2 12h20v1h-20zM2 13h21v1h-21zM2 14h21v1h-21zM1 15h22v1h-22zM1 16h23v1h-23zM1 17h23v1h-23zM1 18h23v1h-23zM2 19h22v1h-22zM2 20h22v1h-22zM3 21h21v1h-21zM4 22h20v1h-20zM5 23h18v1h-18zM7 24h16v1h-16zM9 25h12v1h-12z"/>
-      <path fill="#DE4553" d="M18 7h2v1h-2zM19 8h4v1h-4zM20 9h5v1h-5zM21 10h5v1h-5zM22 11h5v1h-5zM22 12h6v1h-6zM23 13h5v1h-5zM23 14h5v1h-5zM23 15h6v1h-6zM24 16h5v1h-5zM24 17h5v1h-5zM24 18h5v1h-5zM24 19h4v1h-4zM24 20h4v1h-4zM24 21h3v1h-3zM24 22h2v1h-2zM23 23h2v1h-2z"/>
-      <path fill="#D9CDD2" d="M0 17h1v1h-1zM0 18h1v1h-1zM1 20h1v1h-1zM1 21h2v1h-2zM2 22h2v1h-2zM3 23h2v1h-2zM4 24h3v1h-3zM5 25h4v1h-4zM21 25h2v1h-2zM7 26h15v1h-15zM9 27h12v1h-12z"/>
-      <path fill="#B32F40" d="M19 6h1v1h-1zM22 7h1v1h-1zM24 8h1v1h-1zM25 9h1v1h-1zM26 10h1v1h-1zM27 11h1v1h-1zM28 12h1v1h-1zM28 13h1v1h-1zM28 14h1v1h-1zM29 15h1v1h-1zM29 16h1v1h-1zM29 17h1v1h-1zM29 18h1v1h-1zM28 19h1v1h-1zM28 20h1v1h-1zM27 21h2v1h-2zM26 22h2v1h-2zM25 23h2v1h-2zM23 24h3v1h-3zM23 25h2v1h-2zM22 26h1v1h-1z"/>
-    </g>
-    <g id="cloud-stretch">
-      <path fill="#5E4B5A" d="M2 10h1v1h-1zM2 11h1v1h-1zM2 12h1v1h-1zM2 13h1v1h-1zM2 14h1v1h-1zM2 15h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1zM2 19h1v1h-1zM3 20h1v1h-1zM3 21h1v1h-1zM4 22h1v1h-1zM4 23h1v1h-1zM5 24h1v1h-1zM6 25h1v1h-1zM7 26h1v1h-1zM8 27h2v1h-2zM10 28h4v1h-4z"/>
-      <path fill="#7C1E2B" d="M10 0h10v1h-10zM8 1h2v1h-2zM20 1h2v1h-2zM7 2h1v1h-1zM22 2h1v1h-1zM6 3h1v1h-1zM23 3h1v1h-1zM5 4h1v1h-1zM24 4h1v1h-1zM4 5h1v1h-1zM25 5h1v1h-1zM4 6h1v1h-1zM25 6h1v1h-1zM3 7h1v1h-1zM26 7h1v1h-1zM3 8h1v1h-1zM26 8h1v1h-1zM2 9h1v1h-1zM27 9h1v1h-1zM27 10h1v1h-1zM27 11h1v1h-1zM27 12h1v1h-1zM27 13h1v1h-1zM27 14h1v1h-1zM27 15h1v1h-1zM27 16h1v1h-1zM27 17h1v1h-1zM27 18h1v1h-1zM27 19h1v1h-1zM26 20h1v1h-1zM26 21h1v1h-1zM25 22h1v1h-1zM25 23h1v1h-1zM24 24h1v1h-1zM23 25h1v1h-1zM22 26h1v1h-1zM20 27h2v1h-2zM16 28h4v1h-4zM14 29h2v1h-2z"/>
-      <path fill="#FFFFFF" d="M4 8h1v1h-1zM3 9h1v1h-1zM3 10h1v1h-1zM3 11h1v1h-1zM3 12h1v1h-1zM3 13h1v1h-1zM3 14h1v1h-1zM3 15h1v1h-1zM3 16h1v1h-1zM3 17h1v1h-1z"/>
-      <path fill="#F2848D" d="M10 1h9v1h-9zM8 2h2v1h-2zM20 2h1v1h-1zM7 3h1v1h-1zM6 4h1v1h-1zM5 5h1v1h-1zM5 6h1v1h-1zM4 7h1v1h-1z"/>
-      <path fill="#F6F1F0" d="M8 6h5v1h-5zM5 7h11v1h-11zM5 8h12v1h-12zM4 9h15v1h-15zM4 10h16v1h-16zM4 11h16v1h-16zM4 12h17v1h-17zM4 13h17v1h-17zM4 14h18v1h-18zM4 15h18v1h-18zM4 16h18v1h-18zM4 17h18v1h-18zM4 18h18v1h-18zM4 19h18v1h-18zM5 20h17v1h-17zM5 21h17v1h-17zM6 22h15v1h-15zM7 23h14v1h-14zM8 24h12v1h-12zM10 25h10v1h-10zM14 26h2v1h-2z"/>
-      <path fill="#DE4553" d="M10 2h10v1h-10zM8 3h14v1h-14zM7 4h16v1h-16zM6 5h18v1h-18zM6 6h2v1h-2zM13 6h11v1h-11zM16 7h9v1h-9zM17 8h8v1h-8zM19 9h7v1h-7zM20 10h6v1h-6zM20 11h6v1h-6zM21 12h5v1h-5zM21 13h5v1h-5zM22 14h4v1h-4zM22 15h4v1h-4zM22 16h4v1h-4zM22 17h4v1h-4zM22 18h4v1h-4zM22 19h4v1h-4zM22 20h3v1h-3zM22 21h3v1h-3zM21 22h3v1h-3zM21 23h2v1h-2zM20 24h2v1h-2z"/>
-      <path fill="#D9CDD2" d="M3 18h1v1h-1zM3 19h1v1h-1zM4 20h1v1h-1zM4 21h1v1h-1zM5 22h1v1h-1zM5 23h2v1h-2zM6 24h2v1h-2zM7 25h3v1h-3zM8 26h6v1h-6zM16 26h3v1h-3zM10 27h7v1h-7zM14 28h2v1h-2z"/>
-      <path fill="#B32F40" d="M19 1h1v1h-1zM21 2h1v1h-1zM22 3h1v1h-1zM23 4h1v1h-1zM24 5h1v1h-1zM24 6h1v1h-1zM25 7h1v1h-1zM25 8h1v1h-1zM26 9h1v1h-1zM26 10h1v1h-1zM26 11h1v1h-1zM26 12h1v1h-1zM26 13h1v1h-1zM26 14h1v1h-1zM26 15h1v1h-1zM26 16h1v1h-1zM26 17h1v1h-1zM26 18h1v1h-1zM26 19h1v1h-1zM25 20h1v1h-1zM25 21h1v1h-1zM24 22h1v1h-1zM23 23h2v1h-2zM22 24h2v1h-2zM20 25h3v1h-3zM19 26h3v1h-3zM17 27h3v1h-3z"/>
-    </g>
-    <g id="eye-rings"><path fill="#DE4553" d="M6 14h5v1h-5zM5 15h1v1h-1zM11 15h1v1h-1zM5 16h1v1h-1zM11 16h1v1h-1zM5 17h1v1h-1zM11 17h1v1h-1zM5 18h1v1h-1zM11 18h1v1h-1zM5 19h1v1h-1zM11 19h1v1h-1zM5 20h1v1h-1zM11 20h1v1h-1zM6 21h5v1h-5z"/><path fill="#2A1A22" d="M6 15h5v1h-5zM6 16h5v1h-5zM6 17h5v1h-5zM6 18h5v1h-5zM6 19h5v1h-5zM6 20h5v1h-5z"/><path fill="#B9AAB2" d="M18 14h5v1h-5zM17 15h1v1h-1zM23 15h1v1h-1zM17 16h1v1h-1zM23 16h1v1h-1zM17 17h1v1h-1zM23 17h1v1h-1zM17 18h1v1h-1zM23 18h1v1h-1zM17 19h1v1h-1zM23 19h1v1h-1zM17 20h1v1h-1zM23 20h1v1h-1zM18 21h5v1h-5z"/><path fill="#2A1A22" d="M18 15h5v1h-5zM18 16h5v1h-5zM18 17h5v1h-5zM18 18h5v1h-5zM18 19h5v1h-5zM18 20h5v1h-5z"/><path fill="#B9AAB2" d="M12 12h5v1h-5zM11 13h1v1h-1zM17 13h1v1h-1zM11 14h1v1h-1zM17 14h1v1h-1zM11 15h1v1h-1zM17 15h1v1h-1zM11 16h1v1h-1zM17 16h1v1h-1zM11 17h1v1h-1zM17 17h1v1h-1zM11 18h1v1h-1zM17 18h1v1h-1zM12 19h5v1h-5z"/><path fill="#2A1A22" d="M12 13h5v1h-5zM12 14h5v1h-5zM12 15h5v1h-5zM12 16h5v1h-5zM12 17h5v1h-5zM12 18h5v1h-5z"/></g>
-    <g id="face-happy"><path fill="#2A1A22" d="M4 17h5v1h-5zM3 18h1v1h-1zM9 18h1v1h-1z"/><path fill="#2A1A22" d="M19 17h5v1h-5zM18 18h1v1h-1zM24 18h1v1h-1z"/><path fill="#2A1A22" d="M12 15h5v1h-5zM11 16h1v1h-1zM17 16h1v1h-1z"/><path fill="#5A2433" d="M12 23h6v1h-6zM12 24h1v1h-1zM17 24h1v1h-1zM13 25h1v1h-1zM16 25h1v1h-1zM14 26h2v1h-2z"/><path fill="#FFFFFF" d="M13 24h1v1h-1zM16 24h1v1h-1z"/><path fill="#5A0F1E" d="M14 24h2v1h-2z"/><path fill="#F07A8A" d="M14 25h2v1h-2z"/></g>
-    <g id="blush"><path fill="#F2A0AE" d="M1 21h3v1h-3zM1 22h3v1h-3z"/><path fill="#F2A0AE" d="M26 21h3v1h-3zM26 22h3v1h-3z"/></g>
-    <g id="face-caret"><path fill="#2A1A22" d="M4 17h5v1h-5zM3 18h1v1h-1zM9 18h1v1h-1z"/><path fill="#2A1A22" d="M19 17h5v1h-5zM18 18h1v1h-1zM24 18h1v1h-1z"/><path fill="#2A1A22" d="M12 15h5v1h-5zM11 16h1v1h-1zM17 16h1v1h-1z"/><path fill="#5A2433" d="M11 23h1v1h-1zM18 23h1v1h-1zM12 24h6v1h-6z"/><path fill="#FFFFFF" d="M13 25h1v1h-1zM16 25h1v1h-1z"/></g>
-    <g id="eyes-open"><path fill="#FFFFFF" d="M7 16h2v1h-2zM7 17h2v1h-2zM9 19h1v1h-1z"/><path fill="#FFFFFF" d="M19 16h2v1h-2zM19 17h2v1h-2zM21 19h1v1h-1z"/><path fill="#FFFFFF" d="M13 14h2v1h-2zM13 15h2v1h-2zM15 17h1v1h-1z"/></g>
+      <path fill="#B32F40" d="M15 2h1v1h-1zM19 3h1v1h-1zM21 4h1v1h-1zM23 5h1v1h-1zM24 6h1v1h-1zM25 7h1v1h-1zM26 8h1v1h-1zM26 9h1v1h-1zM27 10h1v1h-1zM27 11h1v1h-1zM27 12h1v1h-1zM27 13h1v1h-1zM27 14h1v1h-1zM27 15h1v1h-1zM27 16h1v1h-1zM27 17h1v1h-1zM27 18h1v1h-1zM27 19h1v1h-1zM27 20h1v1h-1zM26 21h1v1h-1zM25 22h2v1h-2zM24 23h2v1h-2zM22 24h3v1h-3zM21 25h3v1h-3zM20 26h2v1h-2zM19 27h1v1h-1z"/><path fill="#5A2433" d="M11 23h1v1h-1zM18 23h1v1h-1zM12 24h6v1h-6z"/><path fill="#FFFFFF" d="M13 25h1v1h-1zM16 25h1v1h-1z"/></g>
+    <g id="arm-l"><path fill="#5E4B5A" d="M-1 16h5v1h-5zM-2 17h1v1h-1zM4 17h1v1h-1zM-2 18h1v1h-1zM4 18h2v1h-2zM-2 19h1v1h-1zM3 19h1v1h-1zM5 19h1v1h-1zM-2 20h1v1h-1zM5 20h1v1h-1zM-2 21h1v1h-1zM4 21h1v1h-1zM-1 22h5v1h-5z"/><path fill="#F6F1F0" d="M-1 17h2v1h-2zM-1 18h4v1h-4zM0 19h3v1h-3zM0 20h4v1h-4zM1 21h3v1h-3z"/><path fill="#FFFFFF" d="M1 17h3v1h-3zM3 18h1v1h-1zM4 19h1v1h-1zM4 20h1v1h-1z"/><path fill="#D9CDD2" d="M-1 19h1v1h-1zM-1 20h1v1h-1zM-1 21h2v1h-2z"/></g>
+    <g id="arm-r"><path fill="#7C1E2B" d="M26 16h5v1h-5zM25 17h1v1h-1zM31 17h1v1h-1zM24 18h2v1h-2zM31 18h1v1h-1zM24 19h1v1h-1zM26 19h1v1h-1zM31 19h1v1h-1zM24 20h1v1h-1zM31 20h1v1h-1zM25 21h1v1h-1zM31 21h1v1h-1zM26 22h5v1h-5z"/><path fill="#F2848D" d="M26 17h3v1h-3zM26 18h1v1h-1zM25 19h1v1h-1zM25 20h1v1h-1z"/><path fill="#DE4553" d="M29 17h2v1h-2zM27 18h4v1h-4zM27 19h3v1h-3zM26 20h4v1h-4zM26 21h3v1h-3z"/><path fill="#B32F40" d="M30 19h1v1h-1zM30 20h1v1h-1zM29 21h2v1h-2z"/></g>
+    <g id="eyes-open"><path fill="#DE4553" d="M6 14h5v1h-5zM5 15h1v1h-1zM11 15h1v1h-1zM5 16h1v1h-1zM11 16h1v1h-1zM5 17h1v1h-1zM11 17h1v1h-1zM5 18h1v1h-1zM11 18h1v1h-1zM5 19h1v1h-1zM11 19h1v1h-1zM5 20h1v1h-1zM11 20h1v1h-1zM6 21h5v1h-5z"/><path fill="#2A1A22" d="M6 15h5v1h-5zM6 16h5v1h-5zM6 17h5v1h-5zM6 18h5v1h-5zM6 19h5v1h-5zM6 20h5v1h-5z"/><path fill="#B9AAB2" d="M18 14h5v1h-5zM17 15h1v1h-1zM23 15h1v1h-1zM17 16h1v1h-1zM23 16h1v1h-1zM17 17h1v1h-1zM23 17h1v1h-1zM17 18h1v1h-1zM23 18h1v1h-1zM17 19h1v1h-1zM23 19h1v1h-1zM17 20h1v1h-1zM23 20h1v1h-1zM18 21h5v1h-5z"/><path fill="#2A1A22" d="M18 15h5v1h-5zM18 16h5v1h-5zM18 17h5v1h-5zM18 18h5v1h-5zM18 19h5v1h-5zM18 20h5v1h-5z"/><path fill="#B9AAB2" d="M12 12h5v1h-5zM11 13h1v1h-1zM17 13h1v1h-1zM11 14h1v1h-1zM17 14h1v1h-1zM11 15h1v1h-1zM17 15h1v1h-1zM11 16h1v1h-1zM17 16h1v1h-1zM11 17h1v1h-1zM17 17h1v1h-1zM11 18h1v1h-1zM17 18h1v1h-1zM12 19h5v1h-5z"/><path fill="#2A1A22" d="M12 13h5v1h-5zM12 14h5v1h-5zM12 15h5v1h-5zM12 16h5v1h-5zM12 17h5v1h-5zM12 18h5v1h-5z"/><path fill="#FFFFFF" d="M7 16h2v1h-2zM7 17h2v1h-2zM9 19h1v1h-1z"/><path fill="#FFFFFF" d="M19 16h2v1h-2zM19 17h2v1h-2zM21 19h1v1h-1z"/><path fill="#FFFFFF" d="M13 14h2v1h-2zM13 15h2v1h-2zM15 17h1v1h-1z"/></g>
     <g id="eyes-shut"><path fill="#2A1A22" d="M3 17h1v1h-1zM9 17h1v1h-1zM4 18h5v1h-5z"/><path fill="#2A1A22" d="M18 17h1v1h-1zM24 17h1v1h-1zM19 18h5v1h-5z"/><path fill="#2A1A22" d="M11 15h1v1h-1zM17 15h1v1h-1zM12 16h5v1h-5z"/></g>
-    <g id="cursor"><path fill="#5A2433" d="M11 23h1v1h-1zM18 23h1v1h-1zM12 24h6v1h-6z"/><path fill="#FFFFFF" d="M13 25h1v1h-1zM16 25h1v1h-1z"/></g>
-    <g id="mouth-yawn-1"><path fill="#5A2433" d="M14 23h2v1h-2zM13 24h1v1h-1zM16 24h1v1h-1zM14 25h2v1h-2z"/><path fill="#5A0F1E" d="M14 24h2v1h-2z"/></g>
-    <g id="mouth-yawn-2"><path fill="#5A2433" d="M13 23h4v1h-4zM12 24h1v1h-1zM17 24h1v1h-1zM12 25h1v1h-1zM17 25h1v1h-1zM13 26h4v1h-4z"/><path fill="#5A0F1E" d="M13 24h4v1h-4zM13 25h1v1h-1zM16 25h1v1h-1z"/><path fill="#F07A8A" d="M14 25h2v1h-2z"/></g>
-    <g id="mouth-yawn-3"><path fill="#5A2433" d="M12 22h6v1h-6zM11 23h1v1h-1zM18 23h1v1h-1zM11 24h1v1h-1zM18 24h1v1h-1zM11 25h1v1h-1zM18 25h1v1h-1zM12 26h6v1h-6z"/><path fill="#5A0F1E" d="M12 23h6v1h-6zM12 24h6v1h-6zM12 25h1v1h-1zM17 25h1v1h-1z"/><path fill="#F07A8A" d="M13 25h4v1h-4z"/></g>
-    <g id="mini-puff"><path fill="#7C1E2B" d="M1 0h2v1h-2zM0 1h1v1h-1zM3 1h1v1h-1zM0 2h1v1h-1zM3 2h1v1h-1zM1 3h2v1h-2z"/><path fill="#F2848D" d="M1 1h1v1h-1z"/><path fill="#DE4553" d="M2 1h1v1h-1zM1 2h2v1h-2z"/></g>
-    <g id="hand"><path fill="#5E4B5A" d="M1 0h3v1h-3zM0 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM4 2h1v1h-1zM0 3h1v1h-1zM4 3h1v1h-1zM1 4h3v1h-3z"/><path fill="#FFFFFF" d="M1 1h2v1h-2zM1 2h1v1h-1z"/><path fill="#F6F1F0" d="M3 1h1v1h-1zM2 2h2v1h-2zM1 3h2v1h-2z"/><path fill="#D9CDD2" d="M3 3h1v1h-1z"/></g>
-    <g id="hand-r"><path fill="#7C1E2B" d="M1 0h3v1h-3zM0 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM4 2h1v1h-1zM0 3h1v1h-1zM4 3h1v1h-1zM1 4h3v1h-3z"/><path fill="#F2848D" d="M1 1h2v1h-2zM1 2h1v1h-1z"/><path fill="#DE4553" d="M3 1h1v1h-1zM2 2h2v1h-2zM1 3h2v1h-2z"/><path fill="#B32F40" d="M3 3h1v1h-1z"/></g>
-    <g id="hat"><path fill="#5865C8" d="M9 1h2v1h-2zM8 2h2v1h-2zM8 3h2v1h-2zM8 4h2v1h-2zM7 5h4v1h-4zM7 6h2v1h-2zM10 6h1v1h-1zM6 7h2v1h-2zM11 7h1v1h-1zM6 8h3v1h-3zM10 8h2v1h-2zM5 9h8v1h-8z"/><path fill="#404CB0" d="M10 2h1v1h-1zM10 3h1v1h-1zM10 4h1v1h-1zM11 5h1v1h-1zM11 6h1v1h-1zM12 7h1v1h-1zM12 8h1v1h-1zM13 9h1v1h-1z"/><path fill="#7F8BE8" d="M7 3h1v1h-1zM7 4h1v1h-1zM6 5h1v1h-1zM6 6h1v1h-1zM5 7h1v1h-1zM5 8h1v1h-1zM4 9h1v1h-1z"/><path fill="#FFD84D" d="M9 6h1v1h-1zM8 7h3v1h-3zM9 8h1v1h-1z"/><path fill="#8E94F0" d="M1 10h15v1h-15z"/><path fill="#473F96" d="M1 11h15v1h-15z"/><path fill="#232A66" d="M8 0h4v1h-4zM7 1h2v1h-2zM11 1h1v1h-1zM6 2h2v1h-2zM11 2h1v1h-1zM6 3h1v1h-1zM11 3h1v1h-1zM5 4h2v1h-2zM11 4h2v1h-2zM5 5h1v1h-1zM12 5h1v1h-1zM4 6h2v1h-2zM12 6h2v1h-2zM4 7h1v1h-1zM13 7h1v1h-1zM3 8h2v1h-2zM13 8h2v1h-2zM0 9h4v1h-4zM14 9h3v1h-3zM0 10h1v1h-1zM16 10h1v1h-1zM0 11h1v1h-1zM16 11h1v1h-1zM0 12h17v1h-17z"/></g>
-    <g id="sparkle"><path fill="#FFD84D" d="M2 0h1v1h-1zM2 1h1v1h-1zM0 2h2v1h-2zM3 2h2v1h-2zM2 3h1v1h-1zM2 4h1v1h-1z"/><path fill="#FFFFFF" d="M2 2h1v1h-1z"/></g>
-    <g id="sparkle-c"><path fill="#7FD3F0" d="M1 0h1v1h-1zM0 1h1v1h-1zM2 1h1v1h-1zM1 2h1v1h-1z"/><path fill="#FFFFFF" d="M1 1h1v1h-1z"/></g>
-    <g id="sparkle-p"><path fill="#C9A0F0" d="M2 0h1v1h-1zM2 1h1v1h-1zM0 2h2v1h-2zM3 2h2v1h-2zM2 3h1v1h-1zM2 4h1v1h-1z"/><path fill="#FFFFFF" d="M2 2h1v1h-1z"/></g>
-    <g id="wand"><path fill="#FFD84D" d="M4 0h1v1h-1zM3 1h1v1h-1zM5 1h1v1h-1zM4 2h1v1h-1z"/><path fill="#FFFFFF" d="M4 1h1v1h-1z"/><path fill="#5C3922" d="M3 2h1v1h-1zM2 3h1v1h-1zM1 4h1v1h-1zM0 5h1v1h-1z"/><path fill="#93603E" d="M3 3h1v1h-1zM2 4h1v1h-1zM1 5h1v1h-1z"/></g>
-  </defs>
-  <g transform="scale(.5)">
-    <g class="sh-v"><use href="#shadow"/></g>
-    <g class="sh-s-v"><use href="#shadow-sm"/></g>
-    <g class="rig-m">
-      <use href="#cloud"/>
-      <g class="f-eye-rings-v"><use href="#eye-rings"/></g>
-      <g class="f-eyes-open-v"><use href="#eyes-open"/></g>
-      <g class="f-eyes-shut-v"><g class="f-eyes-shut-m"><use href="#eyes-shut"/></g></g>
-      <use href="#cursor"/>
+
+    <!-- ===== wizard hat: stepped cone (outline + purple + light left edge), brim, gold star ===== -->
+    <g id="hat"><g transform="translate(0 -6)">
+      <path fill="#5865C8" d="M11 -2h2v1h-2zM12 -1h1v1h-1zM11 0h4v1h-4zM11 1h6v3h-6zM18 3h1v1h-1zM10 4h10v1h-10zM9 5h5v1h-5zM15 5h6v1h-6zM8 6h1v1h-1zM10 6h10v1h-10zM21 6h1v1h-1zM7 7h16v1h-16zM6 8h18v1h-18z"/>
+      <path fill="#2C2557" d="M4 9h22v1h-22zM4 11h22v2h-22z"/>
+      <path fill="#232A66" d="M10 -3h4v1h-4zM9 -2h1v1h-1zM14 -2h1v1h-1zM10 -1h1v1h-1zM15 -1h1v1h-1zM9 0h1v4h-1zM16 0h1v1h-1zM17 1h2v1h-2zM18 2h1v1h-1zM19 3h2v1h-2zM8 4h1v1h-1zM21 4h1v1h-1zM7 5h1v1h-1zM22 5h1v1h-1zM6 6h1v1h-1zM23 6h1v1h-1zM5 7h1v1h-1zM24 7h1v1h-1zM4 8h1v1h-1zM25 8h1v1h-1zM3 9h1v4h-1zM26 9h1v4h-1zM1 13h2v1h-2zM27 13h2v1h-2zM0 14h1v1h-1zM29 14h1v1h-1zM1 15h28v1h-28z"/>
+      <path fill="#8E94F0" d="M3 13h12v1h-12zM1 14h14v1h-14z"/>
+      <path fill="#6A70D8" d="M15 13h12v1h-12zM15 14h14v1h-14z"/>
+      <path fill="#473F96" d="M4 10h22v1h-22z"/>
+      <path fill="#7F8BE8" d="M10 -2h1v1h-1zM11 -1h1v1h-1zM10 0h1v2h-1zM10 3h1v1h-1zM9 4h1v1h-1zM8 5h1v1h-1zM7 6h1v1h-1zM6 7h1v1h-1zM5 8h1v1h-1z"/>
+      <path fill="#404CB0" d="M13 -2h1v1h-1zM14 -1h1v1h-1zM15 0h1v1h-1zM17 2h1v1h-1zM20 4h1v1h-1zM21 5h1v1h-1zM22 6h1v1h-1zM23 7h1v1h-1zM24 8h1v1h-1z"/>
+      <path fill="#FFFFFF" d="M13 -1h1v1h-1zM10 2h1v1h-1zM17 3h1v1h-1zM14 5h1v1h-1zM9 6h1v1h-1zM20 6h1v1h-1z"/>
+    </g></g>
+    <!-- wand: dark stick from the pincer up and out, gold tip -->
+    <g id="wand">
+      <path fill="#5C3922" d="M30 18h1v1h-1zM31 17h1v1h-1zM32 16h1v1h-1zM33 15h1v1h-1zM34 14h1v1h-1z"/>
+      <path fill="#93603E" d="M30 17h1v1h-1zM31 16h1v1h-1zM32 15h1v1h-1zM33 14h1v1h-1z"/>
+      <path fill="#FFD84D" d="M34 12h1v3h-1zM33 13h3v1h-3z"/>
+      <path fill="#FFFFFF" d="M34 13h1v1h-1z"/>
     </g>
-    <g class="hat-m"><use href="#hat"/></g>
-    <g class="wand-m"><use href="#wand"/></g>
-    <g class="hl-m"><use href="#hand"/></g>
-    <g class="hr-m"><use href="#hand-r"/></g>
-    <g class="spk0-sparkle-v"><g class="spk0-sparkle-m"><use href="#sparkle"/></g></g>
-    <g class="spk1-sparkle-p-v"><g class="spk1-sparkle-p-m"><use href="#sparkle-p"/></g></g>
-    <g class="spk2-sparkle-c-v"><g class="spk2-sparkle-c-m"><use href="#sparkle-c"/></g></g>
+    <g id="spark">
+      <path d="M1 0h1v3h-1zM0 1h3v1h-3z"/>
+    </g>
+  </defs>
+
+  <g transform="scale(.5)">
+    <path fill="#000000" fill-opacity="0.3" d="M3 30h24v1h-24z"/>
+    <path fill="#000000" fill-opacity="0.15" d="M6 31h18v1h-18z"/>
+    <use href="#leg1"/><use href="#leg2"/><use href="#leg3"/><use href="#leg4"/>
+    <g class="bob">
+      <use href="#torso"/>
+      <use href="#arm-l"/>
+      <g class="ey-open"><use href="#eyes-open"/></g>
+      <g class="ey-shut"><use href="#eyes-shut"/></g>
+      <use href="#hat"/>
+      <g class="wave"><use href="#arm-r"/><use href="#wand"/></g>
+    </g>
+    <!-- sparkles spawn near the wand tip and drift up -->
+    <g transform="translate(33 9)">
+      <g class="spk" fill="#FFD84D"><use href="#spark"/></g>
+      <g class="spk k2" fill="#7FD3F0"><use href="#spark"/></g>
+      <g class="spk k3" fill="#C9A0F0"><use href="#spark"/></g>
+      <g class="spk k4" fill="#F59A8C"><use href="#spark"/></g>
+    </g>
   </g>
 </svg>

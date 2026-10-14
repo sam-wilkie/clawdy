@@ -261,9 +261,28 @@ cc.Pose = Pose
 
 # ---------------------------------------------------------------- hands
 
-MITTEN = [".OOO.", "OLLBO", "OLBBO", "OBBSO", ".OOO."]
-HAND_W = art(MITTEN, {"O": W_O, "L": W_L, "B": W_B, "S": W_S})
-HAND_R = art(MITTEN, {"O": R_O, "L": R_L, "B": R_B, "S": R_S})
+# 8 x 7 mitten with a thumb lobe and a crease, so the hands read as hands. The red
+# (right) mitten has its thumb on the left, towards the body; the white one is its
+# mirror. Drawn 2 px left and 1 px up of the engine's 5 x 5 hand spot so it stays
+# centred on it.
+MITTEN = ["..OOOOO.",
+          ".OLLLBBO",
+          "OOLBBBBO",
+          "OLOBBBSO",
+          "OLBBBBSO",
+          ".OBBBSSO",
+          "..OOOOO."]
+MITTEN_W = [r[::-1] for r in MITTEN]
+W_PAL = {"O": W_O, "L": W_L, "B": W_B, "S": W_S}
+R_PAL = {"O": R_O, "L": R_L, "B": R_B, "S": R_S}
+HAND_W = art(MITTEN_W, W_PAL, -2, -1)
+HAND_R = art(MITTEN, R_PAL, -2, -1)
+
+
+def mitten_at(cx: float, cy: float, side: str) -> str:
+    """A mitten centred on (cx, cy), for the crab-skinned states."""
+    rows, pal = (MITTEN_W, W_PAL) if side == "w" else (MITTEN, R_PAL)
+    return art(rows, pal, round(cx - 4), round(cy - 3.5))
 
 
 def hand_layers(*names: str) -> list:
@@ -379,6 +398,32 @@ def own_props() -> dict[str, str]:
     return p
 
 
+# ---------------------------------------------------------------- welding props (building)
+
+STEEL_O, STEEL_D, STEEL, STEEL_L = "#2F353C", "#6B737D", "#A9B2BC", "#DCE2E8"
+HOT, HOT_L, WARM = "#FF7A1A", "#FFE36B", "#C2551E"
+BEAM_H = 20
+
+
+def welding_props() -> dict[str, str]:
+    flange = ["OOOOOOOOO", "OLLLLLLSO", "OOOOLSOOO"]
+    web = ["...OLSO.."]
+    beam = flange + web * (BEAM_H - 6) + flange[::-1]
+    p = {"beam": cc.sprite(beam, {"O": STEEL_O, "L": STEEL_L, "S": STEEL_D})}
+    p["torch"] = cc.sprite(["...OOO....",
+                            "OOOODDOOO.",
+                            "ORRODDLLLO",
+                            "OOOODDOOO.",
+                            "...OOO...."], {"O": STEEL_O, "R": R_B, "D": STEEL_D, "L": "#C98A3A"})
+    p["flame"] = cc.sprite(["W.", "WY", "W."], {"W": "#FFFFFF", "Y": HOT_L})
+    p["spark-a"] = cc.sprite(["Y...Y..", ".Y.Y...", "..W..YY", ".Y.Y...", "Y...Y.."], {"Y": HOT_L, "W": "#FFFFFF"})
+    p["spark-b"] = cc.sprite(["..Y....", "Y.Y.Y..", ".YWY...", "Y.Y.YY.", "..Y...Y"], {"Y": HOT, "W": HOT_L})
+    for k, c in enumerate((HOT_L, HOT, WARM)):
+        p[f"seam-{k}"] = f'<path fill="{c}" d="M0 0h1v1h-1z"/>'
+    p["smoke-w"] = cc.outlined([".G.", "GGG"], {"G": "#C9C4CC"}, "#8A848E", diag=False)
+    return p
+
+
 def kit() -> dict[str, str]:
     """The cloud's kit() with our bodies (no dotted dim outline: tonal outlines are
     two colours) plus our faces and props."""
@@ -391,6 +436,7 @@ def kit() -> dict[str, str]:
     lib.update(cc.props())
     lib["face-x-dim"] = lib["face-x"].replace(EYE_INK, DIM_INK)
     lib.update(own_props())
+    lib.update(welding_props())
     return lib
 
 
@@ -478,27 +524,6 @@ def render_error() -> str:
                        "limp on the floor, slow breath, grey smoke rises, a red ERROR label blinks.", layers, pose)
 
 
-def render_low_battery() -> str:
-    """clawd-idle-low-battery-v2: dozing body that sinks and rises over a 4 s
-    breath, drooping hands, eyes slit shut with one half-open peek, a red battery
-    whose last bar pulses. 8 s."""
-    fps, n = 6, 48
-
-    def pose(f):
-        sink = (f % 24) >= 12
-        peek = 30 <= f < 36
-        p = Pose().body("sq" if sink else "n", 0, 0, "half" if peek else "shut")
-        droop = 3 if sink else 2
-        p["hl"] = at(L_REST, 0, droop)
-        p["hr"] = at(R_REST, 0, droop)
-        p["bat/on" if (f // 3) % 2 == 0 else "bat/off"] = (17, -11)
-        return p
-
-    layers = BASE + hand_layers("hl", "hr") + L("bat/on=battery", "bat/off=battery-dim")
-    return write_state("low_battery", fps, n, "Crab beats: dozes and sinks over a 4 s breath, mittens droop, eyes "
-                       "shut with one half-open peek, the last bar of a red battery pulses.", layers, pose)
-
-
 def render_happy() -> str:
     """clawd-happy-v2: two hops with squash, flapping hands, happy eyes,
     twinkling sparkles. 2 s at 10 fps."""
@@ -522,59 +547,6 @@ def render_happy() -> str:
     layers = BASE + hand_layers("hl", "hr") + [(f"spk{k}", use(s)) for k, (_, s) in enumerate(spots)]
     return write_state("happy", fps, n, "Crab beats: ^ ^ eyes with blush, two hops with squash and stretch, "
                        "mittens flap while airborne, sparkles twinkle around.", layers, pose, viewbox="-12 -15 40 40")
-
-
-def render_beacon() -> str:
-    """clawd-working-beacon-v2: the antenna tip flashes as each wave is emitted,
-    cyan (( )) arcs travel outward (a new wave every 4 frames, two in flight) and
-    turn dotted at the edge, the body dips on every emission. 2 s at 8 fps."""
-    fps, n = 8, 16
-
-    def pose(f):
-        emit = f % 4 == 0
-        p = Pose().body("sq" if emit else "n", 0, 0, "rest", look=(0, -1))
-        p["ant"] = (11, -11)
-        if emit:
-            p["tip"] = (11, -11)
-        p["hl"] = at(L_REST, 0, 1 if emit else 0)
-        p["hr"] = (16, -3)  # steadies the mast
-        for w in range(2):
-            age = (f - 4 * w) % 8
-            if age < 3:
-                p[f"wave{w}/{age}"] = (13, -9)
-        return p
-
-    waves = [(f"wave{w}/{a}", use(f"wave-{a}")) for w in range(2) for a in range(3)]
-    layers = (cc.SHADOW_LAYERS + L("ant=antenna", "tip=tip-on") + cc.BODY_LAYERS + cc.FACE_LAYERS +
-              hand_layers("hl", "hr") + waves)
-    return write_state("beacon", fps, n, "Crab beats: the antenna tip flashes on each emission, cyan (( )) arcs "
-                       "travel outward (two in flight, dotted at the edge), the body dips with every wave.",
-                       layers, pose)
-
-
-def render_debugger() -> str:
-    """clawd-working-debugger-v2: a hunched sneak left and right (three round
-    trips), tiptoe steps, the magnifier held over the right eye. 12 s at 8 fps."""
-    fps, n = 8, 96
-    trip = 32
-
-    def dx(f):
-        t = f % trip
-        step = t if t < 16 else 32 - t
-        return -6 + round(step * 12 / 16)
-
-    def pose(f):
-        tip = -1 if f % 4 in (1, 2) else 0  # tiptoe: a tiny lift every other step
-        p = Pose().body("sq", dx(f), tip, "rest", look=(1 if (f % trip) < 16 else -1, 0))
-        hx = dx(f - 1)
-        p["glass"] = (17 + hx, 15 + tip)
-        p["hr"] = (26 + hx, 23 + tip)
-        p["hl"] = at(L_REST, hx, 1 + tip)
-        return p
-
-    layers = BASE + L("glass") + hand_layers("hl", "hr")
-    return write_state("debugger", fps, n, "Crab beats: hunched sneak left and right (three round trips) on "
-                       "tiptoe, the red mitten holds a magnifier over the right eye.", layers, pose)
 
 
 def render_waiting_reply() -> str:
@@ -632,71 +604,6 @@ def render_alert() -> str:
                        "squash, six stretch-and-land jumps with mittens flapping up and out, recover.", layers, pose)
 
 
-def render_disconnected() -> str:
-    """clawd-disconnected-v2: standing to the left staring at a big floating
-    Bluetooth badge whose halo pulses; a "?" pops over the head, the head tilts,
-    and near the end a "!" pops as it hops. 3.2 s at 10 fps."""
-    fps, n = 10, 32
-    hop = {24: ("st", -2), 25: ("n", -4), 26: ("n", -3), 27: ("n", -1), 28: ("sq", 0)}
-
-    def pose(f):
-        v, dy = hop.get(f, ("n", 0))
-        tilt = 1 if 8 <= f < 20 and (f // 4) % 2 else 0  # stepped head tilt, no rotation
-        p = Pose().body(v, -6 + tilt, dy, "o" if f >= 24 else "rest", look=(1, -1 if f < 20 else 0))
-        bob = -1 if (f // 8) % 2 else 0
-        p["badge"] = (30, 0 + bob)
-        p[f"halo/{(f // 4) % 2}"] = (35, 5 + bob)
-        p["hl"] = at(L_REST, -6, 0)
-        p["hr"] = at(R_REST, -6, 0)
-        if 6 <= f < 22:
-            p["q"] = (6, -12 + (-1 if f in (6, 7) else 0))
-        if 24 <= f < 30:
-            p["bang"] = (6, -14 + dy)
-        return p
-
-    layers = (BASE + L("halo/0=bt-halo-0", "halo/1=bt-halo-1", "badge=bt-badge") + hand_layers("hl", "hr") +
-              L("q=q-cyan", "bang"))
-    return write_state("disconnected", fps, n, "Crab beats: stands left staring at a floating Bluetooth badge with "
-                       "a pulsing halo, a ? pops, the head tilts, a ! pops as it hops.", layers, pose)
-
-
-# ================================================================ grid v2 key poses
-
-def render_building() -> str:
-    fps, n = 8, 24
-    carry = [(25, 16), (26, 12), (28, 8), (30, 4), (31, 2), (32, 1), (32, 1), (32, 3), (32, 5), (32, 7),
-             (32, 8), (32, 9)]
-    lift = [(32, 9), (32, 7), (31, 5), (30, 8), (28, 12), (26, 15)]
-
-    def pose(f):
-        if f < 12:
-            p = Pose().body("n", 0, 0, "focus-0" if f % 4 < 2 else "focus-1", look=(1, -1))
-            hand, held = carry[f], True
-        elif f < 18:
-            landed = f in (12, 13)
-            p = Pose().body("sq" if f == 12 else "n", 0, 0, "happy" if landed else "rest", look=(1, 0))
-            hand, held = (26, 19), False
-            if f == 12:
-                p["burst"] = (31, 4)
-            if f == 13:
-                p["burst-2"] = (30, 2)
-        else:
-            p = Pose().body("n", 0, 0, "rest", look=(1, -1))
-            hand, held = lift[f - 18], True
-        p["hl"] = at(L_REST, 0, -1 if (f // 6) % 2 else 0)
-        p["hr"] = hand
-        p["blk-1"] = (32, 24)
-        p["blk-2"] = (32, 17)
-        p["blk-3"] = (hand[0] + 1, hand[1] - 6) if held else (32, 10)
-        return p
-
-    layers = (cc.SHADOW_LAYERS + L("blk-1=block-blue", "blk-2=block-green") + cc.BODY_LAYERS + cc.FACE_LAYERS +
-              L("blk-3=block-gold") + hand_layers("hl", "hr") + L("burst", "burst-2"))
-    return write_state("building", fps, n, "Grid v2 CONSTRUYENDO: the red mitten lifts a gold { } block over a "
-                       "blue and green stack, sets it down with a squash and sparks, and picks it up again.",
-                       layers, pose)
-
-
 def render_cool() -> str:
     fps, n = 6, 30
 
@@ -720,9 +627,201 @@ def render_cool() -> str:
                        "and a red thumbs-up that bounces while two sparkles twinkle.", layers, pose, hold_s=1.5)
 
 
+
+# ================================================================ crab-skinned states
+# These states are the Claude crab's own animation files with the crab swapped for
+# the monster: same scene, same CSS timing, same props. Legs are emptied, the torso
+# becomes the monster body (with its mouth), pincers become mittens centred where the
+# pincers were, the eye groups become monster eyes, and props that sit on the crab's
+# head move up to the monster's head (the crab's top is y 12, the monster's y 2).
+
+import re
+
+CRAB = Path(__file__).resolve().parents[1] / "desktop" / "renderer" / "assets"
+HEAD_UP = -10
+
+
+def def_groups(svg: str) -> list[tuple[str, int, int]]:
+    """(id, start of content, end of content) for every <g id=...>."""
+    out = []
+    for m in re.finditer(r'<g id="([^"]+)"[^>]*>', svg):
+        depth, j = 1, m.end()
+        while depth:
+            a, b = svg.find("<g", j), svg.find("</g>", j)
+            if a != -1 and a < b:
+                depth, j = depth + 1, a + 2
+            else:
+                depth, j = depth - 1, b + 4
+        out.append((m.group(1), m.end(), j - 4))
+    return out
+
+
+def bbox(svg: str) -> tuple[float, float, float, float]:
+    xs, ys = [], []
+    for d in re.findall(r' d="([^"]+)"', svg):
+        x = y = 0.0
+        for cmd, args in re.findall(r"([MmHhVvZz])([^MmHhVvZz]*)", d):
+            nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", args)]
+            if cmd == "M":
+                x, y = nums[0], nums[1]
+            elif cmd == "h":
+                x += nums[0]
+            elif cmd == "v":
+                y += nums[0]
+            elif cmd == "H":
+                x = nums[0]
+            elif cmd == "V":
+                y = nums[0]
+            if cmd not in "Zz":
+                xs.append(x)
+                ys.append(y)
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def shifted(rows: list[str], dx: int, dy: int) -> list[str]:
+    w, h = len(rows[0]), len(rows)
+    grid = [["."] * w for _ in range(h)]
+    for y, r in enumerate(rows):
+        for x, c in enumerate(r):
+            if c != "." and 0 <= x + dx < w and 0 <= y + dy < h:
+                grid[y + dy][x + dx] = c
+    return ["".join(r) for r in grid]
+
+
+HILITE5 = [".....", ".HH..", ".HH..", ".....", "...H.", "....."]
+OPEN_EYES = rings() + per_eye(HILITE5, IP)
+CRAB_EYES = {
+    "eyes-open": OPEN_EYES, "eyes-focus": OPEN_EYES,
+    "eyes-ur": rings() + per_eye(shifted(HILITE5, 1, -1), IP),
+    "eyes-wide": rings() + per_eye(STARTLED, IP),
+    "eyes-shut": spread(CLOSED), "eyes-shut-hi": spread(CLOSED),
+    "eyes-squint": rings() + per_eye(HALF, IP),
+    "eye-l-squint": rings() + per_eye(HALF, IP, only={0}) + per_eye(HILITE5, IP, only={1, 2}),
+}
+
+
+def torso(name: str) -> str:
+    """Monster body for a crab torso def: the squashed 24x13 torso squashes, the
+    leaning 22x14-lpA... torsos lean by A/4 px, everything else is the plain body."""
+    if name == "torso-24x13":
+        return cc.layer(monster_shade(monster_mask(0, 1.08, 0.88))) + mouth(SMALL, 2)
+    m = re.match(r"torso-\d+x\d+-lp(\d+)", name)
+    dx = round(int(m.group(1)) / 4) if m else 0
+    body = cc.layer(monster_shade(monster_mask(0))) + mouth(SMILE)
+    return f'<g transform="translate({dx} 0)">{body}</g>' if dx else body
+
+
+def crab_skin(state: str, src: str, shifts: dict, edit=None) -> str:
+    svg = (CRAB / src).read_text(encoding="utf-8")
+    for gid, a, b in sorted(def_groups(svg), key=lambda g: -g[1]):
+        content = svg[a:b]
+        if gid.startswith("leg"):
+            new = ""
+        elif gid.startswith("torso"):
+            new = torso(gid)
+        elif gid.startswith("arm-"):
+            x0, y0, x1, y1 = bbox(content)
+            new = mitten_at((x0 + x1) / 2, (y0 + y1) / 2, "w" if gid.startswith("arm-l") else "r")
+        elif gid in CRAB_EYES:
+            new = CRAB_EYES[gid]
+        else:
+            dxy = next((v for k, v in shifts.items() if gid == k or (k.endswith("*") and gid.startswith(k[:-1]))), None)
+            if dxy is None:
+                continue
+            new = f'<g transform="translate({dxy[0]} {dxy[1]})">{content}</g>'
+        svg = svg[:a] + new + svg[b:]
+    if edit:
+        svg = edit(svg)
+    svg = re.sub(r"<!--.*?-->", "", svg, count=1, flags=re.S)
+    svg = svg.replace("<defs>", f"<!-- Monster v2 {state}: the Claude crab's {src} (same scene and timing) "
+                      "with the monster's body, eyes and mittens. -->\n  <defs>", 1)
+    (OUT / f"monster-{state}-v2.svg").write_text(svg, encoding="utf-8")
+    return state
+
+
+def crab_beacon() -> str:
+    return crab_skin("beacon", "clawd-working-beacon-v2.svg",
+                     {"antenna": (0, HEAD_UP), "tip*": (0, HEAD_UP)},
+                     lambda s: re.sub(r'<g class="w(\d+)">', rf'<g transform="translate(0 {HEAD_UP})" class="w\1">', s))
+
+
+def crab_debugger() -> str:
+    # the lens moves from the crab's right eye (y 15) onto the monster's (y 17.5)
+    return crab_skin("debugger", "clawd-working-debugger-v2.svg", {"lens": (-1, 3), "handle": (-1, 3)})
+
+
+def crab_thinking() -> str:
+    return crab_skin("thinking", "clawd-working-thinking-v2.svg", {"think-*": (0, HEAD_UP)})
+
+
+def crab_disconnected() -> str:
+    return crab_skin("disconnected", "clawd-disconnected-v2.svg", {"qmark": (0, HEAD_UP), "bang": (0, HEAD_UP)})
+
+
+def crab_low_battery() -> str:
+    return crab_skin("low_battery", "clawd-idle-low-battery-v2.svg", {"battery*": (0, -6)})
+
+
+def crab_sweeping() -> str:
+    return crab_skin("sweeping", "clawd-working-sweeping-v2.svg", {})
+
+
+# The wizard hat is as wide as the crab's flat head; on the round monster its brim
+# sits higher, where the head is about as wide as the brim.
+HAT_UP = -6
+
+
+def crab_wizard() -> str:
+    return crab_skin("wizard", "clawd-wizard-v2.svg", {"hat": (0, HAT_UP)})
+
+
+def crab_hat_mishap() -> str:
+    return crab_skin("hat_mishap", "clawd-hat-mishap-v2.svg", {"hat-*": (0, HAT_UP), "spk-*": (0, HAT_UP)})
+
+
+# ================================================================ building: welding
+# Not the crab's hammer nor the cloud's bricks: the monster welds a steel I-beam. The
+# red mitten runs a torch down the beam, sparks spray from the tip, the glowing seam
+# cools from orange to brown behind it, a puff of smoke, eyes squint in focus.
+
+def render_building() -> str:
+    fps, n = 8, 24
+    seam_len = 12
+    bx, by = 33, 29 - BEAM_H  # the beam stands on the ground at the right
+
+    def pose(f):
+        welding = f < seam_len
+        shake = (f % 2) if welding else 0
+        p = Pose().body("n", 0, 0, "half" if welding else "rest", look=(1, 0))
+        p["hl"] = at(L_REST, 0, -1 if (f // 6) % 2 else 0)
+        tip_y = by + 4 + min(f, seam_len - 1)  # the torch follows the seam down
+        p["hr"] = (24 + shake, tip_y - 1)
+        p["torch"] = (26 + shake, tip_y - 2)
+        if welding:
+            p["flame"] = (36, tip_y - 1)
+            p["spk/a" if f % 2 == 0 else "spk/b"] = (37, tip_y - 3)
+        for k in range(min(f + 1, seam_len)):  # hot at the torch, cooling behind it
+            age = (f - k) if welding else 99
+            heat = 0 if age < 2 else 1 if age < 5 else 2 if age < 9 else None
+            if heat is not None:
+                p[f"seam{k}/{heat}"] = (bx + 4, by + 4 + k)
+        if 14 <= f < 22:
+            p["smoke"] = (35 + (f - 14) // 3, by + 2 - (f - 14))
+        p["beam"] = (bx, by)
+        return p
+
+    seam = [(f"seam{k}/{h}", use(f"seam-{h}")) for k in range(seam_len) for h in range(3)]
+    layers = (cc.SHADOW_LAYERS + L("beam") + seam + cc.BODY_LAYERS + cc.FACE_LAYERS + L("torch") +
+              hand_layers("hl", "hr") + L("flame", "spk/a=spark-a", "spk/b=spark-b", "smoke=smoke-w"))
+    return write_state("building", fps, n, "Welding: the red mitten runs a torch down a steel I-beam, sparks "
+                       "spray, the seam glows and cools from orange to brown, a puff of smoke, eyes squint.",
+                       layers, pose)
+
 OWN = {r.__name__.removeprefix("render_"): r for r in (
-    render_error, render_low_battery, render_happy, render_beacon, render_debugger, render_alert,
-    render_disconnected, render_building, render_cool)}
+    render_error, render_happy, render_alert, render_building, render_cool)}
+OWN.update({f.__name__.removeprefix("crab_"): f for f in (
+    crab_beacon, crab_debugger, crab_thinking, crab_disconnected, crab_low_battery, crab_sweeping,
+    crab_wizard, crab_hat_mishap)})
 STATE_RENDERERS = [render_waiting_reply] + [OWN.get(r.__name__.removeprefix("render_"), r)
                                             for r in cc.STATE_RENDERERS]
 
