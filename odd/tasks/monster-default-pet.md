@@ -25,7 +25,7 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 
 - T6 L25 · centred disconnected marks (crab too), bare X error eyes, crab sleeping, calm sweeping eyes, big wizard hat · inline · commit: 73a6325
 
-- T7 L27 · three-lens shades on the crab cool, crab-style X, Codex cool on the crab animation (local) · inline · commit: pending
+- T7 L27 · three-lens shades on the crab cool, crab-style X, Codex cool on the crab animation (local) · inline · commit: ef48fbc
 
 ## Log
 
