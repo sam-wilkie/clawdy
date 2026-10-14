@@ -39,8 +39,8 @@ const EDGE_INSET = 24;
 /** Fixed left-to-right display order so the layout is stable as products
  *  come and go. Products not listed fall after these, in arrival order. */
 // opencode and antigravity follow kiro, in the order they were added.
-const AGENT_ORDER = ["claude", "codex", "kiro", "opencode", "antigravity"];
-const AGENT_NAMES = { claude: "Claude", codex: "Codex", kiro: "Kiro", opencode: "OpenCode", antigravity: "Antigravity" };
+const AGENT_ORDER = ["claude", "codex", "kiro", "opencode", "antigravity", "pi"];
+const AGENT_NAMES = { claude: "Claude", codex: "Codex", kiro: "Kiro", opencode: "OpenCode", antigravity: "Antigravity", pi: "Pi" };
 const agentIcon = (agent) => path.join(__dirname, "renderer", "assets", "providers", `${["claude", "codex", "kiro", "opencode"].includes(agent) ? agent : "claude"}.png`);
 
 function setPanelIdentity(win, agent) {

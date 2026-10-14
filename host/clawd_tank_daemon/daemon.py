@@ -183,6 +183,7 @@ SESSION_AGENT_PREFIXES = (
     ("kiro:", "kiro"),
     ("opencode:", "opencode"),
     ("antigravity:", "antigravity"),
+    ("pi:", "pi"),
 )
 
 

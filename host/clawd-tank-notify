@@ -134,9 +134,15 @@ def _read_decision(sock: socket.socket, wait_seconds: float):
         return None
 
 
-def _print_decision(decision) -> None:
-    """Print the PermissionRequest hook output Claude Code understands. The only
-    thing this script ever writes to stdout."""
+def _print_decision(decision, source="claude") -> None:
+    """Print the permission decision the calling agent reads. The only thing
+    this script ever writes to stdout. Pi's extension reads {"decision": ...};
+    Claude Code reads the PermissionRequest hookSpecificOutput."""
+    if source == "pi":
+        if decision in ("allow", "deny"):
+            sys.stdout.write(json.dumps({"decision": decision}, separators=(",", ":")) + "\n")
+            sys.stdout.flush()
+        return
     if decision == "allow":
         outcome = {"behavior": "allow"}
     elif decision == "deny":
@@ -176,6 +182,9 @@ def _translate_payload(payload: dict, source: str):
     if source == "opencode":
         from clawd_tank_daemon.opencode_protocol import opencode_hook_payload_to_daemon_message
         return opencode_hook_payload_to_daemon_message(payload)
+    if source == "pi":
+        from clawd_tank_daemon.pi_protocol import pi_hook_payload_to_daemon_message
+        return pi_hook_payload_to_daemon_message(payload)
     from clawd_tank_daemon.protocol import hook_payload_to_daemon_message
     return hook_payload_to_daemon_message(payload)
 
@@ -240,7 +249,7 @@ def _parse_source(argv) -> str:
     embedded NOTIFY_SCRIPT in clawd_tank_menubar/hooks.py: the installed hook
     passes "codex" or "kiro" as argv[1], and no arg at all means Claude Code.
     Unknown values fall back to ``claude``."""
-    known = ("claude", "codex", "kiro", "opencode", "antigravity")
+    known = ("claude", "codex", "kiro", "opencode", "antigravity", "pi")
     value = argv[0] if argv else "claude"
     return value if value in known else "claude"
 
@@ -313,7 +322,7 @@ def main():
         start_daemon()
 
     # Forward to daemon; a permission decision (if any) is the only stdout.
-    _print_decision(send_to_daemon(payload, source))
+    _print_decision(send_to_daemon(payload, source), source)
 
 
 if __name__ == "__main__":

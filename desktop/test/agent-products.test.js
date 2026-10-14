@@ -70,3 +70,10 @@ test("dashboard names include new products", () => {
   assert.equal(vm.runInContext("AGENT_NAMES.antigravity", ctx), "Antigravity");
   assert.equal(vm.runInContext("AGENT_NAMES.opencode", ctx), "OpenCode");
 });
+
+test("product order and names include pi (gentle-shell) after antigravity", () => {
+  const ctx = mainContext();
+  const sorted = vm.runInContext('orderedAgents(["pi","antigravity","claude"])', ctx);
+  assert.deepEqual([...sorted], ["claude", "antigravity", "pi"]);
+  assert.equal(vm.runInContext("AGENT_NAMES.pi", ctx), "Pi");
+});
