@@ -114,7 +114,7 @@ Cuando un agente pide permiso, la mascota correspondiente muestra los botones **
 
 ### Estados de la mascota
 
-La mascota de escritorio usa un juego de arte SVG propio, independiente del firmware: 28 estados animados para el cangrejo de Claude, un set de arte pixelado propio para Codex y el monstruo de la marca (`tools/monster_pixel.py`), que es la mascota por defecto de Kiro, OpenCode, Antigravity y de cualquier agente sin arte propio.
+La mascota de escritorio usa un juego de arte SVG propio, independiente del firmware: 28 estados animados para el cangrejo de Claude, un set de arte pixelado propio para Codex y **Mochi**, la mascota por defecto de Kiro, OpenCode, Antigravity y de cualquier agente sin arte propio.
 
 - **Trabajo y herramientas** — pensar, escribir, construir, con el estado ligado a la herramienta en uso.
 - **Subagentes** — `conducting` al lanzar y `grooving` cuando hay subagentes trabajando en segundo plano; el mini-cangrejo cuenta cuántos.
@@ -127,6 +127,12 @@ La mascota de escritorio usa un juego de arte SVG propio, independiente del firm
 - **Esconder** — `going_away` al salir.
 
 Curiosidad: **sacude tres veces la mascota en un segundo** y se marea.
+
+### Mochi, la mascota por defecto
+
+<img src="assets/readme/mochi-sheet.png" alt="Mochi en ocho poses: hola, pensando, soldando, buscando, listo, cool, durmiendo y error" width="100%">
+
+Mochi es el personaje propio de Clawdy: una bolita blanca con una media luna roja, tres ojos juntos y mitones. Nació del monstruo de la marca y aparece con cualquier agente que no tenga mascota propia; Claude conserva a Clawd y Codex su nube. Es atento, tranquilo y un poco torpe: suelda cuando construye, se pone un gorro de mago para buscar y se duerme cuando se acaba la batería. Su tooltip lo presenta y la etiqueta sigue mostrando el agente. Ficha de personaje: [docs/mochi.md](docs/mochi.md); reglas de arte para nuevas mascotas: [docs/pet-art-bible.md](docs/pet-art-bible.md).
 
 ### Íconos
 

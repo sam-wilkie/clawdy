@@ -108,3 +108,25 @@ test("every monster art file the renderer can request exists", () => {
     for (const src of srcs) assert.ok(fs.existsSync(path.resolve(__dirname, "..", "renderer", src)), src);
   }
 });
+
+test("the default monster pet introduces itself as Mochi in its tooltip; crab and cloud keep theirs", () => {
+  const tooltip = (agent) => {
+    const els = new Map();
+    const element = (id) => (els.has(id) ? els.get(id) : els.set(id, stubElement()).get(id));
+    const noop = () => {};
+    const pet = new Proxy({ agent }, { get: (t, k) => (k in t ? t[k] : noop) });
+    const context = vm.createContext({
+      document: { getElementById: element, createElement: stubElement }, window: { pet, addEventListener: noop },
+      setTimeout, clearTimeout, setInterval: noop, requestAnimationFrame: noop, Image: class {},
+    });
+    vm.runInContext(read("renderer/renderer.js"), context);
+    const title = element("crab-hit").title; // the stub answers unset keys with a function
+    return { title: typeof title === "string" ? title : undefined, label: element("crab-label").textContent };
+  };
+  for (const agent of ["kiro", "opencode", "antigravity"]) {
+    assert.equal(tooltip(agent).title, "Mochi · Clic para ver actividad · Arrastra para mover", agent);
+  }
+  assert.equal(tooltip("kiro").label, "Kiro");
+  assert.equal(tooltip("claude").title, undefined);
+  assert.equal(tooltip("codex").title, undefined);
+});

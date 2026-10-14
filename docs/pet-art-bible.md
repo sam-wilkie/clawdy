@@ -88,4 +88,4 @@ A set ships one file per state: `desktop/renderer/assets/<set>/<prefix>-<state>-
 |---|---|---|---|
 | crab | `assets/clawd-*-v2.svg` | hand-made / svgbuild | claude |
 | cloud | `assets/codex/cloud-*-v2.svg` (gitignored, licensing: `NOTICE.md`) | `tools/codex_cloud_pixel.py` (gitignored) | codex |
-| monster | `assets/monster/monster-*-v2.svg` | `tools/monster_pixel.py` (needs the local cloud engine) | every other agent |
+| monster (**Mochi**, character sheet: `docs/mochi.md`) | `assets/monster/monster-*-v2.svg` | `tools/monster_pixel.py` (needs the local cloud engine) | every other agent |

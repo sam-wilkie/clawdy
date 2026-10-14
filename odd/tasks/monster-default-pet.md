@@ -30,6 +30,8 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 - T8 L29 · pet art bible + contact-sheet tool · inline · commit: 9193b7a
 - T9 L29 L31 · new-pet skill + pet_check validator · inline · commit: 19594d1
 
+- T10 L33 · Mochi identity: character sheet, tooltip, presentation sheet, README · inline · commit: pending
+
 ## Log
 
 - L1 (user) "necesito que usando el modelo Opus 5.5 me ayudes a crear las animaciones por default O:\Proyectos\Clawdy\assets\pet-samples\ai\monster-brand-cute-v1.png basadas en las animaciones existentes  y O:\Proyectos\Clawdy\assets\pet-samples\ai\monster-brand-activities-grid-v2.png puedes mirar las memorias de codex respecto a esto"
@@ -64,3 +66,5 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 - L30 (evidence) T8: `docs/pet-art-bible.md` (canvas, pixel rules, parts, 29 states and routes, review lessons, the three ways to make a state, cheap workflow, sets) and `tools/pet_sheet.py` (one contact-sheet PNG per batch). Hook: kind awaiting the user's choice.
 - L31 (user) hook choice: "el hook es para usarlo cada vez q se vayan a crear nuevas mascotas y el proceso sea mas barato porq ya sabe que hacer"
 - L32 (evidence) T9: skill `new-pet` in `.agents/skills/new-pet/SKILL.md` (pi) with a pointer in `.claude/skills/new-pet/SKILL.md` (Claude Code): recipe, which generator parts to change, cheap review loop. `tools/pet_check.py` validates a set without rendering (29 states from renderer.js STATES + alert, viewBox per state, whole-pixel paths); RED (4 failures, no script) then GREEN `python -m unittest tools.tests.test_pet_check` 4/4; monster and cloud sets pass.
+- L33 (user) "perfecto, ahora necesito que le demos identidad a nuetra mascota que sera la default"; choices: name "Mochi"; scope "Ficha de personaje, Nombre visible en la app, Hoja de presentación, Sección en el README".
+- L34 (evidence) T10: `docs/mochi.md` (name, tagline, origin, look, personality, voice, in-app use, keep-in-character rules); tooltip "Mochi · Clic para ver actividad · Arrastra para mover" on monster windows, label still the agent (RED: title was the stub default; GREEN: desktop npm test 46/46); `tools/mochi_sheet.py` -> `assets/readme/mochi-sheet.png` from the real animation frames; README section "Mochi, la mascota por defecto"; art bible sets table names Mochi.
