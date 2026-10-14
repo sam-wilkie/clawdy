@@ -27,7 +27,7 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 
 - T7 L27 · three-lens shades on the crab cool, crab-style X, Codex cool on the crab animation (local) · inline · commit: ef48fbc
 
-- T8 L29 · pet art bible + contact-sheet tool · inline · commit: pending
+- T8 L29 · pet art bible + contact-sheet tool · inline · commit: 9193b7a
 - T9 L29 · token-saving hook (kind pending the user's choice) · pending
 
 ## Log
