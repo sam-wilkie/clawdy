@@ -19,7 +19,7 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 - T2 S1 · renderer selects the monster set for agents without their own art; test · inline · commit: a05b91d
 - T3 S1-S4 · render every state to PNG and inspect; update TODO.md and docs · inline · commit: see git log (docs commit)
 
-- T4 S5-S6 · port the option-2 design into the generator and give the ten states the crab's beats · inline · commit: pending
+- T4 S5-S6 · port the option-2 design into the generator and give the ten states the crab's beats · inline · commit: a130af2
 
 ## Log
 
