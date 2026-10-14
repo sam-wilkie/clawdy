@@ -298,6 +298,12 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
                 print(PERMISSION_DENY_MESSAGE, file=sys.stderr)
                 sys.exit(2)
             return
+        if agent == "pi":
+            # Pi's extension reads {"decision": "allow|deny"} from stdout.
+            if decision in ("allow", "deny"):
+                sys.stdout.write(json.dumps({"decision": decision}, separators=(",", ":")) + chr(10))
+                sys.stdout.flush()
+            return
         if decision == "allow":
             outcome = {"behavior": "allow"}
         elif decision == "deny":
@@ -700,11 +706,61 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
         return None
 
 
+    # Pi (gentle-shell) extension: the shim posts {type, sessionID, directory, tool, args}.
+    # Keep this in sync with clawd_tank_daemon/pi_protocol.py.
+    PI_SESSION_PREFIX = "pi:"
+
+
+    def _pi_tool(raw):
+        if not raw:
+            return ""
+        if raw.startswith("mcp__"):
+            return raw
+        return "passthrough"
+
+
+    def pi_hook_to_message(hook):
+        # Convert a Pi extension payload to a namespaced daemon message.
+        event_type = hook.get("type", "")
+        raw_sid = hook.get("sessionID", "") or hook.get("session_id", "")
+        if not raw_sid:
+            return None
+        session_id = PI_SESSION_PREFIX + raw_sid
+        directory = hook.get("directory", "") or hook.get("cwd", "")
+        project = Path(directory).name if directory else ""
+        pid = None
+
+        if event_type == "session_start":
+            return {"event": "session_start", "session_id": session_id, "project": project, "pid": pid}
+        if event_type == "agent_start":
+            return {"event": "dismiss", "hook": "UserPromptSubmit", "session_id": session_id, "project": project, "pid": pid}
+        if event_type == "turn_end":
+            return {"event": "add", "hook": "Stop", "session_id": session_id, "project": project, "pid": pid, "message": "Esperando tu respuesta"}
+        if event_type == "session_shutdown":
+            return {"event": "dismiss", "hook": "SessionEnd", "session_id": session_id, "pid": pid}
+        if event_type == "tool_call":
+            return {"event": "tool_use", "session_id": session_id, "tool_name": _pi_tool(hook.get("tool", "")), "project": project, "pid": pid}
+        if event_type == "tool_result":
+            return {"event": "tool_done", "session_id": session_id, "tool_name": _pi_tool(hook.get("tool", "")), "project": project, "pid": pid}
+        if event_type == "permission":
+            raw_tool = hook.get("tool", "")
+            # _tool_summary matches Claude's capitalized names, so map Pi's bash to Bash.
+            summary_name = "Bash" if raw_tool == "bash" else raw_tool
+            return {
+                "event": "permission", "session_id": session_id,
+                "tool_name": _pi_tool(raw_tool), "project": project, "pid": pid,
+                "wait": True,
+                "tool_summary": _tool_summary(summary_name, hook.get("args")),
+            }
+        return None
+
+
     _AGENT_TRANSLATORS = {
         "codex": codex_hook_to_message,
         "kiro": kiro_hook_to_message,
         "antigravity": antigravity_hook_to_message,
         "opencode": opencode_hook_to_message,
+        "pi": pi_hook_to_message,
     }
 
 
@@ -2629,3 +2685,65 @@ def uninstall_antigravity_hooks() -> bool:
     if ok:
         logger.info("Uninstalled Antigravity plugin %s", ANTIGRAVITY_PLUGIN_NAME)
     return ok
+
+
+# --- Pi (gentle-shell) extension (S4) ----------------------------------------
+# Pi loads <agent-dir>/extensions/*.js. We own exactly two files there: the
+# extension and its notify command. Nothing else in extensions/ is touched.
+
+PI_EXTENSION_NAME = "clawd-tank.js"
+
+
+def resolve_pi_extension_source(frozen, executable, resourcepath, module_file) -> Path:
+    """Where the bundled Pi extension ships from: host/pi-extension/ in a source
+    checkout, next to the exe in a PyInstaller build (same rule as the OpenCode shim)."""
+    if frozen:
+        base = Path(resourcepath) if resourcepath else Path(executable).parent
+    else:
+        base = Path(module_file).parents[1]
+    return base / "pi-extension" / PI_EXTENSION_NAME
+
+
+PI_EXTENSION_SOURCE = resolve_pi_extension_source(
+    bool(getattr(sys, "frozen", False)), sys.executable,
+    os.environ.get("RESOURCEPATH"), Path(__file__).resolve(),
+)
+PI_COMMAND_NAME = "clawd-tank.command"
+
+
+def _pi_extensions_dir(agent_dir=None) -> Path:
+    if agent_dir is None:
+        env = os.environ.get("PI_CODING_AGENT_DIR")
+        agent_dir = Path(env) if env else Path.home() / ".gentle-shell" / "agent"
+    return Path(agent_dir) / "extensions"
+
+
+def install_pi_hooks(agent_dir=None) -> bool:
+    """Copy the Pi extension and write its notify command. False if the bundled
+    source is missing; nothing is written in that case."""
+    if not PI_EXTENSION_SOURCE.is_file():
+        logger.warning("Not installing Pi extension: bundled source %s not found", PI_EXTENSION_SOURCE)
+        return False
+    ext_dir = _pi_extensions_dir(agent_dir)
+    ext_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(PI_EXTENSION_SOURCE, ext_dir / PI_EXTENSION_NAME)
+    (ext_dir / PI_COMMAND_NAME).write_text(HOOK_COMMAND, encoding="utf-8")
+    logger.info("Installed Pi extension in %s", ext_dir)
+    return True
+
+
+def uninstall_pi_hooks(agent_dir=None) -> bool:
+    """Remove only the two files we own. Idempotent; always True."""
+    ext_dir = _pi_extensions_dir(agent_dir)
+    for name in (PI_EXTENSION_NAME, PI_COMMAND_NAME):
+        (ext_dir / name).unlink(missing_ok=True)
+    return True
+
+
+def are_pi_hooks_installed(agent_dir=None) -> bool:
+    ext_dir = _pi_extensions_dir(agent_dir)
+    ext = ext_dir / PI_EXTENSION_NAME
+    cmd = ext_dir / PI_COMMAND_NAME
+    if not (ext.is_file() and cmd.is_file()) or not PI_EXTENSION_SOURCE.is_file():
+        return False
+    return ext.read_bytes() == PI_EXTENSION_SOURCE.read_bytes()

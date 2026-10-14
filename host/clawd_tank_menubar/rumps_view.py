@@ -149,6 +149,13 @@ class RumpsTrayView:
         )
         self._antigravity_hooks_item.state = controller.antigravity_hooks_installed
 
+        # Pi (gentle-shell) extension: same stateless enable/disable pattern.
+        self._pi_hooks_item = rumps.MenuItem(
+            "Install Pi Extension",
+            callback=lambda _sender: controller.toggle_pi_hooks(),
+        )
+        self._pi_hooks_item.state = controller.pi_hooks_installed
+
         # Launch at login
         self._login_item = rumps.MenuItem(
             "Launch at Login",
@@ -179,6 +186,7 @@ class RumpsTrayView:
             self._kiro_hooks_item,
             self._opencode_hooks_item,
             self._antigravity_hooks_item,
+            self._pi_hooks_item,
             self._login_item,
             None,
             self._version_item,
@@ -267,6 +275,7 @@ class RumpsTrayView:
         self._opencode_hooks_item.state = state.opencode_hooks_installed
         self._opencode_hooks_item.title = "Uninstall OpenCode Hooks" if state.opencode_hooks_installed else "Install OpenCode Hooks"
         self._antigravity_hooks_item.state = state.antigravity_hooks_installed
+        self._pi_hooks_item.state = state.pi_hooks_installed
         self._login_item.state = state.login_enabled
 
         # --- Icon and global state ---
