@@ -72,12 +72,13 @@ A set ships one file per state: `desktop/renderer/assets/<set>/<prefix>-<state>-
 1. **Static mockup first.** Draw one PNG with the crab beside the candidate at 180 px and at 2×, plus two or three expressions. Get approval before animating; a redraw of 29 animations costs far more than a mockup.
 2. **Generate.** Run `python tools/<set>_pixel.py`. Generation must be deterministic (two runs give the same bytes).
 3. **Review with one contact sheet per batch**, not one screenshot per frame. `python tools/pet_sheet.py out.png <svg> [<svg> ...] --frames 8 --size 200` gives one row per file. Put the crab's file in the first row to compare.
-4. **Gallery.** `desktop/renderer/assets/<set>/compare-v2.html` shows Claude, Codex and the set side by side.
-5. **Checks.**
+4. **Live check.** Start a second pet that does not touch the real one: run `CLAWDY_PORT=19873 desktop/node_modules/electron/dist/electron.exe desktop`, then `CLAWDY_PORT=19873 node desktop/fake-daemon.js mochi`. Kiro, OpenCode and Antigravity each show Mochi in a different state, rotating every 6 s.
+5. **Gallery.** `desktop/renderer/assets/<set>/compare-v2.html` shows Claude, Codex and the set side by side.
+6. **Checks.**
    - `python tools/pet_check.py desktop/renderer/assets/<set> <prefix>`: checks the 29 files, each file's viewBox against the renderer, and that every coordinate is a whole art pixel. It is cheap, so run it before looking at any picture.
    - `cd desktop && npm test`: the art-selection tests also check that every referenced file exists.
    - The other sets' files are unchanged.
-6. **Wire a new set.**
+7. **Wire a new set.**
    - Map the agent to the set in `renderer.js` (`ART`, `<SET>_STATES`).
    - If the set paints its own idle, hide the inline crab with `#crab:not([data-art="crab"]) #crab-idle`.
    - Add a test in `desktop/test/agent-products.test.js`.

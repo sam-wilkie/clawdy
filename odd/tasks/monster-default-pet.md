@@ -32,6 +32,8 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 
 - T10 L33 · Mochi identity: character sheet, tooltip, presentation sheet, README · inline · commit: 3973540
 
+- T11 L35 · live trial: reload the pet, fake-daemon mochi demo · inline · commit: pending
+
 ## Log
 
 - L1 (user) "necesito que usando el modelo Opus 5.5 me ayudes a crear las animaciones por default O:\Proyectos\Clawdy\assets\pet-samples\ai\monster-brand-cute-v1.png basadas en las animaciones existentes  y O:\Proyectos\Clawdy\assets\pet-samples\ai\monster-brand-activities-grid-v2.png puedes mirar las memorias de codex respecto a esto"
@@ -68,3 +70,5 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 - L32 (evidence) T9: skill `new-pet` in `.agents/skills/new-pet/SKILL.md` (pi) with a pointer in `.claude/skills/new-pet/SKILL.md` (Claude Code): recipe, which generator parts to change, cheap review loop. `tools/pet_check.py` validates a set without rendering (29 states from renderer.js STATES + alert, viewBox per state, whole-pixel paths); RED (4 failures, no script) then GREEN `python -m unittest tools.tests.test_pet_check` 4/4; monster and cloud sets pass.
 - L33 (user) "perfecto, ahora necesito que le demos identidad a nuetra mascota que sera la default"; choices: name "Mochi"; scope "Ficha de personaje, Nombre visible en la app, Hoja de presentación, Sección en el README".
 - L34 (evidence) T10: `docs/mochi.md` (name, tagline, origin, look, personality, voice, in-app use, keep-in-character rules); tooltip "Mochi · Clic para ver actividad · Arrastra para mover" on monster windows, label still the agent (RED: title was the stub default; GREEN: desktop npm test 46/46); `tools/mochi_sheet.py` -> `assets/readme/mochi-sheet.png` from the real animation frames; README section "Mochi, la mascota por defecto"; art bible sets table names Mochi.
+- L35 (user) "podrias ncluirlo para probarlo ya con los que no tengan modelo definido, como antigravity, kiro y opencode"
+- L36 (evidence) T11: live pet reloaded from this branch (`tools/reload_clawdy_pet.ps1`, new pid 11892), so real Kiro/OpenCode/Antigravity sessions show Mochi. Demo: second pet on port 19873 plus `node desktop/fake-daemon.js mochi` (new mode: the three agents in different states, rotating every 6 s); log shows kiro/opencode/antigravity frames being sent. Art bible gets the live-check step.
