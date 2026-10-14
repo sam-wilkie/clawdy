@@ -57,14 +57,19 @@ fn main() {
             std::thread::spawn(move || {
                 let mut ignoring: Option<bool> = None;
                 let mut last_flip: Option<Instant> = None;
+                // Adaptive polling (L11): fast near the pet, slow when the cursor is far.
+                let mut interval_ms: u64 = 8;
                 loop {
-                    std::thread::sleep(Duration::from_millis(8));
+                    std::thread::sleep(Duration::from_millis(interval_ms));
                     let (Ok(cur), Ok(pos), Ok(scale)) = (win.cursor_position(), win.outer_position(), win.scale_factor()) else { continue };
                     let (x, y, w, h) = *handle.state::<PetRect>().0.lock().unwrap();
                     let lx = (cur.x - pos.x as f64) / scale;
                     let ly = (cur.y - pos.y as f64) / scale;
                     let (cx, cy, r) = (x + w / 2.0, y + h / 2.0, w.min(h) / 2.0);
-                    let over = (lx - cx).powi(2) + (ly - cy).powi(2) <= r * r;
+                    let dist = ((lx - cx).powi(2) + (ly - cy).powi(2)).sqrt();
+                    let over = dist <= r;
+                    let near = dist - r <= 40.0;
+                    interval_ms = if near { 8 } else { 25 };
                     let want_ignore = !over;
                     if ignoring != Some(want_ignore) {
                         let t = Instant::now();
