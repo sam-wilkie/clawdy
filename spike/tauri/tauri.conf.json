@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "hotbar-spike",
+  "version": "0.0.1",
+  "identifier": "dev.margarita.hotbarspike",
+  "build": { "frontendDist": "./dist" },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [{
+      "label": "pet", "title": "pet", "width": 320, "height": 320,
+      "transparent": true, "decorations": false, "alwaysOnTop": true,
+      "resizable": false, "skipTaskbar": true, "shadow": false
+    }],
+    "security": { "csp": null }
+  },
+  "bundle": { "active": false, "icon": ["icons/icon.ico"] }
+}
