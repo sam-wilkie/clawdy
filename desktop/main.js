@@ -31,8 +31,8 @@ const debugLog = process.env.CLAWDY_DEBUG === "1"
   : () => {};
 
 /** Logical size of each pet window (CSS pixels). */
-const WIN_W = 320;
-const WIN_H = 320;
+const WIN_W = 200;
+const WIN_H = 200;
 /** Gap between stacked product windows (px), and inset from screen edges. */
 const WIN_GAP = 8;
 const EDGE_INSET = 24;

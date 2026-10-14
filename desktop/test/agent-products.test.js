@@ -77,3 +77,9 @@ test("product order and names include pi (gentle-shell) after antigravity", () =
   assert.deepEqual([...sorted], ["claude", "antigravity", "pi"]);
   assert.equal(vm.runInContext("AGENT_NAMES.pi", ctx), "Pi");
 });
+
+test("pet window is 200x200 CSS px (user chose ~62% of the old 320)", () => {
+  const main = read("main.js");
+  assert.match(main, /const WIN_W = 200;/);
+  assert.match(main, /const WIN_H = 200;/);
+});
