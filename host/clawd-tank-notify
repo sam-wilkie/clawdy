@@ -85,7 +85,7 @@ def start_daemon() -> None:
     # with block so it is closed promptly even if Popen raises.
     with open(CLAWD_DIR / "daemon.log", "a") as log_file:
         subprocess.Popen(
-            [sys.executable, "-m", "clawd_tank_daemon.daemon"],
+            [sys.executable, "-m", "clawd_tank_daemon.daemon", "--no-install-hooks"],
             cwd=str(Path(__file__).parent),
             stdout=log_file,
             stderr=subprocess.STDOUT,
