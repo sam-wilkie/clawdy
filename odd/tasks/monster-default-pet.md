@@ -23,7 +23,7 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 
 - T5 S6 + L23 · bigger mittens, crab-skinned states, welding building · inline · commit: 6932354
 
-- T6 L25 · centred disconnected marks (crab too), bare X error eyes, crab sleeping, calm sweeping eyes, big wizard hat · inline · commit: pending
+- T6 L25 · centred disconnected marks (crab too), bare X error eyes, crab sleeping, calm sweeping eyes, big wizard hat · inline · commit: 73a6325
 
 ## Log
 
