@@ -17,7 +17,7 @@ Source of truth: `openspec/changes/tauri-shell-hotbar-migration/{proposal,design
 - T1 S1,S5 · PR1 usage reader (tasks.md 1.1-1.10) · inline · branch `feat/hotbar-usage-reader` · commit: 96a9c79
 - T2 S2,S5 · PR2 `set_project_usage` transport (2.1-2.6) · inline · commit: 8f7a927
 - T3 S3,S5 · PR3 hook executable resolution (3.1-3.7) · inline · commit: 11eb877
-- T4 S4,S5 · PR4 headless parity (4.1-4.6) · inline · commit: pending
+- T4 S4,S5 · PR4 headless parity (4.1-4.6) · inline · commit: 480f5ec
 
 ## Log
 
