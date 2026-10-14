@@ -176,3 +176,10 @@ def test_notify_autostart_passes_no_install_hooks(monkeypatch, tmp_path):
     monkeypatch.setattr(notify.time, "sleep", lambda s: None)
     notify.start_daemon()
     assert seen["argv"] == [sys.executable, "-m", "clawd_tank_daemon.daemon", "--no-install-hooks"]
+
+
+def test_headless_install_writes_the_scripts_its_hooks_point_at():
+    d = build()
+    d._run_startup()
+    assert hooks.are_hooks_installed()
+    assert hooks.NOTIFY_SCRIPT_PATH.exists()

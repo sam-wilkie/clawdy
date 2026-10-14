@@ -119,3 +119,13 @@ def test_stale_managed_hook_is_repointed_and_user_hooks_survive():
     cmds = [h["command"] for g in data["hooks"]["PreToolUse"] for h in g["hooks"]]
     assert stale_cmd not in cmds and hooks.HOOK_COMMAND in cmds
     assert user in data["hooks"]["PreToolUse"]
+
+
+def test_override_rejects_dir_without_a_drive(monkeypatch):
+    monkeypatch.setattr(hooks.os.path, "isfile", lambda p: True)
+    for bad in ("\\rooted\\only", "C:relative"):
+        assert hooks.resolve_hook_executable(
+            "win32", True, FROZEN, {"CLAWD_TANK_HOOK_EXE_DIR": bad}) == FROZEN
+    ok = "D:\\Side Car"
+    assert hooks.resolve_hook_executable(
+        "win32", True, FROZEN, {"CLAWD_TANK_HOOK_EXE_DIR": ok}) == ok + "\\margarita-notify.exe"

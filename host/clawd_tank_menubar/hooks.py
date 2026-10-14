@@ -1151,6 +1151,7 @@ def resolve_hook_executable(platform: str, frozen: bool, executable: str, env) -
         return executable
     ok = (
         ntpath.isabs(override)
+        and bool(ntpath.splitdrive(override)[0])
         and '"' not in override
         and all(os.path.isfile(ntpath.join(override, n)) for n in (NOTIFY_EXE_NAME, STATUSLINE_EXE_NAME))
     )
@@ -2063,6 +2064,10 @@ def ensure_hooks_current(platform=None, frozen=None, executable=None) -> bool:
         if not os.path.isfile(notify):
             logger.warning("Not installing hooks: %s is missing", notify)
             return False
+    # The hooks name these scripts; write them first so a headless start on a
+    # fresh profile never registers a hook that points at a missing file.
+    install_notify_script()
+    install_statusline_bridge_script()
     if are_hooks_installed():
         return True
     return install_hooks()
