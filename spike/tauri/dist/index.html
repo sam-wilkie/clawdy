@@ -3,11 +3,17 @@
 #pet{position:absolute;left:80px;top:80px;width:160px;height:160px;border-radius:50%;
 background:linear-gradient(90deg,#fff 50%,#de4553 50%);border:3px solid #5e4b5a;cursor:pointer}
 #hud{position:absolute;left:4px;top:4px;font:11px monospace;color:#fff;background:#0008;padding:2px 4px}</style>
-<div id="pet"></div><div id="hud">clicks 0</div>
+<div id="pet"></div><div id="card" style="display:none;position:absolute;left:100px;top:135px;width:120px;background:#fff;border:2px solid #333;font:11px sans-serif;padding:4px;text-align:center"><div id="ctool"></div><button id="allow">Allow</button> <button id="deny">Deny</button></div><div id="hud">clicks 0</div>
 <script>
 let n=0;const hud=document.getElementById('hud');
 document.getElementById('pet').addEventListener('click',()=>{hud.textContent='clicks '+(++n);});
 const r=document.getElementById('pet').getBoundingClientRect();
 window.__TAURI__.core.invoke('set_pet_rect',{x:r.x,y:r.y,w:r.width,h:r.height});
-document.addEventListener('mousedown',e=>window.__TAURI__.core.invoke('log_click'));
+document.addEventListener('mousedown',e=>window.__TAURI__.core.invoke('log_msg',{m:'mousedown '+e.clientX+','+e.clientY+' target='+(e.target.id||e.target.tagName)}));
+let cur=null;window.__TAURI__.core.invoke('wrong_mode').then(v=>{window.__WRONG=v});
+window.__TAURI__.event.listen('perm',e=>{cur=JSON.parse(e.payload);document.getElementById('ctool').textContent=cur.tool||'?';document.getElementById('card').style.display='block';setTimeout(()=>{const a=document.getElementById('allow').getBoundingClientRect(),d=document.getElementById('deny').getBoundingClientRect();window.__TAURI__.core.invoke('log_msg',{m:'allow '+[a.x,a.y,a.width,a.height].map(Math.round)+' deny '+[d.x,d.y,d.width,d.height].map(Math.round)})},100)});
+window.__TAURI__.event.listen('perm-clear',()=>{cur=null;document.getElementById('card').style.display='none'});
+for(const d of ['allow','deny'])document.getElementById(d).addEventListener('click',()=>{if(!cur)return;
+ const nonce=window.__WRONG?'0000000000000000':cur.nonce;window.__TAURI__.core.invoke('decide',{id:cur.id,nonce,decision:d});
+ if(!window.__WRONG){cur=null;document.getElementById('card').style.display='none'}});
 </script>
