@@ -38,11 +38,11 @@ Source: `openspec/changes/tauri-shell-hotbar-migration/exploration.md` ("Change 
 | T-click correctness | pet got 5/5 clicks on its pixels; 0/3 on a transparent corner; a real window underneath got 3/3 of the transparent clicks and 0/3 of the pet clicks | PASS |
 | T-click latency (<50 ms) | enter-pet median 5.8 ms, p95 7.8; leave-pet median 7.0 ms, p95 8.6 (flag flip observed from outside, n=40 each) | PASS |
 | T-cpu (<1 %, 60 s idle) | 3.81 % of one core = 0.32 % of 12 cores; an 8 ms cursor-polling thread is the likely cause, not tuned | AMBIGUOUS: fails if "one core", passes if "all cores" |
-| T-ram (<150 MB) | 340 MB working set, spike + its WebView2 processes | FAIL as written |
+| T-ram (<150 MB) | 332-340 MB working set, 149 MB private (spike + WebView2). Electron, same scene: 337-340 MB working set, 185-188 MB private | FAIL as written, but Electron fails it too: threshold was unrealistic |
 | T-perm | Allow -> hook `allow`, daemon `closed: allow`; Deny -> `deny`; wrong nonce -> `Ignored a permission decision`, request `closed: none`. Isolated daemon (temp HOME, port 19999), real `clawd-tank-notify` | PASS |
 | T-mac | not run | UNVERIFIED (user-run) |
 
-Not measured: Electron baseline CPU/RAM for the same scene, so "lighter than Electron" is unproven; polling interval tuning; one pet window only (the real shell has several); Windows only.
+Electron baseline: see L6-L8 (memory equal, Tauri CPU much higher). Not measured: polling interval tuning; one pet window only (the real shell has several); Windows only.
 Gotcha found: without `capabilities/default.json` (`core:default`) the page cannot call any command, so buttons silently did nothing.
 
 **Verdict: NOT a clean GO.** The hard technical risks (selective click-through via polling, real nonce round trip) are proven on Windows. The footprint criteria are not met as written (RAM) or are ambiguous (CPU), and macOS is untested. Decision needed from the user, see L5.
@@ -50,6 +50,7 @@ Gotcha found: without `capabilities/default.json` (`core:default`) the page cann
 ## Log (cont.)
 
 - L5 (open) Needs the user: (a) accept 340 MB or compare against Electron's measured footprint before judging; (b) define T-cpu per core or per machine; (c) run T-mac on a Mac.
-- L6 (evidence) Electron baseline, same scene (`spike/electron-baseline`, Electron 33.2.1, `setIgnoreMouseEvents(.., {forward:true})`, no polling), measured with the same method, own process tree only (the user's live Electron pet was left alone). Second, careful run, 30 s idle: Electron 8 processes, working set 741 MB, private 379 MB, CPU 0.20 % of one core. Tauri 7 processes (spike + WebView2), working set 332 MB, private 149 MB, CPU 4.01 % of one core. An earlier Electron run counted only 4 processes and 340 MB working set, so run-to-run variance is large; one sample each, not a benchmark.
-- L7 (analysis) Reading the two against the S5 thresholds: Tauri uses about 2.5x less private memory than Electron but 20x more CPU, and the CPU gap comes from the 8 ms polling thread (Electron gets hover events natively). T-ram 150 MB is met by private memory (149 MB, borderline) but not by working set (332-340 MB); the threshold did not say which. T-cpu is the real finding: polling needs tuning (e.g. adaptive interval) before GO.
-
+- L6 (evidence) Electron baseline, same scene (`spike/electron-baseline`, Electron 33.2.1, `setIgnoreMouseEvents(.., {forward:true})`, no polling), own process tree only (the user's live Electron pet was left alone), idle. Clean single instance, 3 runs: 4 processes, working set 337-340 MB, private 185-188 MB, CPU 0.15-0.85 % of one core. Tauri spike: 7 processes (spike + WebView2), working set 332-340 MB, private 149 MB, CPU 3.8-4.0 % of one core.
+- L7 (correction) An intermediate run reported Electron at 741 MB / 8 processes: it was wrong, the first script had left an instance running and two instances were counted. Discarded. Lesson: kill what the measuring script starts.
+- L8 (analysis) Memory is a wash: working set is equal (~335 MB), private memory is about 20 % lower for Tauri. So the 340 MB that failed T-ram is Electron's number too, and the 150 MB threshold was unrealistic for any WebView shell, not a Tauri defect. CPU is the real gap: Tauri uses roughly 5-25x more CPU than Electron, caused by the 8 ms cursor-polling thread (Electron gets hover natively). One sample each, not a benchmark.
+- L9 (open) Needs the user: define T-cpu per core or per machine, run T-mac on a Mac. Suggested next step if GO is still wanted: tune the polling (adaptive interval, e.g. 8 ms near the pet and 50-100 ms when the cursor is far) and re-measure.
