@@ -83,3 +83,9 @@ test("pet window is 200x200 CSS px (user chose ~62% of the old 320)", () => {
   assert.match(main, /const WIN_W = 200;/);
   assert.match(main, /const WIN_H = 200;/);
 });
+
+test("the default monster art is wired for non-Claude, non-Codex products (Pi)", () => {
+  const src = read("renderer/renderer.js");
+  assert.match(src, /const MONSTER_STATES = /);
+  assert.match(src, /monster: MONSTER_STATES/);
+});
