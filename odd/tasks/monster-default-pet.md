@@ -21,7 +21,7 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 
 - T4 S5-S6 · port the option-2 design into the generator and give the ten states the crab's beats · inline · commit: a130af2
 
-- T5 S6 + L23 · bigger mittens, crab-skinned states, welding building · inline · commit: pending
+- T5 S6 + L23 · bigger mittens, crab-skinned states, welding building · inline · commit: 6932354
 
 ## Log
 
