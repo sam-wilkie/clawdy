@@ -30,3 +30,5 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 - L10 (evidence) T3: README "Estados de la mascota" and TODO.md updated. Not verified in a real Electron window.
 - L11 (evidence) Independent verify (gentle-ai-verify, native assess unassessable -> treated as high): S1, S3, S4 met; S2 met except `building` timing, now documented in S2. npm test 45/45, regeneration byte-identical, codex assets unchanged, no crab/cloud regression found.
 - L12 (open) `tools/codex_cloud_pixel.py` and `desktop/renderer/assets/codex/` are gitignored (licensing, NOTICE.md), so `tools/monster_pixel.py` cannot run on a fresh clone; the committed monster SVGs are self-contained. Generator now exits with a clear message. Decision pending from the user: keep as is, or move the generic engine into a tracked module.
+- L13 (user) "agrega el claude a la pantalla y no me gusta mucho diseño se ve muy saturado, porq crees q sea?"
+- L14 (evidence) compare-v2.html now shows Claude v2 | Codex v2 | Monster v2 per state. Redesign for the saturation feedback awaits the user's choice.

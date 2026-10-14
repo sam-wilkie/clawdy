@@ -444,15 +444,17 @@ STATE_RENDERERS = [OWN.get(r.__name__.removeprefix("render_"), r) for r in cc.ST
 
 
 def compare_page(states: list[str]) -> str:
+    # Claude idles on the inline SVG of index.html; its file twin is clawd-idle-living-v2.svg.
+    clawd = lambda s: f'<img src="../{cc.CLAWD_V2[s]}" alt="">' if s in cc.CLAWD_V2 else ""
     rows = "\n".join(
-        f'<tr><th>{s}</th><td><img src="../codex/cloud-{s}-v2.svg" alt=""></td>'
+        f'<tr><th>{s}</th><td>{clawd(s)}</td><td><img src="../codex/cloud-{s}-v2.svg" alt=""></td>'
         f'<td><img src="monster-{s}-v2.svg" alt=""></td></tr>' for s in states)
     return f'''<!doctype html><meta charset="utf-8"><title>Monster v2 gallery</title>
 <style>body{{margin:0;padding:24px;background:#1b1f2b;color:#cfd8f0;font:13px system-ui}}
 table{{border-collapse:separate;border-spacing:12px}}th{{text-align:right;font-weight:600;padding-right:8px}}
 td{{background:#2a3042;border-radius:12px;padding:8px}}img{{width:220px;height:220px;image-rendering:pixelated;display:block}}
 thead th{{text-align:center}}</style>
-<table><thead><tr><th>state</th><th>Codex v2</th><th>Monster v2</th></tr></thead>
+<table><thead><tr><th>state</th><th>Claude v2</th><th>Codex v2</th><th>Monster v2</th></tr></thead>
 {rows}
 </table>
 '''
