@@ -27,6 +27,9 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 
 - T7 L27 · three-lens shades on the crab cool, crab-style X, Codex cool on the crab animation (local) · inline · commit: ef48fbc
 
+- T8 L29 · pet art bible + contact-sheet tool · inline · commit: pending
+- T9 L29 · token-saving hook (kind pending the user's choice) · pending
+
 ## Log
 
 - L1 (user) "necesito que usando el modelo Opus 5.5 me ayudes a crear las animaciones por default O:\Proyectos\Clawdy\assets\pet-samples\ai\monster-brand-cute-v1.png basadas en las animaciones existentes  y O:\Proyectos\Clawdy\assets\pet-samples\ai\monster-brand-activities-grid-v2.png puedes mirar las memorias de codex respecto a esto"
@@ -57,3 +60,5 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 - L26 (evidence) T6: Claude `clawd-disconnected-v2.svg` "?" moved from x 1 to x 13 so it is centred over the head like the "!" (x 14); the monster inherits it. error: bare ink X eyes, no rings. sleeping: the crab's own file re-skinned (sploot breaths, blush, the three floating Zs, moved up 12 px). sweeping: the crab's 3..9 px eye slide mapped to 0..2 px with the same lean on the body. wizard: the crab's hat redrawn 32 px wide (nearest-neighbour on whole pixels), brim bottom at y 11 on top of the eyes. Deterministic, codex unchanged, desktop npm test 45/45, frames inspected.
 - L27 (user) "para la de cool podrias crear un lente para tres ojos y colocarlo con la animacion de claude, asi mismo arregla la animacion de Codex para que tenga la misma animacion que esa que tiene no me gusta nada. y la X de error que se vizualice mas estilo Claude"
 - L28 (evidence) T7: new `tools/crab_skin.py` (def_groups, bbox, raster, skin) shared by the monster and the local Codex generator; monster refactor kept every other state byte-identical. Monster cool = the crab's clawd-cool-v2.svg with three-lens shades (bar + one lens per eye, crab glint). Monster error X = the crab's bold 6x6 X with its flat mouth. Codex cloud cool (local-only, gitignored) = the crab's cool re-skinned with the cloud body, >_ face, puff hands and its pixel shades; only cloud-cool-v2.svg changed among the codex files. desktop npm test 45/45.
+- L29 (user) "perfecto, con esto definido podrias crear un art bible que funcione como el para acelerar estos procesos de como deben crearse los futuras mascotas,tamaño, animacones, reglas que debe respetar, y basado en esto crear un hook que ayude a minimizar los costes y gasto en token"
+- L30 (evidence) T8: `docs/pet-art-bible.md` (canvas, pixel rules, parts, 29 states and routes, review lessons, the three ways to make a state, cheap workflow, sets) and `tools/pet_sheet.py` (one contact-sheet PNG per batch). Hook: kind awaiting the user's choice.
