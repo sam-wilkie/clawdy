@@ -31,6 +31,7 @@ def sandbox_home(tmp_path_factory, monkeypatch):
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("USERPROFILE", str(home))
     monkeypatch.delenv("CLAWD_TANK_SOCKET", raising=False)
+    monkeypatch.delenv("CLAWD_TANK_HOOK_EXE_DIR", raising=False)
 
     # Daemon
     monkeypatch.setattr(session_store, "SESSIONS_PATH", clawd_dir / "sessions.json")

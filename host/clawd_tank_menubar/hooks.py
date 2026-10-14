@@ -1134,8 +1134,38 @@ def build_hook_command(platform: str, frozen: bool, executable: str, script_path
     return str(script_path)
 
 
+HOOK_EXE_DIR_ENV = "CLAWD_TANK_HOOK_EXE_DIR"
+
+
+def resolve_hook_executable(platform: str, frozen: bool, executable: str, env) -> str:
+    """The executable the hook builders derive commands from.
+
+    Normally `executable` itself. A frozen Windows build whose daemon lives in
+    another folder may name the folder holding margarita-notify.exe and
+    margarita-statusline.exe through CLAWD_TANK_HOOK_EXE_DIR. The directory is
+    composed into a cmd.exe line, so it must be absolute, contain both exes and
+    have no double quote; anything else is ignored with a warning.
+    """
+    override = env.get(HOOK_EXE_DIR_ENV)
+    if not override or platform != "win32" or not frozen:
+        return executable
+    ok = (
+        ntpath.isabs(override)
+        and '"' not in override
+        and all(os.path.isfile(ntpath.join(override, n)) for n in (NOTIFY_EXE_NAME, STATUSLINE_EXE_NAME))
+    )
+    if not ok:
+        logger.warning("Ignoring invalid %s=%r", HOOK_EXE_DIR_ENV, override)
+        return executable
+    return ntpath.join(override, NOTIFY_EXE_NAME)
+
+
+_HOOK_EXECUTABLE = resolve_hook_executable(
+    sys.platform, getattr(sys, "frozen", False), sys.executable, os.environ
+)
+
 HOOK_COMMAND = build_hook_command(
-    sys.platform, getattr(sys, "frozen", False), sys.executable, NOTIFY_SCRIPT_PATH
+    sys.platform, getattr(sys, "frozen", False), _HOOK_EXECUTABLE, NOTIFY_SCRIPT_PATH
 )
 
 
@@ -1163,7 +1193,7 @@ def build_statusline_command(platform: str, frozen: bool, executable: str, scrip
 
 
 STATUSLINE_COMMAND = build_statusline_command(
-    sys.platform, getattr(sys, "frozen", False), sys.executable, STATUSLINE_SCRIPT_PATH
+    sys.platform, getattr(sys, "frozen", False), _HOOK_EXECUTABLE, STATUSLINE_SCRIPT_PATH
 )
 
 
@@ -1260,7 +1290,7 @@ def build_codex_hook_command(platform: str, frozen: bool, executable, script_pat
 
 
 CODEX_HOOK_COMMAND = build_codex_hook_command(
-    sys.platform, getattr(sys, "frozen", False), sys.executable, NOTIFY_SCRIPT_PATH
+    sys.platform, getattr(sys, "frozen", False), _HOOK_EXECUTABLE, NOTIFY_SCRIPT_PATH
 )
 
 
@@ -2017,6 +2047,27 @@ def install_hooks() -> bool:
     return True
 
 
+def ensure_hooks_current(platform=None, frozen=None, executable=None) -> bool:
+    """Install or re-point our Claude Code hooks when they are not current.
+
+    Skips (returns False, settings untouched) when a frozen Windows build's
+    notify exe is missing, so hooks never point at a dead executable. Returns
+    True when hooks are current afterwards. Stale or moved managed hooks are
+    rewritten by install_hooks(); a current install is left byte-identical.
+    """
+    platform = sys.platform if platform is None else platform
+    frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
+    executable = _HOOK_EXECUTABLE if executable is None else executable
+    if platform == "win32" and frozen:
+        notify = ntpath.join(ntpath.dirname(executable), NOTIFY_EXE_NAME)
+        if not os.path.isfile(notify):
+            logger.warning("Not installing hooks: %s is missing", notify)
+            return False
+    if are_hooks_installed():
+        return True
+    return install_hooks()
+
+
 def uninstall_hooks() -> bool:
     """Remove every Clawd Tank hook group from Claude Code settings and restore
     the user's original statusLine (or drop ours when there was none). Our
@@ -2485,7 +2536,7 @@ def _antigravity_plan(platform, frozen, executable, script_path, wrapper_path):
 
 def _antigravity_expected_files() -> tuple[dict, dict, str | None]:
     commands, wrapper = _antigravity_plan(
-        sys.platform, getattr(sys, "frozen", False), sys.executable,
+        sys.platform, getattr(sys, "frozen", False), _HOOK_EXECUTABLE,
         NOTIFY_SCRIPT_PATH, ANTIGRAVITY_WRAPPER_PATH,
     )
     plugin = build_antigravity_plugin_json(antigravity_plugin_version(get_version()))

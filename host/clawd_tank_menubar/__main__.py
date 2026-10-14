@@ -117,9 +117,7 @@ def _run_windows() -> None:
         hooks.install_notify_script()
 
         hooks.install_statusline_bridge_script()
-        if not hooks.are_hooks_installed():
-            logger.info("Hooks outdated, auto-updating...")
-            hooks.install_hooks()
+        hooks.ensure_hooks_current()
 
         from clawd_tank_daemon.sim_process import SimProcessManager
         SimProcessManager.kill_stale_sims()

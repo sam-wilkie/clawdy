@@ -383,3 +383,4 @@ Multi-agent review of the attention-hooks work surfaced 15 findings; fixes:
 
 - [x] **Tauri hotbar, Change 1 / PR1**: `host/clawd_tank_daemon/claude_usage.py` per-project Claude usage reader + `host/tests/test_claude_usage.py` (25 tests). PRICES verified against the Anthropic pricing page 2026-10-13; `claude-haiku-5-5` left unpriced (price depends on per-request prompt length). Next: PR2 `set_project_usage` transport.
 - [x] **Tauri hotbar, Change 1 / PR2**: `protocol.project_usage_to_payload`, daemon `_project_usage_checker` (60 s) + send on pet connect, pet-only gating; `host/tests/test_project_usage_transport.py`. Next: PR3 hook executable resolution.
+- [x] **Tauri hotbar, Change 1 / PR3**: `hooks.resolve_hook_executable` + `CLAWD_TANK_HOOK_EXE_DIR`, `ensure_hooks_current()` used by both tray entry points; `host/tests/test_hook_resolution.py`. Next: PR4 headless parity.
