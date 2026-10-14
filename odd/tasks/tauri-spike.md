@@ -54,3 +54,31 @@ Gotcha found: without `capabilities/default.json` (`core:default`) the page cann
 - L7 (correction) An intermediate run reported Electron at 741 MB / 8 processes: it was wrong, the first script had left an instance running and two instances were counted. Discarded. Lesson: kill what the measuring script starts.
 - L8 (analysis) Memory is a wash: working set is equal (~335 MB), private memory is about 20 % lower for Tauri. So the 340 MB that failed T-ram is Electron's number too, and the 150 MB threshold was unrealistic for any WebView shell, not a Tauri defect. CPU is the real gap: Tauri uses roughly 5-25x more CPU than Electron, caused by the 8 ms cursor-polling thread (Electron gets hover natively). One sample each, not a benchmark.
 - L9 (open) Needs the user: define T-cpu per core or per machine, run T-mac on a Mac. Suggested next step if GO is still wanted: tune the polling (adaptive interval, e.g. 8 ms near the pet and 50-100 ms when the cursor is far) and re-measure.
+- L10 (user decision) Continue the spike: tune the cursor polling and re-measure on Windows (option "Afinar polling y re-medir"). T-mac is run by the user on a Mac (option "Sí, la corro yo"). Change 2 is blocked until the re-measured verdict is GO.
+- L11 (plan) Adaptive polling: 8 ms when the cursor is within 40 logical px of the pet circle, 25 ms otherwise. Expected: lower idle CPU; risk: enter-pet latency rises when the cursor arrives fast from far away. T-click (<50 ms) must still pass.
+- Tasks: T5 adaptive polling in spike/tauri/src/main.rs · T6 re-measure T-click, T-cpu (idle 60 s), T-ram on Windows and rewrite the verdict · T7 user-run T-mac checklist (not done by the agent).
+- L12 (evidence, T6 adaptive polling, Windows, release build) Click-through script `tests/t4_clickthrough.py`: transparent corner 3/3 to window below; on pet 0/3 to window below; enter-pet median 6.2 ms p95 8.8 max 22.7 (n=40); leave-pet median 6.9 p95 8.0 max 10.0. Exit 0.
+- L13 (evidence, T6 idle 60 s, own process tree, 8 procs): CPU 1.53 % of one core = 0.13 % of all cores (was 3.81 % of one core before polling change). Working set 354 MB (was 332-340 MB; Electron baseline 337-340 MB).
+- L14 (verdict re-measured) T-click PASS. T-perm not re-run (unchanged code path, earlier PASS). T-cpu: FAIL if "one core" (1.53 % > 1 %), PASS if "all cores" (0.13 %). Still ambiguous, needs the user's definition (L5b). T-ram: FAIL as written (354 MB > 150 MB), same as Electron baseline. Overall still NOT a clean GO. Adaptive polling cut CPU ~2.5x. Next: user decides T-cpu definition and whether to accept RAM parity with Electron; T-mac is user-run.
+
+## T7 checklist for the user (macOS, run by the user)
+
+Build the spike on a Mac (`spike/tauri`, `cargo build --release`), then check:
+
+1. **T-click:** the pet captures clicks on its pixels and passes clicks on transparent pixels to the window below. Expect 3/3 and 0/3 each way. Switch time under 50 ms, by eye or with the same test if it ports.
+2. **T-perm:** Allow and Deny each resolve the real pending permission once. A wrong nonce is rejected and changes nothing. Use an isolated daemon (temp HOME, its own port).
+3. **Fullscreen overlay:** with a fullscreen app active, the pet stays visible (tauri#11488 / #14102 risk).
+4. Report back: pass/fail per item, and macOS version. Paste the exact output of any failing item.
+
+Result: unverified until the user runs it.
+- L15 (user decision) T-cpu defined per machine (total of all cores). Measured 0.13 % of all cores: PASS.
+- L16 (user decision, criterion to confirm) RAM: accept parity with Electron. Measured Tauri 354 MB working set vs Electron 337-340 MB, so Tauri is ~4 % above Electron. Strictly, "parity" as a pass needs a tolerance; without one it FAILS. Needs the user to set the tolerance (e.g. <= 5 % above Electron) before the verdict is final.
+- L17 (gap) T-perm was not re-run on the adaptive-polling binary. It ran on the previous binary (PASS). The polling change does not touch the permission path, but the criterion requires a fresh run before GO.
+- Status: T-click PASS, T-cpu PASS (per machine), T-ram PASS only with a tolerance still to be set, T-perm re-run pending, T-mac user-run pending. Verdict: NOT GO yet. Change 2 stays blocked.
+- L17 resolved (evidence, T-perm on the adaptive-polling binary, isolated daemon on port 19999, real clawd-tank-notify):
+  - Allow with correct nonce: hook returned `{"behavior":"allow"}`, daemon `closed: allow`. PASS.
+  - Deny with correct nonce: hook returned `{"behavior":"deny",...}`, daemon `closed: deny`. PASS.
+  - Wrong nonce (SPIKE_WRONG=1): daemon `Ignored a permission decision that matches no pending request`, request stayed open, then `closed: none` after timeout. Hook received no decision. PASS (changes nothing).
+  - Verdict: T-perm PASS. Tasks 6 done.
+- L18 (user decision) RAM tolerance set to <= 10 % above the Electron baseline. Electron mean 338.5 MB (337-340) gives a limit of ~372 MB. Tauri measured 354 MB: PASS. Caveat: the tolerance was chosen after seeing the 354 MB measurement, not before. The user accepted that knowingly; record it here.
+- Status: T-click PASS, T-cpu PASS (per machine), T-ram PASS (tolerance 10 %), T-perm PASS (re-run), T-mac pending (user runs the checklist on macOS). Verdict: conditional GO, pending T-mac. Change 2 stays blocked until T-mac passes.
