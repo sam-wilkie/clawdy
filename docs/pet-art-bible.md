@@ -1,6 +1,6 @@
 # Desktop pet art bible
 
-Rules for every pet set of the Electron desktop pet (`desktop/renderer`). The crab (Claude) is the reference; the cloud (Codex, local only) and the brand monster (default pet) follow it. Read this before drawing a new pet. It is written so a new set can be made in a few short iterations instead of many redraws.
+Rules for every pet set of the Electron desktop pet (`desktop/renderer`). The crab (Claude) is the reference; the cloud (Codex, local only) and the brand monster (default pet) follow it. Read this before drawing a new pet. It is written so a new set can be made in a few short iterations instead of many redraws. Agents load the short version as the `new-pet` skill (`.agents/skills/new-pet/SKILL.md`, also exposed to Claude Code in `.claude/skills/new-pet/`).
 
 ## 1. Canvas and size
 
@@ -74,6 +74,7 @@ A set ships one file per state: `desktop/renderer/assets/<set>/<prefix>-<state>-
 3. **Review with one contact sheet per batch**, not one screenshot per frame. `python tools/pet_sheet.py out.png <svg> [<svg> ...] --frames 8 --size 200` gives one row per file. Put the crab's file in the first row to compare.
 4. **Gallery.** `desktop/renderer/assets/<set>/compare-v2.html` shows Claude, Codex and the set side by side.
 5. **Checks.**
+   - `python tools/pet_check.py desktop/renderer/assets/<set> <prefix>`: checks the 29 files, each file's viewBox against the renderer, and that every coordinate is a whole art pixel. It is cheap, so run it before looking at any picture.
    - `cd desktop && npm test`: the art-selection tests also check that every referenced file exists.
    - The other sets' files are unchanged.
 6. **Wire a new set.**

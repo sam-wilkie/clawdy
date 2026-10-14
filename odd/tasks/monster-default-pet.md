@@ -28,7 +28,7 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 - T7 L27 · three-lens shades on the crab cool, crab-style X, Codex cool on the crab animation (local) · inline · commit: ef48fbc
 
 - T8 L29 · pet art bible + contact-sheet tool · inline · commit: 9193b7a
-- T9 L29 · token-saving hook (kind pending the user's choice) · pending
+- T9 L29 L31 · new-pet skill + pet_check validator · inline · commit: pending
 
 ## Log
 
@@ -62,3 +62,5 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 - L28 (evidence) T7: new `tools/crab_skin.py` (def_groups, bbox, raster, skin) shared by the monster and the local Codex generator; monster refactor kept every other state byte-identical. Monster cool = the crab's clawd-cool-v2.svg with three-lens shades (bar + one lens per eye, crab glint). Monster error X = the crab's bold 6x6 X with its flat mouth. Codex cloud cool (local-only, gitignored) = the crab's cool re-skinned with the cloud body, >_ face, puff hands and its pixel shades; only cloud-cool-v2.svg changed among the codex files. desktop npm test 45/45.
 - L29 (user) "perfecto, con esto definido podrias crear un art bible que funcione como el para acelerar estos procesos de como deben crearse los futuras mascotas,tamaño, animacones, reglas que debe respetar, y basado en esto crear un hook que ayude a minimizar los costes y gasto en token"
 - L30 (evidence) T8: `docs/pet-art-bible.md` (canvas, pixel rules, parts, 29 states and routes, review lessons, the three ways to make a state, cheap workflow, sets) and `tools/pet_sheet.py` (one contact-sheet PNG per batch). Hook: kind awaiting the user's choice.
+- L31 (user) hook choice: "el hook es para usarlo cada vez q se vayan a crear nuevas mascotas y el proceso sea mas barato porq ya sabe que hacer"
+- L32 (evidence) T9: skill `new-pet` in `.agents/skills/new-pet/SKILL.md` (pi) with a pointer in `.claude/skills/new-pet/SKILL.md` (Claude Code): recipe, which generator parts to change, cheap review loop. `tools/pet_check.py` validates a set without rendering (29 states from renderer.js STATES + alert, viewBox per state, whole-pixel paths); RED (4 failures, no script) then GREEN `python -m unittest tools.tests.test_pet_check` 4/4; monster and cloud sets pass.
