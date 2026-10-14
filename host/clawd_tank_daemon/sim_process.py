@@ -78,7 +78,7 @@ class SimProcessManager:
                 pass
         if not app_dir and getattr(sys, "frozen", False):
             # The Windows release is a flat PyInstaller onedir, so the pet ships
-            # next to MargaritaTank.exe — the same place _find_binary() looks for
+            # next to Clawdy.exe — the same place _find_binary() looks for
             # the simulator. Not gated on the platform: a frozen flat layout has
             # no .app bundle anywhere, and the isfile check below rejects any
             # build that did not ship the pet. getattr, not sys.frozen, because

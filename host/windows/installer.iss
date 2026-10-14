@@ -13,9 +13,9 @@
   #define AppVersion "0.0.0-dev"
 #endif
 
-#define AppName "Margarita Tank"
-#define AppExeName "MargaritaTank.exe"
-#define BuildDir "..\dist\MargaritaTank"
+#define AppName "Clawdy"
+#define AppExeName "Clawdy.exe"
+#define BuildDir "..\dist\Clawdy"
 #define SimProcessName "clawd-tank-sim"
 #define PowerShell "{sys}\WindowsPowerShell\v1.0\powershell.exe"
 
@@ -37,7 +37,7 @@ DisableProgramGroupPage=yes
 DisableDirPage=auto
 OutputDir=..\dist
 OutputBaseFilename=Margarita-Tank-Setup
-SetupIconFile={#BuildDir}\MargaritaTank.ico
+SetupIconFile={#BuildDir}\Clawdy.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName}
 Compression=lzma2
@@ -73,7 +73,7 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; F
 [UninstallRun]
 ; Runs in this order, before any file is deleted. Stop the tray first so its
 ; daemon cannot re-register hooks, then remove our Claude Code hook groups
-; while MargaritaTank.exe still exists; otherwise Claude Code keeps invoking
+; while Clawdy.exe still exists; otherwise Claude Code keeps invoking
 ; the deleted margarita-notify.exe on every hook event. Finally stop only the
 ; simulator this install shipped, not a development build of it.
 Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM {#AppExeName}"; Flags: runhidden waituntilterminated; RunOnceId: "KillTray"
