@@ -4,6 +4,7 @@
 
 - [x] Retirado el mod de terminal de Claude: sin menu, activacion, fuentes ni empaquetado. Limpieza de instalaciones antiguas conserva otros plugins y hooks.
 
+- [x] Mascota por defecto: monstruo de la marca (`tools/monster_pixel.py`, 29 estados en `desktop/renderer/assets/monster/`) para Kiro, OpenCode, Antigravity y agentes sin arte propio; Claude conserva el cangrejo y Codex la nube. Pendiente: verlo en una ventana Electron real. Detalle: `odd/tasks/monster-default-pet.md`.
 - [x] Electron: mascotas y panel para Claude Code, Codex, Kiro, OpenCode y Antigravity.
 - [x] Consumo: Claude por statusLine, Codex por app-server, Kiro IDE por cache y OpenCode/Antigravity por historial (dia/mes/acumulado); Antigravity no informa costo monetario.
 - [x] Reinicios concedidos de Codex con confirmacion y reutilizacion de clave ante respuestas inciertas.

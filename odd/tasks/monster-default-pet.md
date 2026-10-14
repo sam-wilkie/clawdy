@@ -12,9 +12,9 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 
 ## Tasks
 
-- T1 S2-S4 · generator `tools/monster_pixel.py` writing `desktop/renderer/assets/monster/monster-<state>-v2.svg` + gallery · inline · commit: see Log L9
-- T2 S1 · renderer selects the monster set for agents without their own art; test · inline · commit: pending
-- T3 S1-S4 · render every state to PNG and inspect; update TODO.md and docs · inline · commit: pending
+- T1 S2-S4 · generator `tools/monster_pixel.py` writing `desktop/renderer/assets/monster/monster-<state>-v2.svg` + gallery · inline · commit: c8f4918
+- T2 S1 · renderer selects the monster set for agents without their own art; test · inline · commit: a05b91d
+- T3 S1-S4 · render every state to PNG and inspect; update TODO.md and docs · inline · commit: see git log (docs commit)
 
 ## Log
 
@@ -26,3 +26,5 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 - L6 (decision) Mapping for S1: claude keeps the crab, codex keeps the cloud, every other agent (kiro, opencode, antigravity, unknown) gets the monster. The generator skins the Codex cloud engine (`tools/codex_cloud_pixel.py`: same poses, props and timing) with the monster body, faces and mittens, so the cloud output is untouched.
 - L7 (evidence) The cute-v1 image has nine ring eyes (3 red, 6 white), although the Codex prompt said eight; the art follows the image. The Codex cloud set has 29 states, not 31.
 - L8 (evidence) T1: `python tools/monster_pixel.py` writes 29 SVGs + compare-v2.html; codex/*.svg checksums unchanged (478f807c... before and after). Building (code blocks) and cool (thumbs-up, no glasses) follow grid v2 instead of the cloud's hammer and sunglasses. Every state rendered with Playwright and inspected.
+- L9 (evidence) T2: RED observed (kiro got the crab: `art: undefined`, `ART_STATES.idle` null), then GREEN; `npm test` in desktop: 45 pass, 0 fail. waiting_reply calm override stays Codex-only, so the monster shows its waiting_reply bubble like the crab.
+- L10 (evidence) T3: README "Estados de la mascota" and TODO.md updated. Not verified in a real Electron window.

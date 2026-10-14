@@ -114,7 +114,7 @@ Cuando un agente pide permiso, la mascota correspondiente muestra los botones **
 
 ### Estados de la mascota
 
-La mascota de escritorio usa un juego de arte SVG propio, independiente del firmware: 28 estados animados, más un set de arte pixelado propio para Codex.
+La mascota de escritorio usa un juego de arte SVG propio, independiente del firmware: 28 estados animados para el cangrejo de Claude, un set de arte pixelado propio para Codex y el monstruo de la marca (`tools/monster_pixel.py`), que es la mascota por defecto de Kiro, OpenCode, Antigravity y de cualquier agente sin arte propio.
 
 - **Trabajo y herramientas** — pensar, escribir, construir, con el estado ligado a la herramienta en uso.
 - **Subagentes** — `conducting` al lanzar y `grooving` cuando hay subagentes trabajando en segundo plano; el mini-cangrejo cuenta cuántos.
