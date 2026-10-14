@@ -130,3 +130,9 @@ test("the default monster pet introduces itself as Mochi in its tooltip; crab an
   assert.equal(tooltip("claude").title, undefined);
   assert.equal(tooltip("codex").title, undefined);
 });
+
+test("Mochi is drawn at 80 % and only Mochi: the crab and the cloud keep full size", () => {
+  const css = read("renderer/style.css");
+  assert.match(css, /#crab\[data-art="monster"\] #crab-art \{ scale: 0\.8; \}/);
+  assert.equal((css.match(/scale:/g) || []).length, 1);
+});

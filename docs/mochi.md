@@ -38,6 +38,7 @@ When Mochi "speaks" (tooltips, notices, README), its voice is:
 
 - **Window label:** the label under the pet keeps naming the agent (for example "Kiro"), because the label says which agent the pet works for.
 - **Tooltip:** the pet's tooltip introduces Mochi: `Mochi · Clic para ver actividad · Arrastra para mover` (`desktop/renderer/renderer.js`).
+- **Size:** the art is drawn on the shared 30 px body box, and the pet window shows Mochi at 80 % (`scale: 0.8` in `desktop/renderer/style.css`), so it weighs about the same as the crab.
 - **Presentation sheet:** `assets/readme/mochi-sheet.png`, generated from the real animation files by `python tools/mochi_sheet.py`.
 
 ## Keep it in character

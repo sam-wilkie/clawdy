@@ -34,6 +34,8 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 
 - T11 L35 · live trial: reload the pet, fake-daemon mochi demo · inline · commit: 9393577
 
+- T12 L37-L41 · Mochi shown at 80 % by CSS · inline · commit: pending
+
 ## Log
 
 - L1 (user) "necesito que usando el modelo Opus 5.5 me ayudes a crear las animaciones por default O:\Proyectos\Clawdy\assets\pet-samples\ai\monster-brand-cute-v1.png basadas en las animaciones existentes  y O:\Proyectos\Clawdy\assets\pet-samples\ai\monster-brand-activities-grid-v2.png puedes mirar las memorias de codex respecto a esto"
@@ -72,3 +74,9 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 - L34 (evidence) T10: `docs/mochi.md` (name, tagline, origin, look, personality, voice, in-app use, keep-in-character rules); tooltip "Mochi · Clic para ver actividad · Arrastra para mover" on monster windows, label still the agent (RED: title was the stub default; GREEN: desktop npm test 46/46); `tools/mochi_sheet.py` -> `assets/readme/mochi-sheet.png` from the real animation frames; README section "Mochi, la mascota por defecto"; art bible sets table names Mochi.
 - L35 (user) "podrias ncluirlo para probarlo ya con los que no tengan modelo definido, como antigravity, kiro y opencode"
 - L36 (evidence) T11: live pet reloaded from this branch (`tools/reload_clawdy_pet.ps1`, new pid 11892), so real Kiro/OpenCode/Antigravity sessions show Mochi. Demo: second pet on port 19873 plus `node desktop/fake-daemon.js mochi` (new mode: the three agents in different states, rotating every 6 s); log shows kiro/opencode/antigravity frames being sent. Art bible gets the live-check step.
+- L37 (user) "lo que siento es que son demasiado grandes se ven ordinarios"
+- L38 (evidence) Size mockup `assets/pet-samples/ai/mochi-size-options-v1.png` (local): the crab beside Mochi at 30 (current), 26, 24 and 22 art px, at the real 180 px pet size. Awaiting the user's pick before regenerating.
+- L39 (user) "tocaria rehacer las animaciones o lo haces mas pequeño en html?" then chose "Probar con CSS primero".
+- L40 (evidence) Trial (uncommitted): `desktop/renderer/style.css` `#crab[data-art="monster"] #crab-art { scale: 0.8; }` (individual property, composes with the held tilt, same transform-origin). Demo pet restarted on 19873 with the fake-daemon mochi rotation; desktop npm test 46/46. Awaiting the user's look: keep CSS, or regenerate at 24 px if it looks blurry.
+- L41 (user) "asi esta ben" (keep the 80 % CSS scale).
+- L42 (evidence) T12: CSS kept; test pins the monster-only scale rule (desktop npm test 47/47); mochi.md and the art bible document it. Live pet reloaded, demo stopped.

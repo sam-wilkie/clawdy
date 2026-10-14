@@ -20,6 +20,7 @@ Rules for every pet set of the Electron desktop pet (`desktop/renderer`). The cr
 - Light from the top left: light band on the top/left rim, shade on the bottom/right rim.
 - One hue family per body (two at most, like the monster's white/red), plus neutrals. Saturation stays moderate: no pure red, no pure black ink on large areas.
 - No stray tip pixels on the silhouette (remove pixels with one 4-neighbour or fewer).
+- Visual weight: a new pet should cover about the crab's area at 180 px. A round 30 × 30 body looks too big; Mochi is shown at 80 % by CSS (`#crab[data-art="monster"] #crab-art { scale: 0.8; }`). A new set should be drawn at its final size (about 24 px across) rather than scaled, so its pixels stay whole.
 - Leave flat body area around the face. A face that covers half the body reads as noise at 180 px.
 
 ## 3. Character parts

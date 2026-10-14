@@ -32,6 +32,10 @@ html, body {
   transition: transform .12s steps(3);
 }
 #crab[data-held="true"] #crab-art { transform: rotate(-5deg) translateY(-3%); }
+/* Mochi's round body is taller than the crab; at 80 % it weighs about the same.
+   The individual `scale` property composes with the held tilt above, and the
+   shared transform-origin keeps it standing on the same ground line. */
+#crab[data-art="monster"] #crab-art { scale: 0.8; }
 
 .crab-layer {
   position: absolute;
