@@ -13,10 +13,11 @@ Design (approved mockup "C3, option 2", odd/tasks/monster-default-pet.md):
   right) that the poses use as hands.
 
 Motion: tools/codex_cloud_pixel.py is the engine (Pose, animate, props, timing);
-both characters fill the same 30 x 32 art-px body box. Most states keep the cloud's
-beats; error, low_battery, happy, beacon, debugger, waiting_reply, alert and
-disconnected follow the Claude crab's beats instead, and building/cool follow the
-grid v2 key poses (code blocks, thumbs-up).
+both characters fill the same 30 x 32 art-px body box. beacon, debugger, thinking,
+disconnected, low_battery, sweeping, sleeping, wizard, hat_mishap and cool are the
+Claude crab's own files re-skinned (tools/crab_skin.py); error, happy, waiting_reply
+and alert follow the crab's beats on the engine; building is a welding animation of
+its own; the other states keep the cloud's beats.
 
 Run from the repository root: ``python tools/monster_pixel.py``. It writes
 desktop/renderer/assets/monster/monster-<state>-v2.svg and compare-v2.html; the
@@ -162,7 +163,7 @@ IP = {"H": EYE_HI, "W": EYE_HI, "K": EYE_INK, "Y": GOLD, "S": W_S, "D": DIM_INK}
 HILITE = ["....", ".HH.", ".HH.", "....", "...H"]          # catch-light, moves with the gaze
 STARTLED = ["WWWWW", "WWWWW", "WWKWW", "WKKKW", "WWKWW", "WWWWW"]
 X_EYE = ["WWWWW", "KWWWK", "WKWKW", "WWKWW", "WKWKW", "KWWWK"]
-X_INK = [".....", "K...K", ".K.K.", "..K..", ".K.K.", "K...K"]   # error: bare X, no ring
+X_INK = ["KK..KK", ".KKKK.", "..KK..", "..KK..", ".KKKK.", "KK..KK"]   # error: the crab's bold X, no ring
 SWIRL_A = ["KKKKK", "WWWWK", "KKKWK", "KWKWK", "KWWWK", "KKKKK"]
 SWIRL_B = [r[::-1] for r in SWIRL_A[::-1]]
 STAR = ["..Y..", ".YYY.", "YYYYY", ".YYY.", "..Y..", "....."]
@@ -178,6 +179,7 @@ MOUTH_X, MOUTH_Y = 10, 23
 SMILE = [".K......K.", "..KKKKKK..", "...W..W..."]                 # rest: smile with two baby fangs
 GRIN = ["..KKKKKK..", "..KWMMWK..", "...KTTK...", "....KK...."]
 SMALL = ["...KKKK..."]
+FLAT = ["...KKKK..."]  # the crab's flat X_X mouth
 SMIRK = [".......K..", "...KKKK..."]
 O_MOUTH = ["....KK....", "...KMMK...", "....KK...."]
 WAVY = ["..K.K.K...", "...K.K.K.."]
@@ -212,7 +214,7 @@ def face_defs() -> dict[str, str]:
         "face-sleep": spread(CLOSED) + mouth(SMALL),
         "face-dizzy-a": per_eye(SWIRL_A, IP) + mouth(WAVY),
         "face-dizzy-b": per_eye(SWIRL_B, IP) + mouth(WAVY),
-        "face-x": per_eye(X_INK, IP) + mouth(WAVY),
+        "face-x": per_eye(X_INK, IP) + mouth(FLAT),
         "face-star": per_eye(STAR, IP) + mouth(GRIN),
         "face-oO": per_eye(STARTLED, IP, only={0}) + per_eye(HILITE, IP, only={1, 2}) + mouth(WAVY),
         "face-wink": spread(ARC) + mouth(CAT),
@@ -605,29 +607,6 @@ def render_alert() -> str:
                        "squash, six stretch-and-land jumps with mittens flapping up and out, recover.", layers, pose)
 
 
-def render_cool() -> str:
-    fps, n = 6, 30
-
-    def pose(f):
-        on = 6 <= f < 26
-        dy = -1 if on and (f // 6) % 2 and f > 8 else 0
-        p = Pose().body("sq" if f == 6 else "n", 0, dy, "cool" if on else "rest", look=(0, -1) if f < 6 else (0, 0))
-        p["hl"] = at(L_REST, 0, dy)
-        if on:
-            p["thumb"] = (26, 11 + dy - (1 if f in (7, 8) else 0))
-        else:
-            p["hr"] = R_REST
-        if f in (10, 11, 18, 19):
-            p["spk-a"] = (30, 2)
-        if f in (14, 15, 22, 23):
-            p["spk-b"] = (-4, 4)
-        return p
-
-    layers = BASE + hand_layers("hl", "hr") + L("thumb=thumb-up", "spk-a=sparkle", "spk-b=sparkle-s")
-    return write_state("cool", fps, n, "Grid v2 COOL: no glasses; the right eye half-lidded, a lopsided smile "
-                       "and a red thumbs-up that bounces while two sparkles twinkle.", layers, pose, hold_s=1.5)
-
-
 
 # ================================================================ crab-skinned states
 # These states are the Claude crab's own animation files with the crab swapped for
@@ -638,45 +617,9 @@ def render_cool() -> str:
 
 import re
 
-CRAB = Path(__file__).resolve().parents[1] / "desktop" / "renderer" / "assets"
+from crab_skin import bbox, raster, skin
+
 HEAD_UP = -10
-
-
-def def_groups(svg: str) -> list[tuple[str, int, int]]:
-    """(id, start of content, end of content) for every <g id=...>."""
-    out = []
-    for m in re.finditer(r'<g id="([^"]+)"[^>]*>', svg):
-        depth, j = 1, m.end()
-        while depth:
-            a, b = svg.find("<g", j), svg.find("</g>", j)
-            if a != -1 and a < b:
-                depth, j = depth + 1, a + 2
-            else:
-                depth, j = depth - 1, b + 4
-        out.append((m.group(1), m.end(), j - 4))
-    return out
-
-
-def bbox(svg: str) -> tuple[float, float, float, float]:
-    xs, ys = [], []
-    for d in re.findall(r' d="([^"]+)"', svg):
-        x = y = 0.0
-        for cmd, args in re.findall(r"([MmHhVvZz])([^MmHhVvZz]*)", d):
-            nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", args)]
-            if cmd == "M":
-                x, y = nums[0], nums[1]
-            elif cmd == "h":
-                x += nums[0]
-            elif cmd == "v":
-                y += nums[0]
-            elif cmd == "H":
-                x = nums[0]
-            elif cmd == "V":
-                y = nums[0]
-            if cmd not in "Zz":
-                xs.append(x)
-                ys.append(y)
-    return min(xs), min(ys), max(xs), max(ys)
 
 
 def shifted(rows: list[str], dx: int, dy: int) -> list[str]:
@@ -723,34 +666,26 @@ def torso(name: str) -> str:
 
 
 def crab_skin(state: str, src: str, shifts: dict, edit=None, replace=None) -> str:
-    svg = (CRAB / src).read_text(encoding="utf-8")
-    for gid, a, b in sorted(def_groups(svg), key=lambda g: -g[1]):
-        content = svg[a:b]
+    def handler(gid, content):
+        if replace and gid in replace:
+            return replace[gid](content)
         if gid.startswith("leg"):
-            new = ""
-        elif gid.startswith("torso"):
-            new = torso(gid)
-        elif gid.startswith("arm-"):
+            return ""
+        if gid.startswith("torso"):
+            return torso(gid)
+        if gid.startswith("arm-"):
             x0, y0, x1, y1 = bbox(content)
-            new = mitten_at((x0 + x1) / 2, (y0 + y1) / 2, "w" if gid.startswith("arm-l") else "r")
-        elif gid in CRAB_EYES:
-            new = CRAB_EYES[gid]
-        elif gid == "blush":
-            new = BLUSH_SVG
-        elif replace and gid in replace:
-            new = replace[gid](content)
-        else:
-            dxy = next((v for k, v in shifts.items() if gid == k or (k.endswith("*") and gid.startswith(k[:-1]))), None)
-            if dxy is None:
-                continue
-            new = f'<g transform="translate({dxy[0]} {dxy[1]})">{content}</g>'
-        svg = svg[:a] + new + svg[b:]
-    if edit:
-        svg = edit(svg)
-    svg = re.sub(r"<!--.*?-->", "", svg, count=1, flags=re.S)
-    svg = svg.replace("<defs>", f"<!-- Monster v2 {state}: the Claude crab's {src} (same scene and timing) "
-                      "with the monster's body, eyes and mittens. -->\n  <defs>", 1)
-    (OUT / f"monster-{state}-v2.svg").write_text(svg, encoding="utf-8")
+            return mitten_at((x0 + x1) / 2, (y0 + y1) / 2, "w" if gid.startswith("arm-l") else "r")
+        if gid in CRAB_EYES:
+            return CRAB_EYES[gid]
+        if gid == "blush":
+            return BLUSH_SVG
+        dxy = next((v for k, v in shifts.items() if gid == k or (k.endswith("*") and gid.startswith(k[:-1]))), None)
+        return None if dxy is None else f'<g transform="translate({dxy[0]} {dxy[1]})">{content}</g>'
+
+    skin(src, OUT / f"monster-{state}-v2.svg", handler, edit,
+         f"Monster v2 {state}: the Claude crab's {src} (same scene and timing) with the monster's body, eyes "
+         "and mittens.")
     return state
 
 
@@ -798,18 +733,6 @@ def crab_sleeping() -> str:
 HAT_UP = -6
 
 
-def raster(svg: str) -> dict[tuple[int, int], str]:
-    """Pixels of a run-length path group (each subpath is one axis-aligned rect)."""
-    px = {}
-    for fill, d in re.findall(r'fill="(#[0-9A-Fa-f]{6})" d="([^"]+)"', svg):
-        for sp in re.findall(r"M[^Mz]*z?", d):
-            x0, y0, x1, y1 = bbox(f' d="{sp}"')
-            for y in range(int(y0), int(y1)):
-                for x in range(int(x0), int(x1)):
-                    px[(x, y)] = fill
-    return px
-
-
 WIZ_HAT_W, WIZ_BRIM_Y = 32, 11  # brim as wide as the body plus a lip, its bottom on the eyes' top
 
 
@@ -831,6 +754,28 @@ def big_hat(svg: str) -> str:
 
 def crab_wizard() -> str:
     return crab_skin("wizard", "clawd-wizard-v2.svg", {}, replace={"hat": big_hat})
+
+
+LENS = ["KKKKKKK", "KKKKWKK", "KKKWKKK", ".KKKKK.", "..KKK.."]
+
+
+def three_eye_shades(_content: str) -> str:
+    """The crab's pixel shades, widened to three lenses: one bar across the face and a
+    lens (with the crab's diagonal glint) over each eye, the middle one 2 px higher."""
+    px = {(x, 14): "K" for x in range(4, 25)}
+    for x0, y0, _ in EYES:
+        for y, r in enumerate(LENS):
+            for x, c in enumerate(r):
+                if c != ".":
+                    px[(x0 + x, y0 + 1 + y)] = c
+    out: dict[str, set] = {}
+    for xy, c in px.items():
+        out.setdefault(EYE_INK if c == "K" else EYE_HI, set()).add(xy)
+    return paths(out)
+
+
+def crab_cool() -> str:
+    return crab_skin("cool", "clawd-cool-v2.svg", {}, replace={"shades": three_eye_shades})
 
 
 def crab_hat_mishap() -> str:
@@ -876,10 +821,10 @@ def render_building() -> str:
                        layers, pose)
 
 OWN = {r.__name__.removeprefix("render_"): r for r in (
-    render_error, render_happy, render_alert, render_building, render_cool)}
+    render_error, render_happy, render_alert, render_building)}
 OWN.update({f.__name__.removeprefix("crab_"): f for f in (
     crab_beacon, crab_debugger, crab_thinking, crab_disconnected, crab_low_battery, crab_sweeping,
-    crab_wizard, crab_hat_mishap, crab_sleeping)})
+    crab_wizard, crab_hat_mishap, crab_sleeping, crab_cool)})
 STATE_RENDERERS = [render_waiting_reply] + [OWN.get(r.__name__.removeprefix("render_"), r)
                                             for r in cc.STATE_RENDERERS]
 
