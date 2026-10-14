@@ -327,6 +327,28 @@ def usage_to_ble_payload(
     })
 
 
+PROJECT_USAGE_MAX_PROJECTS = 30
+
+
+def project_usage_to_payload(projects: list) -> str:
+    """Build a set_project_usage payload (desktop pet transports only).
+
+    Keeps the 30 projects with the most 30d tokens, dropping those with no
+    30d or month usage, so the line stays well under the BLE-sized budget.
+    """
+    def tokens(w: dict) -> int:
+        return w["in"] + w["out"] + w["cw"] + w["cr"]
+
+    live = [p for p in projects if tokens(p["30d"]) or tokens(p["month"])]
+    live.sort(key=lambda p: tokens(p["30d"]), reverse=True)
+    return json.dumps({
+        "action": "set_project_usage",
+        "currency": "USD",
+        "estimate": True,
+        "projects": live[:PROJECT_USAGE_MAX_PROJECTS],
+    })
+
+
 def read_usage_from_cache(cache_path: str) -> Optional[dict]:
     """Read the statusline cache written by the bridge and extract usage.
 
