@@ -162,6 +162,7 @@ IP = {"H": EYE_HI, "W": EYE_HI, "K": EYE_INK, "Y": GOLD, "S": W_S, "D": DIM_INK}
 HILITE = ["....", ".HH.", ".HH.", "....", "...H"]          # catch-light, moves with the gaze
 STARTLED = ["WWWWW", "WWWWW", "WWKWW", "WKKKW", "WWKWW", "WWWWW"]
 X_EYE = ["WWWWW", "KWWWK", "WKWKW", "WWKWW", "WKWKW", "KWWWK"]
+X_INK = [".....", "K...K", ".K.K.", "..K..", ".K.K.", "K...K"]   # error: bare X, no ring
 SWIRL_A = ["KKKKK", "WWWWK", "KKKWK", "KWKWK", "KWWWK", "KKKKK"]
 SWIRL_B = [r[::-1] for r in SWIRL_A[::-1]]
 STAR = ["..Y..", ".YYY.", "YYYYY", ".YYY.", "..Y..", "....."]
@@ -211,7 +212,7 @@ def face_defs() -> dict[str, str]:
         "face-sleep": spread(CLOSED) + mouth(SMALL),
         "face-dizzy-a": per_eye(SWIRL_A, IP) + mouth(WAVY),
         "face-dizzy-b": per_eye(SWIRL_B, IP) + mouth(WAVY),
-        "face-x": per_eye(X_EYE, IP) + mouth(WAVY),
+        "face-x": per_eye(X_INK, IP) + mouth(WAVY),
         "face-star": per_eye(STAR, IP) + mouth(GRIN),
         "face-oO": per_eye(STARTLED, IP, only={0}) + per_eye(HILITE, IP, only={1, 2}) + mouth(WAVY),
         "face-wink": spread(ARC) + mouth(CAT),
@@ -232,7 +233,7 @@ FACES = {
     "caret": ["face-caret"], "caret-blush": ["blush", "face-caret"],
     "o": OPEN + ["face-o"], "sleep": ["face-sleep"],
     "dizzy-a": OPEN + ["face-dizzy-a"], "dizzy-b": OPEN + ["face-dizzy-b"],
-    "x": OPEN + ["face-x"], "x-dim": ["eye-rings-dim", "face-x-dim"], "star": OPEN + ["face-star"],
+    "x": ["face-x"], "x-dim": ["face-x-dim"], "star": OPEN + ["face-star"],
     "oO": OPEN + ["face-oO"], "wink": ["blush", "face-wink"], "line": ["eyes-line", "mouth-u"],
     "smirk": OPEN + ["eyes-open", "mouth-smirk"], "half": OPEN + ["lid-half", "cursor"],
     "cool": OPEN + ["face-cool"],
@@ -700,18 +701,28 @@ CRAB_EYES = {
 }
 
 
+def lean(px: int) -> int:
+    """The crab's sweeping lean (3..11 px at the top of its torso) on the round body:
+    0..2 px, so the eyes stay on the face."""
+    return max(0, min(2, round((px - 3) / 3)))
+
+
 def torso(name: str) -> str:
     """Monster body for a crab torso def: the squashed 24x13 torso squashes, the
     leaning 22x14-lpA... torsos lean by A/4 px, everything else is the plain body."""
     if name == "torso-24x13":
         return cc.layer(monster_shade(monster_mask(0, 1.08, 0.88))) + mouth(SMALL, 2)
+    sploot = re.match(r"torso-sploot-(\d+)", name)
+    if sploot:  # sleeping: heights 10..12 of the crab's 14 -> a flatter ball that breathes
+        sy = {10: 0.80, 11: 0.84, 12: 0.88}[int(sploot.group(1))]
+        return cc.layer(monster_shade(monster_mask(0, 1.10, sy))) + mouth(SMALL, round(13.5 * (1 - sy)))
     m = re.match(r"torso-\d+x\d+-lp(\d+)", name)
-    dx = round(int(m.group(1)) / 4) if m else 0
+    dx = lean(int(m.group(1))) if m else 0
     body = cc.layer(monster_shade(monster_mask(0))) + mouth(SMILE)
     return f'<g transform="translate({dx} 0)">{body}</g>' if dx else body
 
 
-def crab_skin(state: str, src: str, shifts: dict, edit=None) -> str:
+def crab_skin(state: str, src: str, shifts: dict, edit=None, replace=None) -> str:
     svg = (CRAB / src).read_text(encoding="utf-8")
     for gid, a, b in sorted(def_groups(svg), key=lambda g: -g[1]):
         content = svg[a:b]
@@ -724,6 +735,10 @@ def crab_skin(state: str, src: str, shifts: dict, edit=None) -> str:
             new = mitten_at((x0 + x1) / 2, (y0 + y1) / 2, "w" if gid.startswith("arm-l") else "r")
         elif gid in CRAB_EYES:
             new = CRAB_EYES[gid]
+        elif gid == "blush":
+            new = BLUSH_SVG
+        elif replace and gid in replace:
+            new = replace[gid](content)
         else:
             dxy = next((v for k, v in shifts.items() if gid == k or (k.endswith("*") and gid.startswith(k[:-1]))), None)
             if dxy is None:
@@ -763,7 +778,19 @@ def crab_low_battery() -> str:
 
 
 def crab_sweeping() -> str:
-    return crab_skin("sweeping", "clawd-working-sweeping-v2.svg", {})
+    def calm_eyes(svg):
+        i = svg.index("@keyframes sey-mv")
+        j = svg.index("}\n      }", i) + 9
+        block = re.sub(r"translate\((-?\d+)px, (-?\d+)px\)",
+                       lambda m: f"translate({lean(int(m.group(1)))}px, 0px)", svg[i:j])
+        return svg[:i] + block + svg[j:]
+
+    return crab_skin("sweeping", "clawd-working-sweeping-v2.svg", {}, calm_eyes)
+
+
+def crab_sleeping() -> str:
+    # the Zs float up from the crab's low sploot head; the flattened ball is taller
+    return crab_skin("sleeping", "clawd-sleeping-v2.svg", {"z*": (0, -12)})
 
 
 # The wizard hat is as wide as the crab's flat head; on the round monster its brim
@@ -771,8 +798,39 @@ def crab_sweeping() -> str:
 HAT_UP = -6
 
 
+def raster(svg: str) -> dict[tuple[int, int], str]:
+    """Pixels of a run-length path group (each subpath is one axis-aligned rect)."""
+    px = {}
+    for fill, d in re.findall(r'fill="(#[0-9A-Fa-f]{6})" d="([^"]+)"', svg):
+        for sp in re.findall(r"M[^Mz]*z?", d):
+            x0, y0, x1, y1 = bbox(f' d="{sp}"')
+            for y in range(int(y0), int(y1)):
+                for x in range(int(x0), int(x1)):
+                    px[(x, y)] = fill
+    return px
+
+
+WIZ_HAT_W, WIZ_BRIM_Y = 32, 11  # brim as wide as the body plus a lip, its bottom on the eyes' top
+
+
+def big_hat(svg: str) -> str:
+    px = raster(svg)
+    x0 = min(x for x, _ in px); x1 = max(x for x, _ in px) + 1
+    y0 = min(y for _, y in px); y1 = max(y for _, y in px) + 1
+    k = WIZ_HAT_W / (x1 - x0)
+    w, h = WIZ_HAT_W, round((y1 - y0) * k)
+    ox, oy = 15 - w // 2, WIZ_BRIM_Y - h
+    out: dict[str, set] = {}
+    for y in range(h):
+        for x in range(w):
+            c = px.get((x0 + int(x / k), y0 + int(y / k)))
+            if c:
+                out.setdefault(c, set()).add((ox + x, oy + y))
+    return paths(out)
+
+
 def crab_wizard() -> str:
-    return crab_skin("wizard", "clawd-wizard-v2.svg", {"hat": (0, HAT_UP)})
+    return crab_skin("wizard", "clawd-wizard-v2.svg", {}, replace={"hat": big_hat})
 
 
 def crab_hat_mishap() -> str:
@@ -821,7 +879,7 @@ OWN = {r.__name__.removeprefix("render_"): r for r in (
     render_error, render_happy, render_alert, render_building, render_cool)}
 OWN.update({f.__name__.removeprefix("crab_"): f for f in (
     crab_beacon, crab_debugger, crab_thinking, crab_disconnected, crab_low_battery, crab_sweeping,
-    crab_wizard, crab_hat_mishap)})
+    crab_wizard, crab_hat_mishap, crab_sleeping)})
 STATE_RENDERERS = [render_waiting_reply] + [OWN.get(r.__name__.removeprefix("render_"), r)
                                             for r in cc.STATE_RENDERERS]
 

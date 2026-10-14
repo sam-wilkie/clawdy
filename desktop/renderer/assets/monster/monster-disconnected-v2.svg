@@ -97,7 +97,7 @@
           <use href="#arm-r"/>
           <use href="#eyes-ur"/>
         </g>
-        <g class="q" transform="translate(1 3)"><use href="#qmark"/></g>
+        <g class="q" transform="translate(13 3)"><use href="#qmark"/></g>
         <g class="bang" transform="translate(14 3)"><use href="#bang"/></g>
       </g>
     </g>
