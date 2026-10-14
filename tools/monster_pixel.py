@@ -15,12 +15,20 @@ Key poses per activity: assets/pet-samples/ai/monster-brand-activities-grid-v2.p
 Run from the repository root: ``python tools/monster_pixel.py``. It writes
 desktop/renderer/assets/monster/monster-<state>-v2.svg and compare-v2.html; the
 cloud's own output is not touched.
+
+Dependency: tools/codex_cloud_pixel.py is kept local (gitignored, see NOTICE.md),
+so this script only runs on a checkout that has it. The generated monster SVGs
+are committed and self-contained.
 """
 
 import math
 from pathlib import Path
 
-import codex_cloud_pixel as cc
+try:
+    import codex_cloud_pixel as cc
+except ModuleNotFoundError as exc:  # pragma: no cover - depends on the local checkout
+    raise SystemExit("tools/codex_cloud_pixel.py is missing: it is kept local (gitignored, see NOTICE.md) "
+                     "and the monster generator reuses its engine.") from exc
 
 OUT = Path(__file__).resolve().parents[1] / "desktop" / "renderer" / "assets" / "monster"
 

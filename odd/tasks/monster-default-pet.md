@@ -6,7 +6,7 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 ## Specs
 
 - S1 "es un pet paralelo al de claude que ya existe para que sea el modelo por defecto": the monster is a separate art set next to the Claude crab (and the Codex cloud), and it is the pet shown for any agent that has no art set of its own.
-- S2 "crear las animaciones por default ... basadas en las animaciones existentes": every monster state reuses the beats, fps and loop of the existing v2 state of the same name.
+- S2 "crear las animaciones por default ... basadas en las animaciones existentes": every monster state reuses the beats, fps and loop of the existing v2 state of the same name, except where the grid v2 key pose (S3) replaces the prop: `building` (code blocks, 3 s at 8 fps) and `cool` (thumbs-up, same timing).
 - S3 Design source: `assets/pet-samples/ai/monster-brand-cute-v1.png` (character) and `assets/pet-samples/ai/monster-brand-activities-grid-v2.png` (per-activity key poses): circular body, white left side with a red right crescent, the ring-eye cluster of the cute-v1 image (nine rings: three red, six white), small smile with two baby fangs, blush, floating white left and red right mittens.
 - S4 Scope "Los 31 estados": one SVG per state the Codex cloud set ships. That set has 29 files (idle, waiting_reply and 27 rendered states, alert included); "31" was a miscount in the option label.
 
@@ -28,3 +28,5 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 - L8 (evidence) T1: `python tools/monster_pixel.py` writes 29 SVGs + compare-v2.html; codex/*.svg checksums unchanged (478f807c... before and after). Building (code blocks) and cool (thumbs-up, no glasses) follow grid v2 instead of the cloud's hammer and sunglasses. Every state rendered with Playwright and inspected.
 - L9 (evidence) T2: RED observed (kiro got the crab: `art: undefined`, `ART_STATES.idle` null), then GREEN; `npm test` in desktop: 45 pass, 0 fail. waiting_reply calm override stays Codex-only, so the monster shows its waiting_reply bubble like the crab.
 - L10 (evidence) T3: README "Estados de la mascota" and TODO.md updated. Not verified in a real Electron window.
+- L11 (evidence) Independent verify (gentle-ai-verify, native assess unassessable -> treated as high): S1, S3, S4 met; S2 met except `building` timing, now documented in S2. npm test 45/45, regeneration byte-identical, codex assets unchanged, no crab/cloud regression found.
+- L12 (open) `tools/codex_cloud_pixel.py` and `desktop/renderer/assets/codex/` are gitignored (licensing, NOTICE.md), so `tools/monster_pixel.py` cannot run on a fresh clone; the committed monster SVGs are self-contained. Generator now exits with a clear message. Decision pending from the user: keep as is, or move the generic engine into a tracked module.
