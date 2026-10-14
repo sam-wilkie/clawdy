@@ -19,7 +19,7 @@ Source: `openspec/changes/tauri-shell-hotbar-migration/exploration.md` ("Change 
 
 ## Tasks
 
-- T1 S5 · install Rust (rustup, stable) and MSVC Build Tools; verify `cargo --version` and a hello-world build · inline · commit: pending
+- T1 S5 · install Rust (rustup, stable) and MSVC Build Tools; verify `cargo --version` and a hello-world build · inline · commit: this commit
 - T2 S2,S3 · scaffold `spike/tauri/`, transparent always-on-top window with a sprite, Rust cursor-polling click-through · inline · commit: pending
 - T3 S4 · Allow/Deny card round-tripping a real nonce through the daemon · inline · commit: pending
 - T4 S5,S6 · measure T-click/T-cpu/T-ram/T-perm on Windows, write the verdict, hand T-mac to the user · inline · commit: pending
@@ -29,3 +29,4 @@ Source: `openspec/changes/tauri-shell-hotbar-migration/exploration.md` ("Change 
 - L1 (user) "con eso definido podriamos continuar con esto O:\Proyectos\Clawdy\openspec\changes\tauri-shell-hotbar-migration" then "ok" to start the spike.
 - L2 (user) go/no-go scope: "Windows y macOS"; thresholds: "Propuestos por mí (recomendado)"; Rust install: "Sí, instalalos".
 - L3 (evidence) This machine has node v24.15.0 and npm 11.12.1 but no cargo, rustc or rustup; only the `Installer` and `Shared` folders under Visual Studio, so no confirmed MSVC.
+- L4 (decision) C: has ~7.8 GB free, so everything lives on O:. Rust via rustup (`RUSTUP_HOME=O:\devustup`, `CARGO_HOME=O:\dev\cargo`, no PATH change); MSVC 14.44 + Windows SDK 26100 via the portable-msvc.py gist (reviewed; license accepted by the user) into `O:\dev\msvc`; Visual Studio untouched. Activate with `. /o/dev/env.sh`. Verified: `cargo run` hello-world prints "Hello, world!" (cargo 1.99.0).
