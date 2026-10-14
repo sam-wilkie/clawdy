@@ -1,161 +1,336 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500" shape-rendering="crispEdges">
-  <!-- Monster v2 error: 2.4 s loop, poses at 10 fps (24 frames), same beats as the Codex cloud v2 error; appearance swaps step-end, motion interpolated. x_x storm cloud: the logo cloud turns grey, hovers and rains, a pixel lightning bolt strikes (the cloud shudders), a red ! bobs by the head. -->
+  <!-- Monster v2 error: 2.4 s loop, poses at 10 fps (24 frames); appearance swaps step-end, motion interpolated. Crab beats: collapsed flat with X eyes, three stars orbit above, mittens limp on the floor, slow breath, grey smoke rises, a red ERROR label blinks. -->
   <defs>
     <style>
-      .rain0-m { animation: rain0-m 2.4s infinite linear; }
-      .rain0-v { animation: rain0-v 2.4s infinite step-end; }
-      .rain1-m { animation: rain1-m 2.4s infinite linear; }
-      .rain1-v { animation: rain1-v 2.4s infinite step-end; }
-      .rain2-m { animation: rain2-m 2.4s infinite linear; }
-      .rain2-v { animation: rain2-v 2.4s infinite step-end; }
-      .rain3-m { animation: rain3-m 2.4s infinite linear; }
-      .rain3-v { animation: rain3-v 2.4s infinite step-end; }
-      .rain4-m { animation: rain4-m 2.4s infinite linear; }
-      .rain4-v { animation: rain4-v 2.4s infinite step-end; }
-      .bolt-v { animation: bolt-v 2.4s infinite step-end; }
-      .bang-m { animation: bang-m 2.4s infinite linear; }
-      .rig-m { animation: rig-m 2.4s infinite linear; }
-      @keyframes rain0-m {
-        0.0000% { transform: translate(8px, 21px); }
-        4.1667% { transform: translate(8px, 23px); }
-        12.5000% { transform: translate(8px, 27px); }
-        16.6667% { transform: translate(8px, 29px); }
-        16.6767% { transform: translate(8px, 21px); }
-        100.0000% { transform: translate(8px, 21px); }
-      }
-      @keyframes rain0-v {
-        0.0000% { opacity: 1; }
-        16.6667% { opacity: 0; }
-      }
-      @keyframes rain1-m {
-        0.0000% { transform: translate(17px, 21px); }
-        16.6667% { transform: translate(17px, 21px); }
-        33.3333% { transform: translate(17px, 29px); }
-        33.3433% { transform: translate(17px, 21px); }
-        100.0000% { transform: translate(17px, 21px); }
-      }
-      @keyframes rain1-v {
-        0.0000% { opacity: 0; }
-        16.6667% { opacity: 1; }
-        33.3333% { opacity: 0; }
-      }
-      @keyframes rain2-m {
-        0.0000% { transform: translate(23px, 21px); }
-        33.3333% { transform: translate(23px, 21px); }
-        37.5000% { transform: translate(23px, 23px); }
-        41.6667% { transform: translate(23px, 25px); }
-        45.8333% { transform: translate(23px, 27px); }
-        50.0000% { transform: translate(23px, 29px); }
-        50.0100% { transform: translate(23px, 21px); }
-        100.0000% { transform: translate(23px, 21px); }
-      }
-      @keyframes rain2-v {
-        0.0000% { opacity: 0; }
-        33.3333% { opacity: 1; }
-        50.0000% { opacity: 0; }
-      }
-      @keyframes rain3-m {
-        0.0000% { transform: translate(12px, 21px); }
-        50.0000% { transform: translate(12px, 21px); }
-        54.1667% { transform: translate(12px, 23px); }
-        58.3333% { transform: translate(12px, 25px); }
-        62.5000% { transform: translate(12px, 27px); }
-        66.6667% { transform: translate(12px, 29px); }
-        66.6767% { transform: translate(12px, 21px); }
-        100.0000% { transform: translate(12px, 21px); }
-      }
-      @keyframes rain3-v {
+      .b-dfl-v { animation: b-dfl-v 2.4s infinite step-end; }
+      .b-dfl2-v { animation: b-dfl2-v 2.4s infinite step-end; }
+      .f-eye-rings-m { animation: f-eye-rings-m 2.4s infinite step-end; }
+      .f-face-x-m { animation: f-face-x-m 2.4s infinite step-end; }
+      .star0-m { animation: star0-m 2.4s infinite linear; }
+      .star1-m { animation: star1-m 2.4s infinite linear; }
+      .star2-m { animation: star2-m 2.4s infinite linear; }
+      .smoke0-m { animation: smoke0-m 2.4s infinite linear; }
+      .smoke0-v { animation: smoke0-v 2.4s infinite step-end; }
+      .smoke1-m { animation: smoke1-m 2.4s infinite linear; }
+      .smoke1-v { animation: smoke1-v 2.4s infinite step-end; }
+      .smoke2-m { animation: smoke2-m 2.4s infinite linear; }
+      .smoke2-v { animation: smoke2-v 2.4s infinite step-end; }
+      .smokes0-m { animation: smokes0-m 2.4s infinite linear; }
+      .smokes0-v { animation: smokes0-v 2.4s infinite step-end; }
+      .smokes1-m { animation: smokes1-m 2.4s infinite linear; }
+      .smokes1-v { animation: smokes1-v 2.4s infinite step-end; }
+      .smokes2-m { animation: smokes2-m 2.4s infinite linear; }
+      .smokes2-v { animation: smokes2-v 2.4s infinite step-end; }
+      .label-v { animation: label-v 2.4s infinite step-end; }
+      @keyframes b-dfl-v {
         0.0000% { opacity: 0; }
         50.0000% { opacity: 1; }
-        66.6667% { opacity: 0; }
       }
-      @keyframes rain4-m {
-        0.0000% { transform: translate(20px, 21px); }
-        66.6667% { transform: translate(20px, 21px); }
-        83.3333% { transform: translate(20px, 29px); }
-        83.3433% { transform: translate(20px, 21px); }
-        100.0000% { transform: translate(20px, 21px); }
+      @keyframes b-dfl2-v {
+        0.0000% { opacity: 1; }
+        50.0000% { opacity: 0; }
       }
-      @keyframes rain4-v {
-        0.0000% { opacity: 0; }
-        66.6667% { opacity: 1; }
-        83.3333% { opacity: 0; }
+      @keyframes f-eye-rings-m {
+        0.0000% { transform: translate(0px, 1px); }
+        50.0000% { transform: translate(0px, 2px); }
       }
-      @keyframes bolt-v {
+      @keyframes f-face-x-m {
+        0.0000% { transform: translate(0px, 1px); }
+        50.0000% { transform: translate(0px, 2px); }
+      }
+      @keyframes star0-m {
+        0.0000% { transform: translate(24px, 2px); }
+        2.7778% { transform: translate(24px, 2.815px); }
+        4.1667% { transform: translate(24px, 3px); }
+        5.5556% { transform: translate(23.84px, 3px); }
+        6.9444% { transform: translate(23.457px, 3px); }
+        8.3333% { transform: translate(23px, 3px); }
+        9.7222% { transform: translate(22.462px, 3px); }
+        11.1111% { transform: translate(21.775px, 3px); }
+        12.5000% { transform: translate(21px, 3px); }
+        13.8889% { transform: translate(20.044px, 3.259px); }
+        15.2778% { transform: translate(18.956px, 3.741px); }
+        16.6667% { transform: translate(18px, 4px); }
+        18.0556% { transform: translate(17.304px, 4px); }
+        19.4444% { transform: translate(16.696px, 4px); }
+        20.8333% { transform: translate(16px, 4px); }
+        22.2222% { transform: translate(15.089px, 4px); }
+        27.7778% { transform: translate(10.911px, 4px); }
+        29.1667% { transform: translate(10px, 4px); }
+        30.5556% { transform: translate(9.304px, 4px); }
+        31.9444% { transform: translate(8.696px, 4px); }
+        33.3333% { transform: translate(8px, 4px); }
+        34.7222% { transform: translate(7.044px, 3.741px); }
+        36.1111% { transform: translate(5.956px, 3.259px); }
+        37.5000% { transform: translate(5px, 3px); }
+        38.8889% { transform: translate(4.225px, 3px); }
+        40.2778% { transform: translate(3.538px, 3px); }
+        41.6667% { transform: translate(3px, 3px); }
+        43.0556% { transform: translate(2.543px, 3px); }
+        44.4444% { transform: translate(2.16px, 3px); }
+        45.8333% { transform: translate(2px, 3px); }
+        47.2222% { transform: translate(2px, 2.815px); }
+        50.0000% { transform: translate(2px, 2px); }
+        52.7778% { transform: translate(2px, 1.185px); }
+        54.1667% { transform: translate(2px, 1px); }
+        55.5556% { transform: translate(2.16px, 1px); }
+        56.9444% { transform: translate(2.543px, 1px); }
+        58.3333% { transform: translate(3px, 1px); }
+        59.7222% { transform: translate(3.568px, 1px); }
+        62.5000% { transform: translate(5px, 1px); }
+        63.8889% { transform: translate(5.637px, 0.741px); }
+        65.2778% { transform: translate(6.274px, 0.259px); }
+        66.6667% { transform: translate(7px, 0px); }
+        68.0556% { transform: translate(7.911px, 0px); }
+        70.8333% { transform: translate(10px, 0px); }
+        75.0000% { transform: translate(13px, 0px); }
+        77.7778% { transform: translate(15.089px, 0px); }
+        79.1667% { transform: translate(16px, 0px); }
+        80.5556% { transform: translate(16.696px, 0px); }
+        81.9444% { transform: translate(17.304px, 0px); }
+        83.3333% { transform: translate(18px, 0px); }
+        84.7222% { transform: translate(18.956px, 0.259px); }
+        86.1111% { transform: translate(20.044px, 0.741px); }
+        87.5000% { transform: translate(21px, 1px); }
+        88.8889% { transform: translate(21.775px, 1px); }
+        90.2778% { transform: translate(22.462px, 1px); }
+        91.6667% { transform: translate(23px, 1px); }
+        93.0556% { transform: translate(23.457px, 1px); }
+        94.4444% { transform: translate(23.84px, 1px); }
+        95.8333% { transform: translate(24px, 1px); }
+        97.2222% { transform: translate(24px, 1.185px); }
+        100.0000% { transform: translate(24px, 2px); }
+      }
+      @keyframes star1-m {
+        0.0000% { transform: translate(8px, 4px); }
+        1.3889% { transform: translate(7.044px, 3.741px); }
+        2.7778% { transform: translate(5.956px, 3.259px); }
+        4.1667% { transform: translate(5px, 3px); }
+        5.5556% { transform: translate(4.225px, 3px); }
+        6.9444% { transform: translate(3.538px, 3px); }
+        8.3333% { transform: translate(3px, 3px); }
+        9.7222% { transform: translate(2.543px, 3px); }
+        11.1111% { transform: translate(2.16px, 3px); }
+        12.5000% { transform: translate(2px, 3px); }
+        13.8889% { transform: translate(2px, 2.815px); }
+        16.6667% { transform: translate(2px, 2px); }
+        19.4444% { transform: translate(2px, 1.185px); }
+        20.8333% { transform: translate(2px, 1px); }
+        22.2222% { transform: translate(2.16px, 1px); }
+        23.6111% { transform: translate(2.543px, 1px); }
+        25.0000% { transform: translate(3px, 1px); }
+        26.3889% { transform: translate(3.568px, 1px); }
+        29.1667% { transform: translate(5px, 1px); }
+        30.5556% { transform: translate(5.637px, 0.741px); }
+        31.9444% { transform: translate(6.274px, 0.259px); }
+        33.3333% { transform: translate(7px, 0px); }
+        34.7222% { transform: translate(7.911px, 0px); }
+        37.5000% { transform: translate(10px, 0px); }
+        41.6667% { transform: translate(13px, 0px); }
+        44.4444% { transform: translate(15.089px, 0px); }
+        45.8333% { transform: translate(16px, 0px); }
+        47.2222% { transform: translate(16.696px, 0px); }
+        48.6111% { transform: translate(17.304px, 0px); }
+        50.0000% { transform: translate(18px, 0px); }
+        51.3889% { transform: translate(18.956px, 0.259px); }
+        52.7778% { transform: translate(20.044px, 0.741px); }
+        54.1667% { transform: translate(21px, 1px); }
+        55.5556% { transform: translate(21.775px, 1px); }
+        56.9444% { transform: translate(22.462px, 1px); }
+        58.3333% { transform: translate(23px, 1px); }
+        59.7222% { transform: translate(23.457px, 1px); }
+        61.1111% { transform: translate(23.84px, 1px); }
+        62.5000% { transform: translate(24px, 1px); }
+        63.8889% { transform: translate(24px, 1.185px); }
+        66.6667% { transform: translate(24px, 2px); }
+        69.4444% { transform: translate(24px, 2.815px); }
+        70.8333% { transform: translate(24px, 3px); }
+        72.2222% { transform: translate(23.84px, 3px); }
+        73.6111% { transform: translate(23.457px, 3px); }
+        75.0000% { transform: translate(23px, 3px); }
+        76.3889% { transform: translate(22.462px, 3px); }
+        77.7778% { transform: translate(21.775px, 3px); }
+        79.1667% { transform: translate(21px, 3px); }
+        80.5556% { transform: translate(20.044px, 3.259px); }
+        81.9444% { transform: translate(18.956px, 3.741px); }
+        83.3333% { transform: translate(18px, 4px); }
+        84.7222% { transform: translate(17.304px, 4px); }
+        86.1111% { transform: translate(16.696px, 4px); }
+        87.5000% { transform: translate(16px, 4px); }
+        88.8889% { transform: translate(15.089px, 4px); }
+        94.4444% { transform: translate(10.911px, 4px); }
+        95.8333% { transform: translate(10px, 4px); }
+        97.2222% { transform: translate(9.304px, 4px); }
+        98.6111% { transform: translate(8.696px, 4px); }
+        100.0000% { transform: translate(8px, 4px); }
+      }
+      @keyframes star2-m {
+        0.0000% { transform: translate(7px, 0px); }
+        1.3889% { transform: translate(7.911px, 0px); }
+        4.1667% { transform: translate(10px, 0px); }
+        8.3333% { transform: translate(13px, 0px); }
+        11.1111% { transform: translate(15.089px, 0px); }
+        12.5000% { transform: translate(16px, 0px); }
+        13.8889% { transform: translate(16.696px, 0px); }
+        15.2778% { transform: translate(17.304px, 0px); }
+        16.6667% { transform: translate(18px, 0px); }
+        18.0556% { transform: translate(18.956px, 0.259px); }
+        19.4444% { transform: translate(20.044px, 0.741px); }
+        20.8333% { transform: translate(21px, 1px); }
+        22.2222% { transform: translate(21.775px, 1px); }
+        23.6111% { transform: translate(22.462px, 1px); }
+        25.0000% { transform: translate(23px, 1px); }
+        26.3889% { transform: translate(23.457px, 1px); }
+        27.7778% { transform: translate(23.84px, 1px); }
+        29.1667% { transform: translate(24px, 1px); }
+        30.5556% { transform: translate(24px, 1.185px); }
+        36.1111% { transform: translate(24px, 2.815px); }
+        37.5000% { transform: translate(24px, 3px); }
+        38.8889% { transform: translate(23.84px, 3px); }
+        40.2778% { transform: translate(23.457px, 3px); }
+        41.6667% { transform: translate(23px, 3px); }
+        43.0556% { transform: translate(22.432px, 3px); }
+        45.8333% { transform: translate(21px, 3px); }
+        47.2222% { transform: translate(20.363px, 3.259px); }
+        48.6111% { transform: translate(19.726px, 3.741px); }
+        50.0000% { transform: translate(19px, 4px); }
+        51.3889% { transform: translate(18.089px, 4px); }
+        54.1667% { transform: translate(16px, 4px); }
+        58.3333% { transform: translate(13px, 4px); }
+        61.1111% { transform: translate(10.911px, 4px); }
+        62.5000% { transform: translate(10px, 4px); }
+        63.8889% { transform: translate(9.304px, 4px); }
+        65.2778% { transform: translate(8.696px, 4px); }
+        66.6667% { transform: translate(8px, 4px); }
+        68.0556% { transform: translate(7.044px, 3.741px); }
+        69.4444% { transform: translate(5.956px, 3.259px); }
+        70.8333% { transform: translate(5px, 3px); }
+        72.2222% { transform: translate(4.225px, 3px); }
+        73.6111% { transform: translate(3.538px, 3px); }
+        75.0000% { transform: translate(3px, 3px); }
+        76.3889% { transform: translate(2.543px, 3px); }
+        77.7778% { transform: translate(2.16px, 3px); }
+        79.1667% { transform: translate(2px, 3px); }
+        80.5556% { transform: translate(2px, 2.815px); }
+        86.1111% { transform: translate(2px, 1.185px); }
+        87.5000% { transform: translate(2px, 1px); }
+        88.8889% { transform: translate(2.16px, 1px); }
+        90.2778% { transform: translate(2.543px, 1px); }
+        91.6667% { transform: translate(3px, 1px); }
+        93.0556% { transform: translate(3.568px, 1px); }
+        95.8333% { transform: translate(5px, 1px); }
+        97.2222% { transform: translate(5.637px, 0.741px); }
+        98.6111% { transform: translate(6.274px, 0.259px); }
+        100.0000% { transform: translate(7px, 0px); }
+      }
+      @keyframes smoke0-m {
+        0.0000% { transform: translate(10px, -1px); }
+        4.1667% { transform: translate(10px, -2px); }
+        8.3333% { transform: translate(10px, -3px); }
+        9.7222% { transform: translate(10.259px, -3.333px); }
+        11.1111% { transform: translate(10.741px, -3.667px); }
+        12.5000% { transform: translate(11px, -4px); }
+        16.6667% { transform: translate(11px, -5px); }
+        20.8333% { transform: translate(11px, -6px); }
+        20.8433% { transform: translate(10px, -1px); }
+        100.0000% { transform: translate(10px, -1px); }
+      }
+      @keyframes smoke0-v {
+        0.0000% { opacity: 1; }
+        20.8333% { opacity: 0; }
+      }
+      @keyframes smoke1-m {
+        0.0000% { transform: translate(18px, -1px); }
+        33.3333% { transform: translate(18px, -1px); }
+        37.5000% { transform: translate(18px, -2px); }
+        41.6667% { transform: translate(18px, -3px); }
+        43.0556% { transform: translate(18.259px, -3.333px); }
+        44.4444% { transform: translate(18.741px, -3.667px); }
+        45.8333% { transform: translate(19px, -4px); }
+        50.0000% { transform: translate(19px, -5px); }
+        54.1667% { transform: translate(19px, -6px); }
+        54.1767% { transform: translate(18px, -1px); }
+        100.0000% { transform: translate(18px, -1px); }
+      }
+      @keyframes smoke1-v {
         0.0000% { opacity: 0; }
         33.3333% { opacity: 1; }
+        54.1667% { opacity: 0; }
+      }
+      @keyframes smoke2-m {
+        0.0000% { transform: translate(13px, -1px); }
+        66.6667% { transform: translate(13px, -1px); }
+        75.0000% { transform: translate(13px, -3px); }
+        76.3889% { transform: translate(13.259px, -3.333px); }
+        77.7778% { transform: translate(13.741px, -3.667px); }
+        79.1667% { transform: translate(14px, -4px); }
+        87.5000% { transform: translate(14px, -6px); }
+        87.5100% { transform: translate(13px, -1px); }
+        100.0000% { transform: translate(13px, -1px); }
+      }
+      @keyframes smoke2-v {
+        0.0000% { opacity: 0; }
+        66.6667% { opacity: 1; }
+        87.5000% { opacity: 0; }
+      }
+      @keyframes smokes0-m {
+        0.0000% { transform: translate(11px, -6px); }
+        20.8333% { transform: translate(11px, -6px); }
+        23.6111% { transform: translate(11.815px, -6.667px); }
+        25.0000% { transform: translate(12px, -7px); }
+        33.3333% { transform: translate(12px, -9px); }
+        34.7222% { transform: translate(12.185px, -9.333px); }
+        37.5000% { transform: translate(13px, -10px); }
+        41.6667% { transform: translate(14px, -11px); }
+        41.6767% { transform: translate(11px, -6px); }
+        100.0000% { transform: translate(11px, -6px); }
+      }
+      @keyframes smokes0-v {
+        0.0000% { opacity: 0; }
+        20.8333% { opacity: 1; }
         41.6667% { opacity: 0; }
-        75.0000% { opacity: 1; }
-        79.1667% { opacity: 0; }
       }
-      @keyframes bang-m {
-        0.0000% { transform: translate(28px, -13px); }
-        29.1667% { transform: translate(28px, -13px); }
-        30.5556% { transform: translate(28px, -12.951px); }
-        31.9444% { transform: translate(28px, -12.825px); }
-        36.1111% { transform: translate(28px, -12.259px); }
-        37.5000% { transform: translate(28px, -12.104px); }
-        38.8889% { transform: translate(28px, -12.013px); }
-        39.5833% { transform: translate(28px, -12px); }
-        40.2778% { transform: translate(28px, -12.013px); }
-        41.6667% { transform: translate(28px, -12.104px); }
-        44.4444% { transform: translate(28px, -12.45px); }
-        47.2222% { transform: translate(28px, -12.825px); }
-        48.6111% { transform: translate(28px, -12.951px); }
-        50.0000% { transform: translate(28px, -13px); }
-        79.1667% { transform: translate(28px, -13px); }
-        80.5556% { transform: translate(28px, -12.951px); }
-        81.9444% { transform: translate(28px, -12.825px); }
-        86.1111% { transform: translate(28px, -12.259px); }
-        87.5000% { transform: translate(28px, -12.104px); }
-        88.8889% { transform: translate(28px, -12.013px); }
-        89.5833% { transform: translate(28px, -12px); }
-        90.2778% { transform: translate(28px, -12.013px); }
-        91.6667% { transform: translate(28px, -12.104px); }
-        94.4444% { transform: translate(28px, -12.45px); }
-        97.2222% { transform: translate(28px, -12.825px); }
-        98.6111% { transform: translate(28px, -12.951px); }
-        100.0000% { transform: translate(28px, -13px); }
+      @keyframes smokes1-m {
+        0.0000% { transform: translate(19px, -6px); }
+        54.1667% { transform: translate(19px, -6px); }
+        56.9444% { transform: translate(19.815px, -6.667px); }
+        58.3333% { transform: translate(20px, -7px); }
+        62.5000% { transform: translate(20px, -8px); }
+        66.6667% { transform: translate(20px, -9px); }
+        68.0556% { transform: translate(20.185px, -9.333px); }
+        70.8333% { transform: translate(21px, -10px); }
+        75.0000% { transform: translate(22px, -11px); }
+        75.0100% { transform: translate(19px, -6px); }
+        100.0000% { transform: translate(19px, -6px); }
       }
-      @keyframes rig-m {
-        0.0000% { transform: translate(0px, -4.432px); }
-        5.5556% { transform: translate(0px, -4.116px); }
-        9.7222% { transform: translate(0px, -4.003px); }
-        10.4167% { transform: translate(0px, -4px); }
-        12.5000% { transform: translate(0px, -4.043px); }
-        15.2778% { transform: translate(0px, -4.206px); }
-        22.2222% { transform: translate(0px, -4.794px); }
-        25.0000% { transform: translate(0px, -4.957px); }
-        27.0833% { transform: translate(0px, -5px); }
-        27.7778% { transform: translate(-0.034px, -5px); }
-        29.1667% { transform: translate(-0.259px, -5px); }
-        31.9444% { transform: translate(-0.874px, -5px); }
-        33.3333% { transform: translate(-1px, -5px); }
-        34.7222% { transform: translate(-0.481px, -5px); }
-        36.1111% { transform: translate(0.481px, -5px); }
-        37.5000% { transform: translate(1px, -5px); }
-        38.8889% { transform: translate(0.874px, -5px); }
-        41.6667% { transform: translate(0.259px, -5px); }
-        43.0556% { transform: translate(0.034px, -5px); }
-        43.7500% { transform: translate(0px, -5px); }
-        45.8333% { transform: translate(0px, -4.957px); }
-        48.6111% { transform: translate(0px, -4.794px); }
-        55.5556% { transform: translate(0px, -4.206px); }
-        58.3333% { transform: translate(0px, -4.043px); }
-        60.4167% { transform: translate(0px, -4px); }
-        62.5000% { transform: translate(-0.055px, -4.055px); }
-        65.2778% { transform: translate(-0.259px, -4.259px); }
-        70.8333% { transform: translate(-0.802px, -4.802px); }
-        73.6111% { transform: translate(-0.975px, -4.975px); }
-        75.0000% { transform: translate(-1px, -5px); }
-        76.3889% { transform: translate(-0.966px, -5px); }
-        77.7778% { transform: translate(-0.874px, -5px); }
-        81.9444% { transform: translate(-0.417px, -5px); }
-        84.7222% { transform: translate(-0.126px, -5px); }
-        86.1111% { transform: translate(-0.034px, -5px); }
-        88.8889% { transform: translate(0px, -4.989px); }
-        93.0556% { transform: translate(0px, -4.852px); }
-        100.0000% { transform: translate(0px, -4.432px); }
+      @keyframes smokes1-v {
+        0.0000% { opacity: 0; }
+        54.1667% { opacity: 1; }
+        75.0000% { opacity: 0; }
+      }
+      @keyframes smokes2-m {
+        0.0000% { transform: translate(15px, -9px); }
+        1.3889% { transform: translate(15.185px, -9.333px); }
+        4.1667% { transform: translate(16px, -10px); }
+        8.3333% { transform: translate(17px, -11px); }
+        8.3433% { transform: translate(14px, -6px); }
+        87.5000% { transform: translate(14px, -6px); }
+        90.2778% { transform: translate(14.815px, -6.667px); }
+        91.6667% { transform: translate(15px, -7px); }
+        100.0000% { transform: translate(15px, -9px); }
+      }
+      @keyframes smokes2-v {
+        0.0000% { opacity: 1; }
+        8.3333% { opacity: 0; }
+        87.5000% { opacity: 1; }
+      }
+      @keyframes label-v {
+        0.0000% { opacity: 1; }
+        16.6667% { opacity: 0; }
+        33.3333% { opacity: 1; }
+        50.0000% { opacity: 0; }
+        66.6667% { opacity: 1; }
+        83.3333% { opacity: 0; }
       }
       @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
     </style>
@@ -167,75 +342,87 @@
       <path fill="#000000" fill-opacity="0.3" d="M7 30h16v1h-16z"/>
       <path fill="#000000" fill-opacity="0.15" d="M10 31h10v1h-10z"/>
     </g>
-    <!-- round body: white left, red crescent right, 1 px outline, light top/left -->
+    <!-- round body: white left, cherry crescent right, tonal 1 px outline, light top/left -->
     <g id="cloud">
-      <path fill="#1E2230" d="M14 1h2v1h-2zM10 2h4v1h-4zM16 2h4v1h-4zM8 3h2v1h-2zM20 3h2v1h-2zM6 4h2v1h-2zM22 4h2v1h-2zM5 5h1v1h-1zM24 5h1v1h-1zM4 6h1v1h-1zM25 6h1v1h-1zM3 7h1v1h-1zM26 7h1v1h-1zM2 8h1v1h-1zM27 8h1v1h-1zM2 9h1v1h-1zM27 9h1v1h-1zM1 10h1v1h-1zM28 10h1v1h-1zM1 11h1v1h-1zM28 11h1v1h-1zM1 12h1v1h-1zM28 12h1v1h-1zM1 13h1v1h-1zM28 13h1v1h-1zM1 14h1v1h-1zM28 14h1v1h-1zM0 15h1v1h-1zM29 15h1v1h-1zM1 16h1v1h-1zM28 16h1v1h-1zM1 17h1v1h-1zM28 17h1v1h-1zM1 18h1v1h-1zM28 18h1v1h-1zM1 19h1v1h-1zM28 19h1v1h-1zM1 20h1v1h-1zM28 20h1v1h-1zM2 21h1v1h-1zM27 21h1v1h-1zM2 22h1v1h-1zM27 22h1v1h-1zM3 23h1v1h-1zM26 23h1v1h-1zM4 24h1v1h-1zM25 24h1v1h-1zM5 25h1v1h-1zM24 25h1v1h-1zM6 26h2v1h-2zM22 26h2v1h-2zM8 27h2v1h-2zM20 27h2v1h-2zM10 28h4v1h-4zM16 28h4v1h-4zM14 29h2v1h-2z"/>
-      <path fill="#FFFFFF" d="M6 5h2v1h-2zM5 6h1v1h-1zM4 7h1v1h-1zM3 8h1v1h-1zM3 9h1v1h-1zM2 10h1v1h-1zM2 11h1v1h-1zM2 12h1v1h-1zM2 13h1v1h-1zM2 14h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1z"/>
-      <path fill="#FF5C66" d="M14 2h1v1h-1zM10 3h4v1h-4zM16 3h3v1h-3zM8 4h2v1h-2zM20 4h1v1h-1zM22 5h1v1h-1z"/>
-      <path fill="#F1F3F7" d="M8 5h6v1h-6zM6 6h10v1h-10zM5 7h13v1h-13zM4 8h15v1h-15zM4 9h16v1h-16zM3 10h18v1h-18zM3 11h19v1h-19zM3 12h19v1h-19zM3 13h19v1h-19zM3 14h20v1h-20zM2 15h21v1h-21zM3 16h20v1h-20zM3 17h20v1h-20zM3 18h20v1h-20zM3 19h20v1h-20zM3 20h20v1h-20zM4 21h19v1h-19zM5 22h18v1h-18zM6 23h16v1h-16zM8 24h14v1h-14zM10 25h10v1h-10zM14 26h2v1h-2z"/>
-      <path fill="#E3202D" d="M14 3h2v1h-2zM10 4h10v1h-10zM14 5h8v1h-8zM16 6h8v1h-8zM18 7h7v1h-7zM19 8h7v1h-7zM20 9h6v1h-6zM21 10h6v1h-6zM22 11h5v1h-5zM22 12h5v1h-5zM22 13h5v1h-5zM23 14h4v1h-4zM23 15h5v1h-5zM23 16h4v1h-4zM23 17h4v1h-4zM23 18h4v1h-4zM23 19h4v1h-4zM23 20h4v1h-4zM23 21h3v1h-3zM23 22h2v1h-2zM22 23h2v1h-2z"/>
-      <path fill="#C5CBD8" d="M1 15h1v1h-1zM2 19h1v1h-1zM2 20h1v1h-1zM3 21h1v1h-1zM3 22h2v1h-2zM4 23h2v1h-2zM5 24h3v1h-3zM6 25h4v1h-4zM20 25h1v1h-1zM8 26h6v1h-6zM16 26h5v1h-5zM10 27h10v1h-10zM14 28h2v1h-2z"/>
-      <path fill="#A8121E" d="M15 2h1v1h-1zM19 3h1v1h-1zM21 4h1v1h-1zM23 5h1v1h-1zM24 6h1v1h-1zM25 7h1v1h-1zM26 8h1v1h-1zM26 9h1v1h-1zM27 10h1v1h-1zM27 11h1v1h-1zM27 12h1v1h-1zM27 13h1v1h-1zM27 14h1v1h-1zM28 15h1v1h-1zM27 16h1v1h-1zM27 17h1v1h-1zM27 18h1v1h-1zM27 19h1v1h-1zM27 20h1v1h-1zM26 21h1v1h-1zM25 22h2v1h-2zM24 23h2v1h-2zM22 24h3v1h-3zM21 25h3v1h-3zM21 26h1v1h-1z"/>
+      <path fill="#5E4B5A" d="M2 8h1v1h-1zM2 9h1v1h-1zM1 10h1v1h-1zM1 11h1v1h-1zM1 12h1v1h-1zM1 13h1v1h-1zM1 14h1v1h-1zM1 15h1v1h-1zM1 16h1v1h-1zM1 17h1v1h-1zM1 18h1v1h-1zM1 19h1v1h-1zM1 20h1v1h-1zM2 21h1v1h-1zM2 22h1v1h-1zM3 23h1v1h-1zM4 24h1v1h-1zM5 25h1v1h-1zM6 26h2v1h-2zM8 27h2v1h-2zM10 28h4v1h-4zM16 28h2v1h-2zM14 29h2v1h-2z"/>
+      <path fill="#7C1E2B" d="M14 1h2v1h-2zM10 2h4v1h-4zM16 2h4v1h-4zM8 3h2v1h-2zM20 3h2v1h-2zM6 4h2v1h-2zM22 4h2v1h-2zM5 5h1v1h-1zM24 5h1v1h-1zM4 6h1v1h-1zM25 6h1v1h-1zM3 7h1v1h-1zM26 7h1v1h-1zM27 8h1v1h-1zM27 9h1v1h-1zM28 10h1v1h-1zM28 11h1v1h-1zM28 12h1v1h-1zM28 13h1v1h-1zM28 14h1v1h-1zM28 15h1v1h-1zM28 16h1v1h-1zM28 17h1v1h-1zM28 18h1v1h-1zM28 19h1v1h-1zM28 20h1v1h-1zM27 21h1v1h-1zM27 22h1v1h-1zM26 23h1v1h-1zM25 24h1v1h-1zM24 25h1v1h-1zM22 26h2v1h-2zM20 27h2v1h-2zM18 28h2v1h-2z"/>
+      <path fill="#FFFFFF" d="M4 7h1v1h-1zM3 8h1v1h-1zM3 9h1v1h-1zM2 10h1v1h-1zM2 11h1v1h-1zM2 12h1v1h-1zM2 13h1v1h-1zM2 14h1v1h-1zM2 15h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1z"/>
+      <path fill="#F2848D" d="M14 2h1v1h-1zM10 3h4v1h-4zM16 3h3v1h-3zM8 4h2v1h-2zM20 4h1v1h-1zM6 5h2v1h-2zM22 5h1v1h-1zM5 6h1v1h-1z"/>
+      <path fill="#F6F1F0" d="M6 6h8v1h-8zM5 7h12v1h-12zM4 8h14v1h-14zM4 9h15v1h-15zM3 10h17v1h-17zM3 11h18v1h-18zM3 12h18v1h-18zM3 13h19v1h-19zM3 14h19v1h-19zM3 15h20v1h-20zM3 16h20v1h-20zM3 17h20v1h-20zM3 18h20v1h-20zM3 19h20v1h-20zM3 20h20v1h-20zM4 21h18v1h-18zM5 22h17v1h-17zM6 23h16v1h-16zM8 24h13v1h-13zM10 25h10v1h-10zM14 26h2v1h-2z"/>
+      <path fill="#DE4553" d="M14 3h2v1h-2zM10 4h10v1h-10zM8 5h14v1h-14zM14 6h10v1h-10zM17 7h8v1h-8zM18 8h8v1h-8zM19 9h7v1h-7zM20 10h7v1h-7zM21 11h6v1h-6zM21 12h6v1h-6zM22 13h5v1h-5zM22 14h5v1h-5zM23 15h4v1h-4zM23 16h4v1h-4zM23 17h4v1h-4zM23 18h4v1h-4zM23 19h4v1h-4zM23 20h4v1h-4zM22 21h4v1h-4zM22 22h3v1h-3zM22 23h2v1h-2zM21 24h1v1h-1z"/>
+      <path fill="#D9CDD2" d="M2 19h1v1h-1zM2 20h1v1h-1zM3 21h1v1h-1zM3 22h2v1h-2zM4 23h2v1h-2zM5 24h3v1h-3zM6 25h4v1h-4zM20 25h1v1h-1zM8 26h6v1h-6zM16 26h4v1h-4zM10 27h9v1h-9zM14 28h2v1h-2z"/>
+      <path fill="#B32F40" d="M15 2h1v1h-1zM19 3h1v1h-1zM21 4h1v1h-1zM23 5h1v1h-1zM24 6h1v1h-1zM25 7h1v1h-1zM26 8h1v1h-1zM26 9h1v1h-1zM27 10h1v1h-1zM27 11h1v1h-1zM27 12h1v1h-1zM27 13h1v1h-1zM27 14h1v1h-1zM27 15h1v1h-1zM27 16h1v1h-1zM27 17h1v1h-1zM27 18h1v1h-1zM27 19h1v1h-1zM27 20h1v1h-1zM26 21h1v1h-1zM25 22h2v1h-2zM24 23h2v1h-2zM22 24h3v1h-3zM21 25h3v1h-3zM20 26h2v1h-2zM19 27h1v1h-1z"/>
     </g>
     <g id="cloud-puff">
-      <path fill="#1E2230" d="M14 0h2v1h-2zM9 1h5v1h-5zM16 1h5v1h-5zM7 2h2v1h-2zM21 2h2v1h-2zM6 3h1v1h-1zM23 3h1v1h-1zM4 4h2v1h-2zM24 4h2v1h-2zM3 5h1v1h-1zM26 5h1v1h-1zM3 6h1v1h-1zM26 6h1v1h-1zM2 7h1v1h-1zM27 7h1v1h-1zM1 8h1v1h-1zM28 8h1v1h-1zM1 9h1v1h-1zM28 9h1v1h-1zM0 10h1v1h-1zM29 10h1v1h-1zM0 11h1v1h-1zM29 11h1v1h-1zM0 12h1v1h-1zM29 12h1v1h-1zM0 13h1v1h-1zM29 13h1v1h-1zM0 14h1v1h-1zM29 14h1v1h-1zM-1 15h1v1h-1zM30 15h1v1h-1zM0 16h1v1h-1zM29 16h1v1h-1zM0 17h1v1h-1zM29 17h1v1h-1zM0 18h1v1h-1zM29 18h1v1h-1zM0 19h1v1h-1zM29 19h1v1h-1zM0 20h1v1h-1zM29 20h1v1h-1zM1 21h1v1h-1zM28 21h1v1h-1zM1 22h1v1h-1zM28 22h1v1h-1zM2 23h1v1h-1zM27 23h1v1h-1zM3 24h1v1h-1zM26 24h1v1h-1zM3 25h1v1h-1zM26 25h1v1h-1zM4 26h2v1h-2zM24 26h2v1h-2zM6 27h1v1h-1zM23 27h1v1h-1zM7 28h2v1h-2zM21 28h2v1h-2zM9 29h5v1h-5zM16 29h5v1h-5zM14 30h2v1h-2z"/>
-      <path fill="#FFFFFF" d="M4 5h2v1h-2zM4 6h1v1h-1zM3 7h1v1h-1zM2 8h1v1h-1zM2 9h1v1h-1zM1 10h1v1h-1zM1 11h1v1h-1zM1 12h1v1h-1zM1 13h1v1h-1zM1 14h1v1h-1zM1 16h1v1h-1zM1 17h1v1h-1zM1 18h1v1h-1z"/>
-      <path fill="#FF5C66" d="M14 1h1v1h-1zM9 2h5v1h-5zM16 2h4v1h-4zM7 3h2v1h-2zM21 3h1v1h-1zM6 4h1v1h-1zM24 5h1v1h-1z"/>
-      <path fill="#F1F3F7" d="M7 4h5v1h-5zM6 5h10v1h-10zM5 6h12v1h-12zM4 7h15v1h-15zM3 8h17v1h-17zM3 9h18v1h-18zM2 10h19v1h-19zM2 11h20v1h-20zM2 12h21v1h-21zM2 13h21v1h-21zM2 14h21v1h-21zM1 15h23v1h-23zM2 16h22v1h-22zM2 17h22v1h-22zM2 18h22v1h-22zM2 19h22v1h-22zM2 20h22v1h-22zM3 21h21v1h-21zM4 22h19v1h-19zM4 23h19v1h-19zM6 24h17v1h-17zM7 25h15v1h-15zM9 26h12v1h-12zM14 27h2v1h-2z"/>
-      <path fill="#E3202D" d="M14 2h2v1h-2zM9 3h12v1h-12zM12 4h11v1h-11zM16 5h8v1h-8zM17 6h8v1h-8zM19 7h7v1h-7zM20 8h7v1h-7zM21 9h6v1h-6zM21 10h7v1h-7zM22 11h6v1h-6zM23 12h5v1h-5zM23 13h5v1h-5zM23 14h5v1h-5zM24 15h5v1h-5zM24 16h4v1h-4zM24 17h4v1h-4zM24 18h4v1h-4zM24 19h4v1h-4zM24 20h4v1h-4zM24 21h3v1h-3zM23 22h3v1h-3zM23 23h3v1h-3zM23 24h1v1h-1zM22 25h1v1h-1z"/>
-      <path fill="#C5CBD8" d="M0 15h1v1h-1zM1 19h1v1h-1zM1 20h1v1h-1zM2 21h1v1h-1zM2 22h2v1h-2zM3 23h1v1h-1zM4 24h2v1h-2zM4 25h3v1h-3zM6 26h3v1h-3zM21 26h1v1h-1zM7 27h7v1h-7zM16 27h5v1h-5zM9 28h11v1h-11zM14 29h2v1h-2z"/>
-      <path fill="#A8121E" d="M15 1h1v1h-1zM20 2h1v1h-1zM22 3h1v1h-1zM23 4h1v1h-1zM25 5h1v1h-1zM25 6h1v1h-1zM26 7h1v1h-1zM27 8h1v1h-1zM27 9h1v1h-1zM28 10h1v1h-1zM28 11h1v1h-1zM28 12h1v1h-1zM28 13h1v1h-1zM28 14h1v1h-1zM29 15h1v1h-1zM28 16h1v1h-1zM28 17h1v1h-1zM28 18h1v1h-1zM28 19h1v1h-1zM28 20h1v1h-1zM27 21h1v1h-1zM26 22h2v1h-2zM26 23h1v1h-1zM24 24h2v1h-2zM23 25h3v1h-3zM22 26h2v1h-2zM21 27h2v1h-2zM20 28h1v1h-1z"/>
+      <path fill="#5E4B5A" d="M2 7h1v1h-1zM1 8h1v1h-1zM1 9h1v1h-1zM0 10h1v1h-1zM0 11h1v1h-1zM0 12h1v1h-1zM0 13h1v1h-1zM0 14h1v1h-1zM0 15h1v1h-1zM0 16h1v1h-1zM0 17h1v1h-1zM0 18h1v1h-1zM0 19h1v1h-1zM0 20h1v1h-1zM1 21h1v1h-1zM1 22h1v1h-1zM2 23h1v1h-1zM3 24h1v1h-1zM3 25h1v1h-1zM4 26h2v1h-2zM6 27h1v1h-1zM7 28h2v1h-2zM9 29h5v1h-5zM16 29h2v1h-2zM14 30h2v1h-2z"/>
+      <path fill="#7C1E2B" d="M14 0h2v1h-2zM9 1h5v1h-5zM16 1h5v1h-5zM7 2h2v1h-2zM21 2h2v1h-2zM6 3h1v1h-1zM23 3h1v1h-1zM4 4h2v1h-2zM24 4h2v1h-2zM3 5h1v1h-1zM26 5h1v1h-1zM3 6h1v1h-1zM26 6h1v1h-1zM27 7h1v1h-1zM28 8h1v1h-1zM28 9h1v1h-1zM29 10h1v1h-1zM29 11h1v1h-1zM29 12h1v1h-1zM29 13h1v1h-1zM29 14h1v1h-1zM29 15h1v1h-1zM29 16h1v1h-1zM29 17h1v1h-1zM29 18h1v1h-1zM29 19h1v1h-1zM29 20h1v1h-1zM28 21h1v1h-1zM28 22h1v1h-1zM27 23h1v1h-1zM26 24h1v1h-1zM26 25h1v1h-1zM24 26h2v1h-2zM23 27h1v1h-1zM21 28h2v1h-2zM18 29h3v1h-3z"/>
+      <path fill="#FFFFFF" d="M4 6h1v1h-1zM3 7h1v1h-1zM2 8h1v1h-1zM2 9h1v1h-1zM1 10h1v1h-1zM1 11h1v1h-1zM1 12h1v1h-1zM1 13h1v1h-1zM1 14h1v1h-1zM1 15h1v1h-1zM1 16h1v1h-1zM1 17h1v1h-1zM1 18h1v1h-1z"/>
+      <path fill="#F2848D" d="M14 1h1v1h-1zM9 2h5v1h-5zM16 2h4v1h-4zM7 3h2v1h-2zM21 3h1v1h-1zM6 4h1v1h-1zM4 5h2v1h-2zM24 5h1v1h-1z"/>
+      <path fill="#F6F1F0" d="M7 5h6v1h-6zM5 6h11v1h-11zM4 7h14v1h-14zM3 8h16v1h-16zM3 9h17v1h-17zM2 10h19v1h-19zM2 11h19v1h-19zM2 12h20v1h-20zM2 13h20v1h-20zM2 14h21v1h-21zM2 15h21v1h-21zM2 16h21v1h-21zM2 17h21v1h-21zM2 18h21v1h-21zM2 19h21v1h-21zM2 20h21v1h-21zM3 21h20v1h-20zM4 22h19v1h-19zM4 23h18v1h-18zM6 24h16v1h-16zM7 25h15v1h-15zM9 26h12v1h-12zM14 27h2v1h-2z"/>
+      <path fill="#DE4553" d="M14 2h2v1h-2zM9 3h12v1h-12zM7 4h16v1h-16zM6 5h1v1h-1zM13 5h11v1h-11zM16 6h9v1h-9zM18 7h8v1h-8zM19 8h8v1h-8zM20 9h7v1h-7zM21 10h7v1h-7zM21 11h7v1h-7zM22 12h6v1h-6zM22 13h6v1h-6zM23 14h5v1h-5zM23 15h5v1h-5zM23 16h5v1h-5zM23 17h5v1h-5zM23 18h5v1h-5zM23 19h5v1h-5zM23 20h5v1h-5zM23 21h4v1h-4zM23 22h3v1h-3zM22 23h4v1h-4zM22 24h2v1h-2zM22 25h1v1h-1z"/>
+      <path fill="#D9CDD2" d="M1 19h1v1h-1zM1 20h1v1h-1zM2 21h1v1h-1zM2 22h2v1h-2zM3 23h1v1h-1zM4 24h2v1h-2zM4 25h3v1h-3zM6 26h3v1h-3zM7 27h7v1h-7zM16 27h4v1h-4zM9 28h10v1h-10zM14 29h2v1h-2z"/>
+      <path fill="#B32F40" d="M15 1h1v1h-1zM20 2h1v1h-1zM22 3h1v1h-1zM23 4h1v1h-1zM25 5h1v1h-1zM25 6h1v1h-1zM26 7h1v1h-1zM27 8h1v1h-1zM27 9h1v1h-1zM28 10h1v1h-1zM28 11h1v1h-1zM28 12h1v1h-1zM28 13h1v1h-1zM28 14h1v1h-1zM28 15h1v1h-1zM28 16h1v1h-1zM28 17h1v1h-1zM28 18h1v1h-1zM28 19h1v1h-1zM28 20h1v1h-1zM27 21h1v1h-1zM26 22h2v1h-2zM26 23h1v1h-1zM24 24h2v1h-2zM23 25h3v1h-3zM21 26h3v1h-3zM20 27h3v1h-3zM19 28h2v1h-2z"/>
     </g>
     <g id="cloud-squash">
-      <path fill="#1E2230" d="M10 5h10v1h-10zM7 6h3v1h-3zM20 6h3v1h-3zM5 7h2v1h-2zM23 7h2v1h-2zM4 8h1v1h-1zM25 8h1v1h-1zM3 9h1v1h-1zM26 9h1v1h-1zM2 10h1v1h-1zM27 10h1v1h-1zM1 11h1v1h-1zM28 11h1v1h-1zM0 12h1v1h-1zM29 12h1v1h-1zM0 13h1v1h-1zM29 13h1v1h-1zM0 14h1v1h-1zM29 14h1v1h-1zM-1 15h1v1h-1zM30 15h1v1h-1zM-1 16h1v1h-1zM30 16h1v1h-1zM-1 17h1v1h-1zM30 17h1v1h-1zM-1 18h1v1h-1zM30 18h1v1h-1zM0 19h1v1h-1zM29 19h1v1h-1zM0 20h1v1h-1zM29 20h1v1h-1zM0 21h1v1h-1zM29 21h1v1h-1zM1 22h1v1h-1zM28 22h1v1h-1zM2 23h1v1h-1zM27 23h1v1h-1zM2 24h2v1h-2zM26 24h2v1h-2zM4 25h1v1h-1zM25 25h1v1h-1zM5 26h2v1h-2zM23 26h2v1h-2zM7 27h2v1h-2zM21 27h2v1h-2zM9 28h12v1h-12z"/>
+      <path fill="#5E4B5A" d="M10 5h3v1h-3zM7 6h3v1h-3zM5 7h2v1h-2zM4 8h1v1h-1zM3 9h1v1h-1zM2 10h1v1h-1zM1 11h1v1h-1zM0 12h1v1h-1zM0 13h1v1h-1zM0 14h1v1h-1zM-1 15h1v1h-1zM-1 16h1v1h-1zM-1 17h1v1h-1zM-1 18h1v1h-1zM0 19h1v1h-1zM0 20h1v1h-1zM0 21h1v1h-1zM1 22h1v1h-1zM2 23h1v1h-1zM2 24h2v1h-2zM4 25h1v1h-1zM5 26h2v1h-2zM7 27h2v1h-2zM9 28h12v1h-12z"/>
+      <path fill="#7C1E2B" d="M13 5h7v1h-7zM20 6h3v1h-3zM23 7h2v1h-2zM25 8h1v1h-1zM26 9h1v1h-1zM27 10h1v1h-1zM28 11h1v1h-1zM29 12h1v1h-1zM29 13h1v1h-1zM29 14h1v1h-1zM30 15h1v1h-1zM30 16h1v1h-1zM30 17h1v1h-1zM30 18h1v1h-1zM29 19h1v1h-1zM29 20h1v1h-1zM29 21h1v1h-1zM28 22h1v1h-1zM27 23h1v1h-1zM26 24h2v1h-2zM25 25h1v1h-1zM23 26h2v1h-2zM21 27h2v1h-2z"/>
       <path fill="#FFFFFF" d="M10 6h6v1h-6zM7 7h3v1h-3zM5 8h2v1h-2zM4 9h1v1h-1zM3 10h1v1h-1zM2 11h1v1h-1zM1 12h1v1h-1zM1 13h1v1h-1zM1 14h1v1h-1zM0 15h1v1h-1zM0 16h1v1h-1zM1 19h1v1h-1z"/>
-      <path fill="#FF5C66" d="M16 6h3v1h-3zM20 7h2v1h-2zM23 8h1v1h-1z"/>
-      <path fill="#F1F3F7" d="M10 7h8v1h-8zM7 8h12v1h-12zM5 9h15v1h-15zM4 10h17v1h-17zM3 11h19v1h-19zM2 12h20v1h-20zM2 13h21v1h-21zM2 14h21v1h-21zM1 15h22v1h-22zM1 16h23v1h-23zM1 17h23v1h-23zM1 18h23v1h-23zM2 19h22v1h-22zM2 20h22v1h-22zM3 21h21v1h-21zM4 22h20v1h-20zM5 23h18v1h-18zM7 24h16v1h-16zM9 25h12v1h-12z"/>
-      <path fill="#E3202D" d="M18 7h2v1h-2zM19 8h4v1h-4zM20 9h5v1h-5zM21 10h5v1h-5zM22 11h5v1h-5zM22 12h6v1h-6zM23 13h5v1h-5zM23 14h5v1h-5zM23 15h6v1h-6zM24 16h5v1h-5zM24 17h5v1h-5zM24 18h5v1h-5zM24 19h4v1h-4zM24 20h4v1h-4zM24 21h3v1h-3zM24 22h2v1h-2zM23 23h2v1h-2z"/>
-      <path fill="#C5CBD8" d="M0 17h1v1h-1zM0 18h1v1h-1zM1 20h1v1h-1zM1 21h2v1h-2zM2 22h2v1h-2zM3 23h2v1h-2zM4 24h3v1h-3zM5 25h4v1h-4zM21 25h2v1h-2zM7 26h15v1h-15zM9 27h12v1h-12z"/>
-      <path fill="#A8121E" d="M19 6h1v1h-1zM22 7h1v1h-1zM24 8h1v1h-1zM25 9h1v1h-1zM26 10h1v1h-1zM27 11h1v1h-1zM28 12h1v1h-1zM28 13h1v1h-1zM28 14h1v1h-1zM29 15h1v1h-1zM29 16h1v1h-1zM29 17h1v1h-1zM29 18h1v1h-1zM28 19h1v1h-1zM28 20h1v1h-1zM27 21h2v1h-2zM26 22h2v1h-2zM25 23h2v1h-2zM23 24h3v1h-3zM23 25h2v1h-2zM22 26h1v1h-1z"/>
+      <path fill="#F2848D" d="M16 6h3v1h-3zM20 7h2v1h-2zM23 8h1v1h-1z"/>
+      <path fill="#F6F1F0" d="M10 7h8v1h-8zM7 8h12v1h-12zM5 9h15v1h-15zM4 10h17v1h-17zM3 11h19v1h-19zM2 12h20v1h-20zM2 13h21v1h-21zM2 14h21v1h-21zM1 15h22v1h-22zM1 16h23v1h-23zM1 17h23v1h-23zM1 18h23v1h-23zM2 19h22v1h-22zM2 20h22v1h-22zM3 21h21v1h-21zM4 22h20v1h-20zM5 23h18v1h-18zM7 24h16v1h-16zM9 25h12v1h-12z"/>
+      <path fill="#DE4553" d="M18 7h2v1h-2zM19 8h4v1h-4zM20 9h5v1h-5zM21 10h5v1h-5zM22 11h5v1h-5zM22 12h6v1h-6zM23 13h5v1h-5zM23 14h5v1h-5zM23 15h6v1h-6zM24 16h5v1h-5zM24 17h5v1h-5zM24 18h5v1h-5zM24 19h4v1h-4zM24 20h4v1h-4zM24 21h3v1h-3zM24 22h2v1h-2zM23 23h2v1h-2z"/>
+      <path fill="#D9CDD2" d="M0 17h1v1h-1zM0 18h1v1h-1zM1 20h1v1h-1zM1 21h2v1h-2zM2 22h2v1h-2zM3 23h2v1h-2zM4 24h3v1h-3zM5 25h4v1h-4zM21 25h2v1h-2zM7 26h15v1h-15zM9 27h12v1h-12z"/>
+      <path fill="#B32F40" d="M19 6h1v1h-1zM22 7h1v1h-1zM24 8h1v1h-1zM25 9h1v1h-1zM26 10h1v1h-1zM27 11h1v1h-1zM28 12h1v1h-1zM28 13h1v1h-1zM28 14h1v1h-1zM29 15h1v1h-1zM29 16h1v1h-1zM29 17h1v1h-1zM29 18h1v1h-1zM28 19h1v1h-1zM28 20h1v1h-1zM27 21h2v1h-2zM26 22h2v1h-2zM25 23h2v1h-2zM23 24h3v1h-3zM23 25h2v1h-2zM22 26h1v1h-1z"/>
     </g>
     <g id="cloud-stretch">
-      <path fill="#1E2230" d="M10 0h10v1h-10zM8 1h2v1h-2zM20 1h2v1h-2zM7 2h1v1h-1zM22 2h1v1h-1zM6 3h1v1h-1zM23 3h1v1h-1zM5 4h1v1h-1zM24 4h1v1h-1zM4 5h1v1h-1zM25 5h1v1h-1zM4 6h1v1h-1zM25 6h1v1h-1zM3 7h1v1h-1zM26 7h1v1h-1zM3 8h1v1h-1zM26 8h1v1h-1zM2 9h1v1h-1zM27 9h1v1h-1zM2 10h1v1h-1zM27 10h1v1h-1zM2 11h1v1h-1zM27 11h1v1h-1zM2 12h1v1h-1zM27 12h1v1h-1zM2 13h1v1h-1zM27 13h1v1h-1zM1 14h1v1h-1zM28 14h1v1h-1zM2 15h1v1h-1zM27 15h1v1h-1zM2 16h1v1h-1zM27 16h1v1h-1zM2 17h1v1h-1zM27 17h1v1h-1zM2 18h1v1h-1zM27 18h1v1h-1zM2 19h1v1h-1zM27 19h1v1h-1zM3 20h1v1h-1zM26 20h1v1h-1zM3 21h1v1h-1zM26 21h1v1h-1zM4 22h1v1h-1zM25 22h1v1h-1zM4 23h1v1h-1zM25 23h1v1h-1zM5 24h1v1h-1zM24 24h1v1h-1zM6 25h1v1h-1zM23 25h1v1h-1zM7 26h1v1h-1zM22 26h1v1h-1zM8 27h2v1h-2zM20 27h2v1h-2zM10 28h4v1h-4zM16 28h4v1h-4zM14 29h2v1h-2z"/>
-      <path fill="#FFFFFF" d="M5 6h1v1h-1zM4 7h1v1h-1zM4 8h1v1h-1zM3 9h1v1h-1zM3 10h1v1h-1zM3 11h1v1h-1zM3 12h1v1h-1zM3 13h1v1h-1zM3 15h1v1h-1zM3 16h1v1h-1zM3 17h1v1h-1z"/>
-      <path fill="#FF5C66" d="M10 1h9v1h-9zM8 2h2v1h-2zM20 2h1v1h-1zM7 3h1v1h-1zM6 4h1v1h-1zM5 5h1v1h-1z"/>
-      <path fill="#F1F3F7" d="M9 5h3v1h-3zM6 6h9v1h-9zM5 7h12v1h-12zM5 8h14v1h-14zM4 9h16v1h-16zM4 10h16v1h-16zM4 11h17v1h-17zM4 12h18v1h-18zM4 13h18v1h-18zM3 14h19v1h-19zM4 15h19v1h-19zM4 16h19v1h-19zM4 17h19v1h-19zM4 18h19v1h-19zM4 19h19v1h-19zM5 20h18v1h-18zM5 21h17v1h-17zM6 22h16v1h-16zM7 23h15v1h-15zM8 24h13v1h-13zM10 25h10v1h-10zM14 26h2v1h-2z"/>
-      <path fill="#E3202D" d="M10 2h10v1h-10zM8 3h14v1h-14zM7 4h16v1h-16zM6 5h3v1h-3zM12 5h12v1h-12zM15 6h9v1h-9zM17 7h8v1h-8zM19 8h6v1h-6zM20 9h6v1h-6zM20 10h6v1h-6zM21 11h5v1h-5zM22 12h4v1h-4zM22 13h4v1h-4zM22 14h5v1h-5zM23 15h3v1h-3zM23 16h3v1h-3zM23 17h3v1h-3zM23 18h3v1h-3zM23 19h3v1h-3zM23 20h2v1h-2zM22 21h3v1h-3zM22 22h2v1h-2zM22 23h1v1h-1zM21 24h1v1h-1z"/>
-      <path fill="#C5CBD8" d="M2 14h1v1h-1zM3 18h1v1h-1zM3 19h1v1h-1zM4 20h1v1h-1zM4 21h1v1h-1zM5 22h1v1h-1zM5 23h2v1h-2zM6 24h2v1h-2zM7 25h3v1h-3zM8 26h6v1h-6zM16 26h4v1h-4zM10 27h9v1h-9zM14 28h2v1h-2z"/>
-      <path fill="#A8121E" d="M19 1h1v1h-1zM21 2h1v1h-1zM22 3h1v1h-1zM23 4h1v1h-1zM24 5h1v1h-1zM24 6h1v1h-1zM25 7h1v1h-1zM25 8h1v1h-1zM26 9h1v1h-1zM26 10h1v1h-1zM26 11h1v1h-1zM26 12h1v1h-1zM26 13h1v1h-1zM27 14h1v1h-1zM26 15h1v1h-1zM26 16h1v1h-1zM26 17h1v1h-1zM26 18h1v1h-1zM26 19h1v1h-1zM25 20h1v1h-1zM25 21h1v1h-1zM24 22h1v1h-1zM23 23h2v1h-2zM22 24h2v1h-2zM20 25h3v1h-3zM20 26h2v1h-2zM19 27h1v1h-1z"/>
+      <path fill="#5E4B5A" d="M2 10h1v1h-1zM2 11h1v1h-1zM2 12h1v1h-1zM2 13h1v1h-1zM2 14h1v1h-1zM2 15h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1zM2 19h1v1h-1zM3 20h1v1h-1zM3 21h1v1h-1zM4 22h1v1h-1zM4 23h1v1h-1zM5 24h1v1h-1zM6 25h1v1h-1zM7 26h1v1h-1zM8 27h2v1h-2zM10 28h4v1h-4z"/>
+      <path fill="#7C1E2B" d="M10 0h10v1h-10zM8 1h2v1h-2zM20 1h2v1h-2zM7 2h1v1h-1zM22 2h1v1h-1zM6 3h1v1h-1zM23 3h1v1h-1zM5 4h1v1h-1zM24 4h1v1h-1zM4 5h1v1h-1zM25 5h1v1h-1zM4 6h1v1h-1zM25 6h1v1h-1zM3 7h1v1h-1zM26 7h1v1h-1zM3 8h1v1h-1zM26 8h1v1h-1zM2 9h1v1h-1zM27 9h1v1h-1zM27 10h1v1h-1zM27 11h1v1h-1zM27 12h1v1h-1zM27 13h1v1h-1zM27 14h1v1h-1zM27 15h1v1h-1zM27 16h1v1h-1zM27 17h1v1h-1zM27 18h1v1h-1zM27 19h1v1h-1zM26 20h1v1h-1zM26 21h1v1h-1zM25 22h1v1h-1zM25 23h1v1h-1zM24 24h1v1h-1zM23 25h1v1h-1zM22 26h1v1h-1zM20 27h2v1h-2zM16 28h4v1h-4zM14 29h2v1h-2z"/>
+      <path fill="#FFFFFF" d="M4 8h1v1h-1zM3 9h1v1h-1zM3 10h1v1h-1zM3 11h1v1h-1zM3 12h1v1h-1zM3 13h1v1h-1zM3 14h1v1h-1zM3 15h1v1h-1zM3 16h1v1h-1zM3 17h1v1h-1z"/>
+      <path fill="#F2848D" d="M10 1h9v1h-9zM8 2h2v1h-2zM20 2h1v1h-1zM7 3h1v1h-1zM6 4h1v1h-1zM5 5h1v1h-1zM5 6h1v1h-1zM4 7h1v1h-1z"/>
+      <path fill="#F6F1F0" d="M8 6h5v1h-5zM5 7h11v1h-11zM5 8h12v1h-12zM4 9h15v1h-15zM4 10h16v1h-16zM4 11h16v1h-16zM4 12h17v1h-17zM4 13h17v1h-17zM4 14h18v1h-18zM4 15h18v1h-18zM4 16h18v1h-18zM4 17h18v1h-18zM4 18h18v1h-18zM4 19h18v1h-18zM5 20h17v1h-17zM5 21h17v1h-17zM6 22h15v1h-15zM7 23h14v1h-14zM8 24h12v1h-12zM10 25h10v1h-10zM14 26h2v1h-2z"/>
+      <path fill="#DE4553" d="M10 2h10v1h-10zM8 3h14v1h-14zM7 4h16v1h-16zM6 5h18v1h-18zM6 6h2v1h-2zM13 6h11v1h-11zM16 7h9v1h-9zM17 8h8v1h-8zM19 9h7v1h-7zM20 10h6v1h-6zM20 11h6v1h-6zM21 12h5v1h-5zM21 13h5v1h-5zM22 14h4v1h-4zM22 15h4v1h-4zM22 16h4v1h-4zM22 17h4v1h-4zM22 18h4v1h-4zM22 19h4v1h-4zM22 20h3v1h-3zM22 21h3v1h-3zM21 22h3v1h-3zM21 23h2v1h-2zM20 24h2v1h-2z"/>
+      <path fill="#D9CDD2" d="M3 18h1v1h-1zM3 19h1v1h-1zM4 20h1v1h-1zM4 21h1v1h-1zM5 22h1v1h-1zM5 23h2v1h-2zM6 24h2v1h-2zM7 25h3v1h-3zM8 26h6v1h-6zM16 26h3v1h-3zM10 27h7v1h-7zM14 28h2v1h-2z"/>
+      <path fill="#B32F40" d="M19 1h1v1h-1zM21 2h1v1h-1zM22 3h1v1h-1zM23 4h1v1h-1zM24 5h1v1h-1zM24 6h1v1h-1zM25 7h1v1h-1zM25 8h1v1h-1zM26 9h1v1h-1zM26 10h1v1h-1zM26 11h1v1h-1zM26 12h1v1h-1zM26 13h1v1h-1zM26 14h1v1h-1zM26 15h1v1h-1zM26 16h1v1h-1zM26 17h1v1h-1zM26 18h1v1h-1zM26 19h1v1h-1zM25 20h1v1h-1zM25 21h1v1h-1zM24 22h1v1h-1zM23 23h2v1h-2zM22 24h2v1h-2zM20 25h3v1h-3zM19 26h3v1h-3zM17 27h3v1h-3z"/>
     </g>
-    <g id="eye-rings"><path fill="#1E2230" d="M13 4h4v1h-4zM12 5h6v1h-6zM12 6h6v1h-6zM8 7h14v1h-14zM7 8h16v1h-16zM7 9h16v1h-16zM3 10h24v1h-24zM2 11h26v1h-26zM2 12h26v1h-26zM2 13h26v1h-26zM2 14h26v1h-26zM3 15h24v1h-24zM7 16h16v1h-16zM7 17h16v1h-16zM8 18h14v1h-14zM12 19h6v1h-6zM12 20h6v1h-6zM13 21h4v1h-4z"/><path fill="#F1F3F7" d="M14 5h2v1h-2zM13 6h4v1h-4zM13 7h4v1h-4zM14 8h2v1h-2zM19 8h2v1h-2zM18 9h4v1h-4zM18 10h4v1h-4zM14 11h2v1h-2zM19 11h2v1h-2zM24 11h2v1h-2zM13 12h4v1h-4zM23 12h4v1h-4zM13 13h4v1h-4zM23 13h4v1h-4zM14 14h2v1h-2zM19 14h2v1h-2zM24 14h2v1h-2zM18 15h4v1h-4zM18 16h4v1h-4zM14 17h2v1h-2zM19 17h2v1h-2zM13 18h4v1h-4zM13 19h4v1h-4zM14 20h2v1h-2z"/><path fill="#E3202D" d="M9 8h2v1h-2zM8 9h4v1h-4zM8 10h4v1h-4zM4 11h2v1h-2zM9 11h2v1h-2zM3 12h4v1h-4zM3 13h4v1h-4zM4 14h2v1h-2zM9 14h2v1h-2zM8 15h4v1h-4zM8 16h4v1h-4zM9 17h2v1h-2z"/></g>
-    <g id="face-happy"><path fill="#14161D" d="M14 6h2v1h-2zM13 7h1v1h-1zM16 7h1v1h-1zM9 9h2v1h-2zM19 9h2v1h-2zM8 10h1v1h-1zM11 10h1v1h-1zM18 10h1v1h-1zM21 10h1v1h-1zM4 12h2v1h-2zM14 12h2v1h-2zM24 12h2v1h-2zM3 13h1v1h-1zM6 13h1v1h-1zM13 13h1v1h-1zM16 13h1v1h-1zM23 13h1v1h-1zM26 13h1v1h-1zM9 15h2v1h-2zM19 15h2v1h-2zM8 16h1v1h-1zM11 16h1v1h-1zM18 16h1v1h-1zM21 16h1v1h-1zM14 18h2v1h-2zM13 19h1v1h-1zM16 19h1v1h-1z"/><path fill="#14161D" d="M10 23h10v1h-10zM11 24h1v1h-1zM18 24h1v1h-1zM12 25h1v1h-1zM17 25h1v1h-1zM13 26h4v1h-4z"/><path fill="#FFFFFF" d="M12 24h1v1h-1zM17 24h1v1h-1z"/><path fill="#5A0F1E" d="M13 24h4v1h-4zM13 25h1v1h-1zM16 25h1v1h-1z"/><path fill="#F07A8A" d="M14 25h2v1h-2z"/></g>
-    <g id="blush"><path fill="#F4A3B5" d="M2 20h4v2h-4zM23 20h4v2h-4z"/><path fill="#F9C9D4" d="M3 20h2v1h-2zM24 20h2v1h-2z"/></g>
-    <g id="face-caret"><path fill="#14161D" d="M14 6h2v1h-2zM13 7h1v1h-1zM16 7h1v1h-1zM9 9h2v1h-2zM19 9h2v1h-2zM8 10h1v1h-1zM11 10h1v1h-1zM18 10h1v1h-1zM21 10h1v1h-1zM4 12h2v1h-2zM14 12h2v1h-2zM24 12h2v1h-2zM3 13h1v1h-1zM6 13h1v1h-1zM13 13h1v1h-1zM16 13h1v1h-1zM23 13h1v1h-1zM26 13h1v1h-1zM9 15h2v1h-2zM19 15h2v1h-2zM8 16h1v1h-1zM11 16h1v1h-1zM18 16h1v1h-1zM21 16h1v1h-1zM14 18h2v1h-2zM13 19h1v1h-1zM16 19h1v1h-1z"/><path fill="#14161D" d="M10 23h1v1h-1zM19 23h1v1h-1zM11 24h1v1h-1zM18 24h1v1h-1zM12 25h6v1h-6z"/><path fill="#FFFFFF" d="M12 24h1v1h-1zM17 24h1v1h-1z"/><path fill="#5A0F1E" d="M13 24h4v1h-4z"/></g>
-    <g id="eyes-open"><path fill="#14161D" d="M14 6h2v1h-2zM14 7h2v1h-2zM9 9h2v1h-2zM19 9h2v1h-2zM9 10h2v1h-2zM19 10h2v1h-2zM4 12h2v1h-2zM14 12h2v1h-2zM24 12h2v1h-2zM4 13h2v1h-2zM14 13h2v1h-2zM24 13h2v1h-2zM9 15h2v1h-2zM19 15h2v1h-2zM9 16h2v1h-2zM19 16h2v1h-2zM14 18h2v1h-2zM14 19h2v1h-2z"/><path fill="#FFFFFF" d="M14 6h1v1h-1zM9 9h1v1h-1zM19 9h1v1h-1zM4 12h1v1h-1zM14 12h1v1h-1zM24 12h1v1h-1zM9 15h1v1h-1zM19 15h1v1h-1zM14 18h1v1h-1z"/></g>
-    <g id="eyes-shut"><path fill="#14161D" d="M13 7h4v1h-4zM8 10h4v1h-4zM18 10h4v1h-4zM3 13h4v1h-4zM13 13h4v1h-4zM23 13h4v1h-4zM8 16h4v1h-4zM18 16h4v1h-4zM13 19h4v1h-4z"/></g>
-    <g id="cursor"><path fill="#14161D" d="M10 23h1v1h-1zM19 23h1v1h-1zM11 24h1v1h-1zM18 24h1v1h-1zM12 25h6v1h-6z"/><path fill="#FFFFFF" d="M12 24h1v1h-1zM17 24h1v1h-1z"/><path fill="#5A0F1E" d="M13 24h4v1h-4z"/></g>
-    <g id="mouth-yawn-1"><path fill="#14161D" d="M13 23h4v1h-4zM12 24h1v1h-1zM17 24h1v1h-1zM13 25h4v1h-4z"/><path fill="#5A0F1E" d="M13 24h4v1h-4z"/></g>
-    <g id="mouth-yawn-2"><path fill="#14161D" d="M13 23h4v1h-4zM12 24h1v1h-1zM17 24h1v1h-1zM12 25h1v1h-1zM17 25h1v1h-1zM13 26h4v1h-4z"/><path fill="#5A0F1E" d="M13 24h4v1h-4zM13 25h1v1h-1zM16 25h1v1h-1z"/><path fill="#F07A8A" d="M14 25h2v1h-2z"/></g>
-    <g id="mouth-yawn-3"><path fill="#14161D" d="M12 22h6v1h-6zM11 23h1v1h-1zM18 23h1v1h-1zM11 24h1v1h-1zM18 24h1v1h-1zM11 25h1v1h-1zM18 25h1v1h-1zM12 26h6v1h-6z"/><path fill="#5A0F1E" d="M12 23h6v1h-6zM12 24h6v1h-6zM12 25h1v1h-1zM17 25h1v1h-1z"/><path fill="#F07A8A" d="M13 25h4v1h-4z"/></g>
-    <g id="mini-puff"><path fill="#1E2230" d="M1 0h2v1h-2zM0 1h1v1h-1zM3 1h1v1h-1zM0 2h1v1h-1zM3 2h1v1h-1zM1 3h2v1h-2z"/><path fill="#FF5C66" d="M1 1h1v1h-1z"/><path fill="#E3202D" d="M2 1h1v1h-1zM1 2h2v1h-2z"/></g>
-    <g id="hand"><path fill="#1E2230" d="M1 0h3v1h-3zM0 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM4 2h1v1h-1zM0 3h1v1h-1zM4 3h1v1h-1zM1 4h3v1h-3z"/><path fill="#FFFFFF" d="M1 1h2v1h-2zM1 2h1v1h-1z"/><path fill="#F1F3F7" d="M3 1h1v1h-1zM2 2h2v1h-2zM1 3h2v1h-2z"/><path fill="#C5CBD8" d="M3 3h1v1h-1z"/></g>
-    <g id="hand-r"><path fill="#1E2230" d="M1 0h3v1h-3zM0 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM4 2h1v1h-1zM0 3h1v1h-1zM4 3h1v1h-1zM1 4h3v1h-3z"/><path fill="#FF5C66" d="M1 1h2v1h-2zM1 2h1v1h-1z"/><path fill="#E3202D" d="M3 1h1v1h-1zM2 2h2v1h-2zM1 3h2v1h-2z"/><path fill="#A8121E" d="M3 3h1v1h-1z"/></g>
-    <g id="bang"><path fill="#FF8A66" d="M1 1h1v1h-1zM1 2h1v1h-1zM1 3h1v1h-1zM1 4h1v1h-1zM1 5h1v1h-1zM1 6h1v1h-1zM1 8h1v1h-1zM1 9h1v1h-1z"/><path fill="#E25A35" d="M2 1h2v1h-2zM2 2h2v1h-2zM2 3h2v1h-2zM2 4h2v1h-2zM2 5h2v1h-2zM2 6h2v1h-2zM2 8h2v1h-2zM2 9h2v1h-2z"/><path fill="#2A1E1A" d="M0 0h5v1h-5zM0 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM4 2h1v1h-1zM0 3h1v1h-1zM4 3h1v1h-1zM0 4h1v1h-1zM4 4h1v1h-1zM0 5h1v1h-1zM4 5h1v1h-1zM0 6h1v1h-1zM4 6h1v1h-1zM0 7h5v1h-5zM0 8h1v1h-1zM4 8h1v1h-1zM0 9h1v1h-1zM4 9h1v1h-1zM0 10h5v1h-5z"/></g>
-    <g id="bolt"><path fill="#FFD84D" d="M4 1h3v1h-3zM3 2h3v1h-3zM2 3h1v1h-1zM4 3h1v1h-1zM1 4h6v1h-6zM4 5h2v1h-2zM3 6h2v1h-2zM2 7h2v1h-2zM1 8h2v1h-2zM1 9h1v1h-1z"/><path fill="#FFF3B0" d="M3 3h1v1h-1z"/><path fill="#6E4A0C" d="M3 0h5v1h-5zM2 1h2v1h-2zM7 1h1v1h-1zM1 2h2v1h-2zM6 2h2v1h-2zM0 3h2v1h-2zM5 3h3v1h-3zM0 4h1v1h-1zM7 4h1v1h-1zM0 5h4v1h-4zM6 5h2v1h-2zM1 6h2v1h-2zM5 6h2v1h-2zM0 7h2v1h-2zM4 7h2v1h-2zM0 8h1v1h-1zM3 8h2v1h-2zM0 9h1v1h-1zM2 9h2v1h-2zM0 10h3v1h-3z"/></g>
-    <g id="cloud-storm"><path fill="#1E2230" d="M14 1h2v1h-2zM10 2h4v1h-4zM16 2h4v1h-4zM8 3h2v1h-2zM20 3h2v1h-2zM6 4h2v1h-2zM22 4h2v1h-2zM5 5h1v1h-1zM24 5h1v1h-1zM4 6h1v1h-1zM25 6h1v1h-1zM3 7h1v1h-1zM26 7h1v1h-1zM2 8h1v1h-1zM27 8h1v1h-1zM2 9h1v1h-1zM27 9h1v1h-1zM1 10h1v1h-1zM28 10h1v1h-1zM1 11h1v1h-1zM28 11h1v1h-1zM1 12h1v1h-1zM28 12h1v1h-1zM1 13h1v1h-1zM28 13h1v1h-1zM1 14h1v1h-1zM28 14h1v1h-1zM0 15h1v1h-1zM29 15h1v1h-1zM1 16h1v1h-1zM28 16h1v1h-1zM1 17h1v1h-1zM28 17h1v1h-1zM1 18h1v1h-1zM28 18h1v1h-1zM1 19h1v1h-1zM28 19h1v1h-1zM1 20h1v1h-1zM28 20h1v1h-1zM2 21h1v1h-1zM27 21h1v1h-1zM2 22h1v1h-1zM27 22h1v1h-1zM3 23h1v1h-1zM26 23h1v1h-1zM4 24h1v1h-1zM25 24h1v1h-1zM5 25h1v1h-1zM24 25h1v1h-1zM6 26h2v1h-2zM22 26h2v1h-2zM8 27h2v1h-2zM20 27h2v1h-2zM10 28h4v1h-4zM16 28h4v1h-4zM14 29h2v1h-2z"/><path fill="#A3AABA" d="M6 5h2v1h-2zM5 6h1v1h-1zM4 7h1v1h-1zM3 8h1v1h-1zM3 9h1v1h-1zM2 10h1v1h-1zM2 11h1v1h-1zM2 12h1v1h-1zM2 13h1v1h-1zM2 14h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1z"/><path fill="#B5646B" d="M14 2h1v1h-1zM10 3h4v1h-4zM16 3h3v1h-3zM8 4h2v1h-2zM20 4h1v1h-1zM22 5h1v1h-1z"/><path fill="#7D8597" d="M8 5h6v1h-6zM6 6h10v1h-10zM5 7h13v1h-13zM4 8h15v1h-15zM4 9h16v1h-16zM3 10h18v1h-18zM3 11h19v1h-19zM3 12h19v1h-19zM3 13h19v1h-19zM3 14h20v1h-20zM2 15h21v1h-21zM3 16h20v1h-20zM3 17h20v1h-20zM3 18h20v1h-20zM3 19h20v1h-20zM3 20h20v1h-20zM4 21h19v1h-19zM5 22h18v1h-18zM6 23h16v1h-16zM8 24h14v1h-14zM10 25h10v1h-10zM14 26h2v1h-2z"/><path fill="#9C4A52" d="M14 3h2v1h-2zM10 4h10v1h-10zM14 5h8v1h-8zM16 6h8v1h-8zM18 7h7v1h-7zM19 8h7v1h-7zM20 9h6v1h-6zM21 10h6v1h-6zM22 11h5v1h-5zM22 12h5v1h-5zM22 13h5v1h-5zM23 14h4v1h-4zM23 15h5v1h-5zM23 16h4v1h-4zM23 17h4v1h-4zM23 18h4v1h-4zM23 19h4v1h-4zM23 20h4v1h-4zM23 21h3v1h-3zM23 22h2v1h-2zM22 23h2v1h-2z"/><path fill="#5B6274" d="M1 15h1v1h-1zM2 19h1v1h-1zM2 20h1v1h-1zM3 21h1v1h-1zM3 22h2v1h-2zM4 23h2v1h-2zM5 24h3v1h-3zM6 25h4v1h-4zM20 25h1v1h-1zM8 26h6v1h-6zM16 26h5v1h-5zM10 27h10v1h-10zM14 28h2v1h-2z"/><path fill="#7A343C" d="M15 2h1v1h-1zM19 3h1v1h-1zM21 4h1v1h-1zM23 5h1v1h-1zM24 6h1v1h-1zM25 7h1v1h-1zM26 8h1v1h-1zM26 9h1v1h-1zM27 10h1v1h-1zM27 11h1v1h-1zM27 12h1v1h-1zM27 13h1v1h-1zM27 14h1v1h-1zM28 15h1v1h-1zM27 16h1v1h-1zM27 17h1v1h-1zM27 18h1v1h-1zM27 19h1v1h-1zM27 20h1v1h-1zM26 21h1v1h-1zM25 22h2v1h-2zM24 23h2v1h-2zM22 24h3v1h-3zM21 25h3v1h-3zM21 26h1v1h-1z"/></g>
-    <g id="drop"><path fill="#BDEBFF" d="M2 1h1v1h-1zM1 2h1v1h-1z"/><path fill="#40C4FF" d="M2 2h2v1h-2zM1 3h3v1h-3zM2 4h1v1h-1z"/><path fill="#3A6A80" d="M2 0h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM0 2h1v1h-1zM4 2h1v1h-1zM0 3h1v1h-1zM4 3h1v1h-1zM1 4h1v1h-1zM3 4h1v1h-1zM2 5h1v1h-1z"/></g>
-    <g id="face-x"><path fill="#14161D" d="M13 5h1v1h-1zM16 5h1v1h-1zM14 6h2v1h-2zM14 7h2v1h-2zM8 8h1v1h-1zM11 8h1v1h-1zM13 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM21 8h1v1h-1zM9 9h2v1h-2zM19 9h2v1h-2zM9 10h2v1h-2zM19 10h2v1h-2zM3 11h1v1h-1zM6 11h1v1h-1zM8 11h1v1h-1zM11 11h1v1h-1zM13 11h1v1h-1zM16 11h1v1h-1zM18 11h1v1h-1zM21 11h1v1h-1zM23 11h1v1h-1zM26 11h1v1h-1zM4 12h2v1h-2zM14 12h2v1h-2zM24 12h2v1h-2zM4 13h2v1h-2zM14 13h2v1h-2zM24 13h2v1h-2zM3 14h1v1h-1zM6 14h1v1h-1zM8 14h1v1h-1zM11 14h1v1h-1zM13 14h1v1h-1zM16 14h1v1h-1zM18 14h1v1h-1zM21 14h1v1h-1zM23 14h1v1h-1zM26 14h1v1h-1zM9 15h2v1h-2zM19 15h2v1h-2zM9 16h2v1h-2zM19 16h2v1h-2zM8 17h1v1h-1zM11 17h1v1h-1zM13 17h1v1h-1zM16 17h1v1h-1zM18 17h1v1h-1zM21 17h1v1h-1zM14 18h2v1h-2zM14 19h2v1h-2zM13 20h1v1h-1zM16 20h1v1h-1z"/><path fill="#14161D" d="M12 23h1v1h-1zM14 23h1v1h-1zM16 23h1v1h-1zM18 23h1v1h-1zM13 24h1v1h-1zM15 24h1v1h-1zM17 24h1v1h-1z"/></g>
+    <g id="eye-rings"><path fill="#DE4553" d="M6 14h5v1h-5zM5 15h1v1h-1zM11 15h1v1h-1zM5 16h1v1h-1zM11 16h1v1h-1zM5 17h1v1h-1zM11 17h1v1h-1zM5 18h1v1h-1zM11 18h1v1h-1zM5 19h1v1h-1zM11 19h1v1h-1zM5 20h1v1h-1zM11 20h1v1h-1zM6 21h5v1h-5z"/><path fill="#2A1A22" d="M6 15h5v1h-5zM6 16h5v1h-5zM6 17h5v1h-5zM6 18h5v1h-5zM6 19h5v1h-5zM6 20h5v1h-5z"/><path fill="#B9AAB2" d="M18 14h5v1h-5zM17 15h1v1h-1zM23 15h1v1h-1zM17 16h1v1h-1zM23 16h1v1h-1zM17 17h1v1h-1zM23 17h1v1h-1zM17 18h1v1h-1zM23 18h1v1h-1zM17 19h1v1h-1zM23 19h1v1h-1zM17 20h1v1h-1zM23 20h1v1h-1zM18 21h5v1h-5z"/><path fill="#2A1A22" d="M18 15h5v1h-5zM18 16h5v1h-5zM18 17h5v1h-5zM18 18h5v1h-5zM18 19h5v1h-5zM18 20h5v1h-5z"/><path fill="#B9AAB2" d="M12 12h5v1h-5zM11 13h1v1h-1zM17 13h1v1h-1zM11 14h1v1h-1zM17 14h1v1h-1zM11 15h1v1h-1zM17 15h1v1h-1zM11 16h1v1h-1zM17 16h1v1h-1zM11 17h1v1h-1zM17 17h1v1h-1zM11 18h1v1h-1zM17 18h1v1h-1zM12 19h5v1h-5z"/><path fill="#2A1A22" d="M12 13h5v1h-5zM12 14h5v1h-5zM12 15h5v1h-5zM12 16h5v1h-5zM12 17h5v1h-5zM12 18h5v1h-5z"/></g>
+    <g id="face-happy"><path fill="#2A1A22" d="M4 17h5v1h-5zM3 18h1v1h-1zM9 18h1v1h-1z"/><path fill="#2A1A22" d="M19 17h5v1h-5zM18 18h1v1h-1zM24 18h1v1h-1z"/><path fill="#2A1A22" d="M12 15h5v1h-5zM11 16h1v1h-1zM17 16h1v1h-1z"/><path fill="#5A2433" d="M12 23h6v1h-6zM12 24h1v1h-1zM17 24h1v1h-1zM13 25h1v1h-1zM16 25h1v1h-1zM14 26h2v1h-2z"/><path fill="#FFFFFF" d="M13 24h1v1h-1zM16 24h1v1h-1z"/><path fill="#5A0F1E" d="M14 24h2v1h-2z"/><path fill="#F07A8A" d="M14 25h2v1h-2z"/></g>
+    <g id="blush"><path fill="#F2A0AE" d="M1 21h3v1h-3zM1 22h3v1h-3z"/><path fill="#F2A0AE" d="M26 21h3v1h-3zM26 22h3v1h-3z"/></g>
+    <g id="face-caret"><path fill="#2A1A22" d="M4 17h5v1h-5zM3 18h1v1h-1zM9 18h1v1h-1z"/><path fill="#2A1A22" d="M19 17h5v1h-5zM18 18h1v1h-1zM24 18h1v1h-1z"/><path fill="#2A1A22" d="M12 15h5v1h-5zM11 16h1v1h-1zM17 16h1v1h-1z"/><path fill="#5A2433" d="M11 23h1v1h-1zM18 23h1v1h-1zM12 24h6v1h-6z"/><path fill="#FFFFFF" d="M13 25h1v1h-1zM16 25h1v1h-1z"/></g>
+    <g id="eyes-open"><path fill="#FFFFFF" d="M7 16h2v1h-2zM7 17h2v1h-2zM9 19h1v1h-1z"/><path fill="#FFFFFF" d="M19 16h2v1h-2zM19 17h2v1h-2zM21 19h1v1h-1z"/><path fill="#FFFFFF" d="M13 14h2v1h-2zM13 15h2v1h-2zM15 17h1v1h-1z"/></g>
+    <g id="eyes-shut"><path fill="#2A1A22" d="M3 17h1v1h-1zM9 17h1v1h-1zM4 18h5v1h-5z"/><path fill="#2A1A22" d="M18 17h1v1h-1zM24 17h1v1h-1zM19 18h5v1h-5z"/><path fill="#2A1A22" d="M11 15h1v1h-1zM17 15h1v1h-1zM12 16h5v1h-5z"/></g>
+    <g id="cursor"><path fill="#5A2433" d="M11 23h1v1h-1zM18 23h1v1h-1zM12 24h6v1h-6z"/><path fill="#FFFFFF" d="M13 25h1v1h-1zM16 25h1v1h-1z"/></g>
+    <g id="mouth-yawn-1"><path fill="#5A2433" d="M14 23h2v1h-2zM13 24h1v1h-1zM16 24h1v1h-1zM14 25h2v1h-2z"/><path fill="#5A0F1E" d="M14 24h2v1h-2z"/></g>
+    <g id="mouth-yawn-2"><path fill="#5A2433" d="M13 23h4v1h-4zM12 24h1v1h-1zM17 24h1v1h-1zM12 25h1v1h-1zM17 25h1v1h-1zM13 26h4v1h-4z"/><path fill="#5A0F1E" d="M13 24h4v1h-4zM13 25h1v1h-1zM16 25h1v1h-1z"/><path fill="#F07A8A" d="M14 25h2v1h-2z"/></g>
+    <g id="mouth-yawn-3"><path fill="#5A2433" d="M12 22h6v1h-6zM11 23h1v1h-1zM18 23h1v1h-1zM11 24h1v1h-1zM18 24h1v1h-1zM11 25h1v1h-1zM18 25h1v1h-1zM12 26h6v1h-6z"/><path fill="#5A0F1E" d="M12 23h6v1h-6zM12 24h6v1h-6zM12 25h1v1h-1zM17 25h1v1h-1z"/><path fill="#F07A8A" d="M13 25h4v1h-4z"/></g>
+    <g id="mini-puff"><path fill="#7C1E2B" d="M1 0h2v1h-2zM0 1h1v1h-1zM3 1h1v1h-1zM0 2h1v1h-1zM3 2h1v1h-1zM1 3h2v1h-2z"/><path fill="#F2848D" d="M1 1h1v1h-1z"/><path fill="#DE4553" d="M2 1h1v1h-1zM1 2h2v1h-2z"/></g>
+    <g id="hand"><path fill="#5E4B5A" d="M1 0h3v1h-3zM0 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM4 2h1v1h-1zM0 3h1v1h-1zM4 3h1v1h-1zM1 4h3v1h-3z"/><path fill="#FFFFFF" d="M1 1h2v1h-2zM1 2h1v1h-1z"/><path fill="#F6F1F0" d="M3 1h1v1h-1zM2 2h2v1h-2zM1 3h2v1h-2z"/><path fill="#D9CDD2" d="M3 3h1v1h-1z"/></g>
+    <g id="hand-r"><path fill="#7C1E2B" d="M1 0h3v1h-3zM0 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM4 2h1v1h-1zM0 3h1v1h-1zM4 3h1v1h-1zM1 4h3v1h-3z"/><path fill="#F2848D" d="M1 1h2v1h-2zM1 2h1v1h-1z"/><path fill="#DE4553" d="M3 1h1v1h-1zM2 2h2v1h-2zM1 3h2v1h-2z"/><path fill="#B32F40" d="M3 3h1v1h-1z"/></g>
+    <g id="cloud-deflate"><path fill="#5E4B5A" d="M10 6h5v1h-5zM7 7h3v1h-3zM5 8h2v1h-2zM4 9h1v1h-1zM2 10h2v1h-2zM1 11h1v1h-1zM1 12h1v1h-1zM0 13h1v1h-1zM0 14h1v1h-1zM-1 15h1v1h-1zM-1 16h1v1h-1zM-1 17h1v1h-1zM-1 18h1v1h-1zM-1 19h1v1h-1zM0 20h1v1h-1zM0 21h1v1h-1zM0 22h1v1h-1zM1 23h1v1h-1zM2 24h1v1h-1zM3 25h1v1h-1zM4 26h2v1h-2zM6 27h3v1h-3zM21 27h1v1h-1zM9 28h12v1h-12z"/><path fill="#7C1E2B" d="M15 6h5v1h-5zM20 7h3v1h-3zM23 8h2v1h-2zM25 9h1v1h-1zM26 10h2v1h-2zM28 11h1v1h-1zM28 12h1v1h-1zM29 13h1v1h-1zM29 14h1v1h-1zM30 15h1v1h-1zM30 16h1v1h-1zM30 17h1v1h-1zM30 18h1v1h-1zM30 19h1v1h-1zM29 20h1v1h-1zM29 21h1v1h-1zM29 22h1v1h-1zM28 23h1v1h-1zM27 24h1v1h-1zM26 25h1v1h-1zM24 26h2v1h-2zM22 27h2v1h-2z"/><path fill="#FFFFFF" d="M10 7h7v1h-7zM7 8h3v1h-3zM5 9h2v1h-2zM4 10h1v1h-1zM2 11h2v1h-2zM2 12h1v1h-1zM1 13h1v1h-1zM1 14h1v1h-1zM0 15h1v1h-1zM0 16h1v1h-1zM0 17h1v1h-1zM1 20h1v1h-1z"/><path fill="#F2848D" d="M17 7h2v1h-2zM20 8h2v1h-2zM23 9h1v1h-1zM26 11h1v1h-1z"/><path fill="#F6F1F0" d="M10 8h8v1h-8zM7 9h13v1h-13zM5 10h16v1h-16zM4 11h17v1h-17zM3 12h19v1h-19zM2 13h21v1h-21zM2 14h21v1h-21zM1 15h22v1h-22zM1 16h23v1h-23zM1 17h23v1h-23zM1 18h23v1h-23zM1 19h23v1h-23zM2 20h22v1h-22zM2 21h22v1h-22zM3 22h21v1h-21zM4 23h19v1h-19zM6 24h17v1h-17zM9 25h12v1h-12z"/><path fill="#DE4553" d="M18 8h2v1h-2zM20 9h3v1h-3zM21 10h4v1h-4zM21 11h5v1h-5zM22 12h5v1h-5zM23 13h5v1h-5zM23 14h5v1h-5zM23 15h6v1h-6zM24 16h5v1h-5zM24 17h5v1h-5zM24 18h5v1h-5zM24 19h5v1h-5zM24 20h4v1h-4zM24 21h4v1h-4zM24 22h3v1h-3zM23 23h3v1h-3zM23 24h1v1h-1z"/><path fill="#D9CDD2" d="M0 18h1v1h-1zM0 19h1v1h-1zM1 21h1v1h-1zM1 22h2v1h-2zM2 23h2v1h-2zM3 24h3v1h-3zM4 25h5v1h-5zM21 25h2v1h-2zM6 26h16v1h-16zM9 27h12v1h-12z"/><path fill="#B32F40" d="M19 7h1v1h-1zM22 8h1v1h-1zM24 9h1v1h-1zM25 10h1v1h-1zM27 11h1v1h-1zM27 12h1v1h-1zM28 13h1v1h-1zM28 14h1v1h-1zM29 15h1v1h-1zM29 16h1v1h-1zM29 17h1v1h-1zM29 18h1v1h-1zM29 19h1v1h-1zM28 20h1v1h-1zM28 21h1v1h-1zM27 22h2v1h-2zM26 23h2v1h-2zM24 24h3v1h-3zM23 25h3v1h-3zM22 26h2v1h-2z"/></g>
+    <g id="cloud-deflate-in"><path fill="#5E4B5A" d="M6 6h2v1h-2zM5 7h1v1h-1zM3 8h2v1h-2zM3 9h1v1h-1zM2 10h1v1h-1zM1 11h1v1h-1zM1 12h1v1h-1zM0 13h1v1h-1zM0 14h1v1h-1zM0 15h1v1h-1zM0 16h1v1h-1zM0 17h1v1h-1zM0 18h1v1h-1zM0 19h1v1h-1zM0 20h1v1h-1zM1 21h1v1h-1zM1 22h1v1h-1zM2 23h1v1h-1zM3 24h1v1h-1zM4 25h1v1h-1zM5 26h2v1h-2zM7 27h2v1h-2zM9 28h10v1h-10z"/><path fill="#7C1E2B" d="M12 4h6v1h-6zM8 5h4v1h-4zM18 5h4v1h-4zM22 6h2v1h-2zM24 7h1v1h-1zM25 8h2v1h-2zM26 9h1v1h-1zM27 10h1v1h-1zM28 11h1v1h-1zM28 12h1v1h-1zM29 13h1v1h-1zM29 14h1v1h-1zM29 15h1v1h-1zM29 16h1v1h-1zM29 17h1v1h-1zM29 18h1v1h-1zM29 19h1v1h-1zM29 20h1v1h-1zM28 21h1v1h-1zM28 22h1v1h-1zM27 23h1v1h-1zM26 24h1v1h-1zM25 25h1v1h-1zM23 26h2v1h-2zM21 27h2v1h-2zM19 28h2v1h-2z"/><path fill="#FFFFFF" d="M8 6h4v1h-4zM6 7h2v1h-2zM5 8h1v1h-1zM4 9h1v1h-1zM3 10h1v1h-1zM2 11h1v1h-1zM2 12h1v1h-1zM1 13h1v1h-1zM1 14h1v1h-1zM1 15h1v1h-1zM1 16h1v1h-1zM1 17h1v1h-1zM1 18h1v1h-1z"/><path fill="#F2848D" d="M12 5h5v1h-5zM18 6h3v1h-3zM22 7h1v1h-1z"/><path fill="#F6F1F0" d="M12 6h3v1h-3zM8 7h9v1h-9zM6 8h12v1h-12zM5 9h14v1h-14zM4 10h16v1h-16zM3 11h18v1h-18zM3 12h19v1h-19zM2 13h20v1h-20zM2 14h21v1h-21zM2 15h21v1h-21zM2 16h21v1h-21zM2 17h21v1h-21zM2 18h21v1h-21zM2 19h21v1h-21zM2 20h21v1h-21zM3 21h20v1h-20zM4 22h19v1h-19zM5 23h18v1h-18zM7 24h15v1h-15zM9 25h12v1h-12z"/><path fill="#DE4553" d="M15 6h3v1h-3zM17 7h5v1h-5zM18 8h6v1h-6zM19 9h6v1h-6zM20 10h6v1h-6zM21 11h6v1h-6zM22 12h5v1h-5zM22 13h6v1h-6zM23 14h5v1h-5zM23 15h5v1h-5zM23 16h5v1h-5zM23 17h5v1h-5zM23 18h5v1h-5zM23 19h5v1h-5zM23 20h5v1h-5zM23 21h4v1h-4zM23 22h3v1h-3zM23 23h2v1h-2zM22 24h1v1h-1z"/><path fill="#D9CDD2" d="M1 19h1v1h-1zM1 20h1v1h-1zM2 21h1v1h-1zM2 22h2v1h-2zM3 23h2v1h-2zM4 24h3v1h-3zM5 25h4v1h-4zM21 25h1v1h-1zM7 26h14v1h-14zM9 27h11v1h-11z"/><path fill="#B32F40" d="M17 5h1v1h-1zM21 6h1v1h-1zM23 7h1v1h-1zM24 8h1v1h-1zM25 9h1v1h-1zM26 10h1v1h-1zM27 11h1v1h-1zM27 12h1v1h-1zM28 13h1v1h-1zM28 14h1v1h-1zM28 15h1v1h-1zM28 16h1v1h-1zM28 17h1v1h-1zM28 18h1v1h-1zM28 19h1v1h-1zM28 20h1v1h-1zM27 21h1v1h-1zM26 22h2v1h-2zM25 23h2v1h-2zM23 24h3v1h-3zM22 25h3v1h-3zM21 26h2v1h-2zM20 27h1v1h-1z"/></g>
+    <g id="error-label"><path fill="#FF4B4B" d="M1 1h3v1h-3zM5 1h2v1h-2zM9 1h2v1h-2zM14 1h1v1h-1zM17 1h2v1h-2zM1 2h1v1h-1zM5 2h1v1h-1zM7 2h1v1h-1zM9 2h1v1h-1zM11 2h1v1h-1zM13 2h1v1h-1zM15 2h1v1h-1zM17 2h1v1h-1zM19 2h1v1h-1zM1 3h2v1h-2zM5 3h2v1h-2zM9 3h2v1h-2zM13 3h1v1h-1zM15 3h1v1h-1zM17 3h2v1h-2zM1 4h1v1h-1zM5 4h1v1h-1zM7 4h1v1h-1zM9 4h1v1h-1zM11 4h1v1h-1zM13 4h1v1h-1zM15 4h1v1h-1zM17 4h1v1h-1zM19 4h1v1h-1zM1 5h3v1h-3zM5 5h1v1h-1zM7 5h1v1h-1zM9 5h1v1h-1zM11 5h1v1h-1zM14 5h1v1h-1zM17 5h1v1h-1zM19 5h1v1h-1z"/><path fill="#3A0E12" d="M0 0h12v1h-12zM13 0h7v1h-7zM0 1h1v1h-1zM4 1h1v1h-1zM7 1h2v1h-2zM11 1h3v1h-3zM15 1h2v1h-2zM19 1h2v1h-2zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM8 2h1v1h-1zM10 2h1v1h-1zM12 2h1v1h-1zM14 2h1v1h-1zM16 2h1v1h-1zM18 2h1v1h-1zM20 2h1v1h-1zM0 3h1v1h-1zM3 3h2v1h-2zM7 3h2v1h-2zM11 3h2v1h-2zM14 3h1v1h-1zM16 3h1v1h-1zM19 3h2v1h-2zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM12 4h1v1h-1zM14 4h1v1h-1zM16 4h1v1h-1zM18 4h1v1h-1zM20 4h1v1h-1zM0 5h1v1h-1zM4 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM12 5h2v1h-2zM15 5h2v1h-2zM18 5h1v1h-1zM20 5h1v1h-1zM0 6h21v1h-21z"/></g>
+    <g id="face-x"><path fill="#FFFFFF" d="M6 15h5v1h-5zM7 16h3v1h-3zM6 17h1v1h-1zM8 17h1v1h-1zM10 17h1v1h-1zM6 18h2v1h-2zM9 18h2v1h-2zM6 19h1v1h-1zM8 19h1v1h-1zM10 19h1v1h-1zM7 20h3v1h-3z"/><path fill="#2A1A22" d="M6 16h1v1h-1zM10 16h1v1h-1zM7 17h1v1h-1zM9 17h1v1h-1zM8 18h1v1h-1zM7 19h1v1h-1zM9 19h1v1h-1zM6 20h1v1h-1zM10 20h1v1h-1z"/><path fill="#FFFFFF" d="M18 15h5v1h-5zM19 16h3v1h-3zM18 17h1v1h-1zM20 17h1v1h-1zM22 17h1v1h-1zM18 18h2v1h-2zM21 18h2v1h-2zM18 19h1v1h-1zM20 19h1v1h-1zM22 19h1v1h-1zM19 20h3v1h-3z"/><path fill="#2A1A22" d="M18 16h1v1h-1zM22 16h1v1h-1zM19 17h1v1h-1zM21 17h1v1h-1zM20 18h1v1h-1zM19 19h1v1h-1zM21 19h1v1h-1zM18 20h1v1h-1zM22 20h1v1h-1z"/><path fill="#FFFFFF" d="M12 13h5v1h-5zM13 14h3v1h-3zM12 15h1v1h-1zM14 15h1v1h-1zM16 15h1v1h-1zM12 16h2v1h-2zM15 16h2v1h-2zM12 17h1v1h-1zM14 17h1v1h-1zM16 17h1v1h-1zM13 18h3v1h-3z"/><path fill="#2A1A22" d="M12 14h1v1h-1zM16 14h1v1h-1zM13 15h1v1h-1zM15 15h1v1h-1zM14 16h1v1h-1zM13 17h1v1h-1zM15 17h1v1h-1zM12 18h1v1h-1zM16 18h1v1h-1z"/><path fill="#5A2433" d="M12 23h1v1h-1zM14 23h1v1h-1zM16 23h1v1h-1zM13 24h1v1h-1zM15 24h1v1h-1zM17 24h1v1h-1z"/></g>
+    <g id="smoke"><path fill="#A9A3AE" d="M2 1h2v1h-2zM1 2h4v1h-4zM2 3h2v1h-2z"/><path fill="#6E6470" d="M2 0h2v1h-2zM1 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM5 2h1v1h-1zM1 3h1v1h-1zM4 3h1v1h-1zM2 4h2v1h-2z"/></g>
+    <g id="smoke-s"><path fill="#BDB7C1" d="M1 1h2v1h-2zM1 2h2v1h-2z"/><path fill="#6E6470" d="M1 0h2v1h-2zM0 1h1v1h-1zM3 1h1v1h-1zM0 2h1v1h-1zM3 2h1v1h-1zM1 3h2v1h-2z"/></g>
+    <g id="sparkle-s"><path fill="#FFD84D" d="M1 0h1v1h-1zM0 1h1v1h-1zM2 1h1v1h-1zM1 2h1v1h-1z"/><path fill="#FFFFFF" d="M1 1h1v1h-1z"/></g>
   </defs>
   <g transform="scale(.5)">
-    <use href="#shadow-sm"/>
-    <g class="rain0-v"><g class="rain0-m"><use href="#drop"/></g></g>
-    <g class="rain1-v"><g class="rain1-m"><use href="#drop"/></g></g>
-    <g class="rain2-v"><g class="rain2-m"><use href="#drop"/></g></g>
-    <g class="rain3-v"><g class="rain3-m"><use href="#drop"/></g></g>
-    <g class="rain4-v"><g class="rain4-m"><use href="#drop"/></g></g>
-    <g class="rig-m">
-      <use href="#cloud-storm"/>
-      <use href="#eye-rings"/>
-      <use href="#face-x"/>
+    <use href="#shadow"/>
+    <g transform="translate(0 0)">
+      <g class="b-dfl-v"><use href="#cloud-deflate"/></g>
+      <g class="b-dfl2-v"><use href="#cloud-deflate-in"/></g>
+      <g class="f-eye-rings-m"><use href="#eye-rings"/></g>
+      <g class="f-face-x-m"><use href="#face-x"/></g>
     </g>
-    <g class="bolt-v"><g transform="translate(6 20)"><use href="#bolt"/></g></g>
-    <g class="bang-m"><use href="#bang"/></g>
+    <g transform="translate(-3 25)"><use href="#hand"/></g>
+    <g transform="translate(28 25)"><use href="#hand-r"/></g>
+    <g class="star0-m"><use href="#sparkle-s"/></g>
+    <g class="star1-m"><use href="#sparkle-s"/></g>
+    <g class="star2-m"><use href="#sparkle-s"/></g>
+    <g class="smoke0-v"><g class="smoke0-m"><use href="#smoke"/></g></g>
+    <g class="smoke1-v"><g class="smoke1-m"><use href="#smoke"/></g></g>
+    <g class="smoke2-v"><g class="smoke2-m"><use href="#smoke"/></g></g>
+    <g class="smokes0-v"><g class="smokes0-m"><use href="#smoke-s"/></g></g>
+    <g class="smokes1-v"><g class="smokes1-m"><use href="#smoke-s"/></g></g>
+    <g class="smokes2-v"><g class="smokes2-m"><use href="#smoke-s"/></g></g>
+    <g class="label-v"><g transform="translate(2 -16)"><use href="#error-label"/></g></g>
   </g>
 </svg>

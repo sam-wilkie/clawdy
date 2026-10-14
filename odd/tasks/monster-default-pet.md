@@ -7,14 +7,19 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 
 - S1 "es un pet paralelo al de claude que ya existe para que sea el modelo por defecto": the monster is a separate art set next to the Claude crab (and the Codex cloud), and it is the pet shown for any agent that has no art set of its own.
 - S2 "crear las animaciones por default ... basadas en las animaciones existentes": every monster state reuses the beats, fps and loop of the existing v2 state of the same name, except where the grid v2 key pose (S3) replaces the prop: `building` (code blocks, 3 s at 8 fps) and `cool` (thumbs-up, same timing).
-- S3 Design source: `assets/pet-samples/ai/monster-brand-cute-v1.png` (character) and `assets/pet-samples/ai/monster-brand-activities-grid-v2.png` (per-activity key poses): circular body, white left side with a red right crescent, the ring-eye cluster of the cute-v1 image (nine rings: three red, six white), small smile with two baby fangs, blush, floating white left and red right mittens.
+- S3 (superseded by S5 for the look) Design source: `assets/pet-samples/ai/monster-brand-cute-v1.png` (character) and `assets/pet-samples/ai/monster-brand-activities-grid-v2.png` (per-activity key poses): circular body, white left side with a red right crescent, the ring-eye cluster of the cute-v1 image (nine rings: three red, six white), small smile with two baby fangs, blush, floating white left and red right mittens.
 - S4 Scope "Los 31 estados": one SVG per state the Codex cloud set ships. That set has 29 files (idle, waiting_reply and 27 rendered states, alert included); "31" was a miscount in the option label.
+
+- S5 Redesign approved by the user ("me gusta la opcion 2", mockup `monster-redesign-ideas-v5.png`): three big ring eyes in one touching arched row just above the mouth ("los ojos deben ir juntos todos no separados para respectar un poco la marca, a menos que este con los ojos cerrados que alli si se verian feos o raros"), mittens kept ("no tiene las manitas que ayudan en las animaciones"), tonal outlines, softer cherry, no stray silhouette pixels.
+- S6 "me gustaria que este tuviera las animacion de error, low battery, happy, sweeping, beacon, debugger, y waiting_reply, sleeping, alert, disconnected como el cangrejo": those ten states follow the crab's beats, fps and loop.
 
 ## Tasks
 
 - T1 S2-S4 · generator `tools/monster_pixel.py` writing `desktop/renderer/assets/monster/monster-<state>-v2.svg` + gallery · inline · commit: c8f4918
 - T2 S1 · renderer selects the monster set for agents without their own art; test · inline · commit: a05b91d
 - T3 S1-S4 · render every state to PNG and inspect; update TODO.md and docs · inline · commit: see git log (docs commit)
+
+- T4 S5-S6 · port the option-2 design into the generator and give the ten states the crab's beats · inline · commit: pending
 
 ## Log
 
@@ -32,3 +37,11 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 - L12 (open) `tools/codex_cloud_pixel.py` and `desktop/renderer/assets/codex/` are gitignored (licensing, NOTICE.md), so `tools/monster_pixel.py` cannot run on a fresh clone; the committed monster SVGs are self-contained. Generator now exits with a clear message. Decision pending from the user: keep as is, or move the generic engine into a tracked module.
 - L13 (user) "agrega el claude a la pantalla y no me gusta mucho diseño se ve muy saturado, porq crees q sea?"
 - L14 (evidence) compare-v2.html now shows Claude v2 | Codex v2 | Monster v2 per state. Redesign for the saturation feedback awaits the user's choice.
+- L15 (user) "porq el de claude se siente mas pulido y me gustaria que este tuviera las animacion de error, low battery, happy, sweeping, beacon, debugger, y waiting_reply, sleeping, alert, disconnected como el cangrejo, pero antes de animarlo, quiero que me muestres una idea de como mejorarlo nates de volver a gastan en mas token diseñando nuevo"
+- L16 (evidence) Static mockup `assets/pet-samples/ai/monster-redesign-ideas-v1.png` (local, gitignored): crab | current | A 9 clean eyes | B 5 eyes | C 3 eyes, tonal outlines and softer cherry. Current body also has 1 px nubs at top/bottom/sides (mask lacks the cloud's nub cleanup). Awaiting the user's pick before animating.
+- L17 (user) "me gusta la C pero no tiene las manitas que ayudan en las animaciones, de pronto los ojos mas grandes"
+- L18 (evidence) Mockup `assets/pet-samples/ai/monster-redesign-ideas-v2.png` (local): C2 with three 7x8 eyes (2x2 catch-light + small lower one), white left / red right mittens, poses rest, happy (hands up, ^ ^ eyes, open grin) and thinking (mitten at the chin). Awaiting confirmation before animating.
+- L19 (user) "bajale mas los ojos que queden mas cerca de la boca y muestrame como quedara en el tamaño del claude"
+- L20 (evidence) Mockup `assets/pet-samples/ai/monster-redesign-ideas-v3.png` (local): C3 = eyes lowered 4 art px next to the mouth, right eye ring in dark red on the crescent, darker mitten outlines; placed with the pet's own mapping (viewBox -15 -25 45 45, art px = 0.5 unit) beside the crab at 180 px (real pet size) and 360 px. Same width as the crab, but taller because it is round.
+- L21 (user) "me gusta la opcion 2"
+- L22 (evidence) T4: generator rewritten. Own crab-beat renderers for error (2.4 s, 10 fps), low_battery (8 s, 6 fps), happy (2 s, 10 fps), beacon (2 s, 8 fps), debugger (12 s, 8 fps), waiting_reply (2 s, 8 fps), alert (4 s, 10 fps, the crab's notification beats), disconnected (3.2 s, 10 fps). sleeping and sweeping keep the engine's poses, which already copy the crab's beats (6 s/6 fps and 1.5 s/8 fps). Regeneration deterministic (two runs, same checksum), codex/*.svg unchanged, desktop npm test 45/45. Rendered and inspected with Playwright. Size kept as in the mockup (the user did not ask to shrink it).

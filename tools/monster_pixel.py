@@ -1,16 +1,22 @@
 """Brand monster for the Electron desktop pet: the default pet for any agent that has
 no art set of its own (Claude keeps the crab, Codex keeps the cloud).
 
-The monster reuses the Codex cloud engine (tools/codex_cloud_pixel.py) unchanged:
-same pose functions, props, beats, fps and loops for every state, because both
-characters fill the same 30 x 32 art-px body box. Only the character is swapped:
+Design (approved mockup "C3, option 2", odd/tasks/monster-default-pet.md):
 
-- body: a round ball, white on the left with a red crescent on the right;
-- face: nine ring eyes (3 red, 6 white) as in assets/pet-samples/ai/
-  monster-brand-cute-v1.png, pupils that look around, a smile with two baby fangs;
-- hands: a white left mitten and a red right mitten.
+- body: a round ball, white on the left with a soft cherry crescent on the right,
+  tonal outlines (plum on the white side, dark red on the red side) like the crab's
+  brown outline, light from the top left, no stray tip pixels;
+- eyes: three big 7 x 8 ring eyes in one touching arched row (one red ring, two
+  light rings) sitting just above the mouth, with a 2 x 2 catch-light that follows
+  the gaze; closed eyes are drawn spread apart, one soft curve each;
+- a small smile with two baby fangs, blush, and floating mittens (white left, red
+  right) that the poses use as hands.
 
-Key poses per activity: assets/pet-samples/ai/monster-brand-activities-grid-v2.png.
+Motion: tools/codex_cloud_pixel.py is the engine (Pose, animate, props, timing);
+both characters fill the same 30 x 32 art-px body box. Most states keep the cloud's
+beats; error, low_battery, happy, beacon, debugger, waiting_reply, alert and
+disconnected follow the Claude crab's beats instead, and building/cool follow the
+grid v2 key poses (code blocks, thumbs-up).
 
 Run from the repository root: ``python tools/monster_pixel.py``. It writes
 desktop/renderer/assets/monster/monster-<state>-v2.svg and compare-v2.html; the
@@ -31,19 +37,24 @@ except ModuleNotFoundError as exc:  # pragma: no cover - depends on the local ch
                      "and the monster generator reuses its engine.") from exc
 
 OUT = Path(__file__).resolve().parents[1] / "desktop" / "renderer" / "assets" / "monster"
+use, at, Smooth = cc.use, cc.at, cc.Smooth
 
-# Palette: the cloud's ink outline and whites, plus the brand red.
-OUTLINE, INK = cc.OUTLINE, cc.INK
-WHITE, WHITE_L, WHITE_S = cc.BASE, cc.LIGHT, cc.SHADE
-RED, RED_L, RED_S = "#E3202D", "#FF5C66", "#A8121E"
-MOUTH, TONGUE = "#5A0F1E", "#F07A8A"
+# ---------------------------------------------------------------- palette
+
+W_O, W_L, W_B, W_S = "#5E4B5A", "#FFFFFF", "#F6F1F0", "#D9CDD2"   # white side: plum outline
+R_O, R_L, R_B, R_S = "#7C1E2B", "#F2848D", "#DE4553", "#B32F40"   # red side: dark red outline
+EYE_INK, EYE_HI = "#2A1A22", "#FFFFFF"
+RING_RED, RING_LIGHT = R_B, "#B9AAB2"
+MOUTH_INK, MOUTH, TONGUE = "#5A2433", "#5A0F1E", "#F07A8A"
+BLUSH = "#F2A0AE"
 GOLD = "#FFC93C"
-DIM_INK = "#4A5059"
+DIM_INK = "#6E6470"
 
-# Whites -> recoloured whites already live in the cloud's variant palettes; add the reds.
-cc.STORM.update({RED: "#9C4A52", RED_L: "#B5646B", RED_S: "#7A343C"})
-cc.GREY.update({RED: "#D9737B", RED_L: "#E8959B", RED_S: "#B65660"})
-cc.DIM.update({RED: "#B8858A", RED_L: "#CDA2A6", RED_S: "#9A6C71"})
+# Recoloured body variants of the engine (storm, grey, dim) keyed on our colours.
+cc.STORM.update({W_B: "#8A8191", W_L: "#A79FAD", W_S: "#6C6372", R_B: "#9C4A52", R_L: "#B5646B", R_S: "#7A343C"})
+cc.GREY.update({W_B: "#E2DCDD", W_L: "#F0ECEC", W_S: "#BDB2B7", R_B: "#D9737B", R_L: "#E8959B", R_S: "#B65660"})
+cc.DIM.update({W_B: "#CFC8CB", W_L: "#DDD8DA", W_S: "#ADA3A8", R_B: "#B8858A", R_L: "#CDA2A6", R_S: "#9A6C71",
+               W_O: DIM_INK, R_O: DIM_INK})
 
 
 # ---------------------------------------------------------------- body
@@ -53,9 +64,8 @@ RX, RY = 14.5, 14.0
 
 
 def monster_mask(puff: int = 0, sx: float = 1.0, sy: float = 1.0) -> set[tuple[int, int]]:
-    """Round body as art pixels; ``puff`` grows it by whole pixels, ``sx``/``sy``
-    squash or stretch it around the middle of the ground row (same contract as
-    the cloud mask, so every body variant of the engine works)."""
+    """Round body as art pixels (same contract as the cloud mask: ``puff`` grows it,
+    ``sx``/``sy`` squash or stretch it around the ground row)."""
     cx, cy = CENTER
     rx, ry = RX + puff, RY + puff
     n = cc.SUPERSAMPLE
@@ -70,14 +80,17 @@ def monster_mask(puff: int = 0, sx: float = 1.0, sy: float = 1.0) -> set[tuple[i
             hits = sum(inside(x + (i + .5) / n, y + (j + .5) / n) for i in range(n) for j in range(n))
             if 2 * hits >= n * n:
                 px.add((x, y))
+    # Drop lone tip pixels (one 4-neighbour or fewer) so the silhouette stays round.
+    while nubs := {(x, y) for x, y in px
+                   if sum((x + dx, y + dy) in px for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))) <= 1}:
+        px -= nubs
     return px
 
 
 def monster_shade(mask: set[tuple[int, int]]) -> dict[str, set[tuple[int, int]]]:
-    """Cloud shading (1 px outline, light top/left, shade bottom/right), then the
-    pixels outside a white disc set up and to the left turn red: a crescent that is
-    thick at the top right and thins out towards the bottom, like the logo."""
-    colors = cc_shade_mask(mask)
+    """Cloud shading, then every pixel outside a white disc set to the lower left
+    turns red (a crescent, thick at the top right), outline included: tonal."""
+    base = cc_shade_mask(mask)
     xs = [x for x, _ in mask]
     ys = [y for _, y in mask]
     x0, w = min(xs), max(xs) - min(xs) + 1
@@ -87,10 +100,12 @@ def monster_shade(mask: set[tuple[int, int]]) -> dict[str, set[tuple[int, int]]]
     def red(p):
         return math.hypot(p[0] + .5 - wx, p[1] + .5 - wy) > wr
 
-    out = {OUTLINE: colors[OUTLINE]}
-    for white, redc in ((WHITE_L, RED_L), (WHITE, RED), (WHITE_S, RED_S)):
-        out[white] = {p for p in colors[white] if not red(p)}
-        out[redc] = {p for p in colors[white] if red(p)}
+    roles = {cc.OUTLINE: (W_O, R_O), cc.LIGHT: (W_L, R_L), cc.BASE: (W_B, R_B), cc.SHADE: (W_S, R_S)}
+    out: dict[str, set] = {}
+    for c, px in base.items():
+        white, redc = roles[c]
+        out.setdefault(white, set()).update(p for p in px if not red(p))
+        out.setdefault(redc, set()).update(p for p in px if red(p))
     return out
 
 
@@ -99,7 +114,7 @@ cc.cloud_mask = monster_mask
 cc.shade_mask = monster_shade
 
 
-# ---------------------------------------------------------------- face
+# ---------------------------------------------------------------- drawing helpers
 
 def paths(by_color: dict[str, set]) -> str:
     return "".join(f'<path fill="{c}" d="{cc.to_path(p)}"/>' for c, p in by_color.items() if p)
@@ -114,76 +129,68 @@ def art(rows: list[str], palette: dict[str, str], x0: int = 0, y0: int = 0) -> s
     return paths(by_color)
 
 
-# Nine 6 x 6 ring eyes in a hex cluster (top-left corners, body space). Neighbours
-# share their outline column. Red eyes sit on the white side, white eyes reach into
-# the red crescent, as in the reference.
-EYES = [
-    (12, 4, "w"), (12, 10, "w"), (12, 16, "w"),  # centre column
-    (7, 7, "r"), (7, 13, "r"), (2, 10, "r"),     # left: the three red eyes
-    (17, 7, "w"), (17, 13, "w"), (22, 10, "w"),  # right
-]
-# Each eye: a ring of colour (red or white) round a big pupil, on one dark blob that
-# fills the gaps between the rings, as in the reference.
-IRIS = [".II.", "IIII", "IIII", ".II."]
-RING_FILL = {"w": WHITE, "r": RED}
+# ---------------------------------------------------------------- eyes
+
+# Arched row: the centre eye sits 2 px higher; neighbours share one ring column.
+EYES = [(5, 14, "r"), (17, 14, "w"), (11, 12, "w")]   # the centre eye is drawn last
+RING = [".RRRRR.", "RKKKKKR", "RKKKKKR", "RKKKKKR", "RKKKKKR", "RKKKKKR", "RKKKKKR", ".RRRRR."]
+# Closed eyes are spread apart (a tight cluster of closed lids reads oddly).
+SPREAD = [(3, 17), (18, 17), (11, 15)]
 
 
 def rings(dim: bool = False) -> str:
-    blob = {(x + c, y + r) for x, y, _ in EYES for r in range(6) for c in range(6)}
-    blob -= {(x, y) for x, y in blob
-             if sum((x + dx, y + dy) in blob for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))) <= 2}
-    out = {DIM_INK if dim else OUTLINE: blob}
+    out = ""
     for x, y, kind in EYES:
-        fill = RING_FILL[kind]
-        fill = cc.DIM.get(fill, fill) if dim else fill
-        out.setdefault(fill, set()).update(
-            (x + 1 + c, y + 1 + r) for r, row in enumerate(IRIS) for c, ch in enumerate(row) if ch == "I")
-    return paths(out)
+        ring = RING_RED if kind == "r" else RING_LIGHT
+        pal = {"R": cc.DIM.get(ring, "#A99EA4") if dim else ring, "K": DIM_INK if dim else EYE_INK}
+        out += art(RING, pal, x, y)
+    return out
 
 
-def per_eye(rows: list[str], color: str = INK, dx: int = 1, dy: int = 1, shift=None, only=None) -> str:
-    """The same 4 x 4 interior glyph inside every eye ('K' pixels). ``shift`` maps
-    the eye index to an extra (x, y) offset (confused eyes look every which way)."""
-    px = set()
-    for i, (x, y, _) in enumerate(EYES):
-        if only is not None and i not in only:
-            continue
-        sx, sy = shift(i) if shift else (0, 0)
-        px |= {(x + dx + c + sx, y + dy + r + sy) for r, row in enumerate(rows) for c, ch in enumerate(row) if ch == "K"}
-    return paths({color: px})
+def per_eye(rows: list[str], palette: dict[str, str], only=None) -> str:
+    """A glyph drawn inside every open eye; (0, 0) is the eye's top-left interior
+    pixel (the interior is 5 x 6)."""
+    return "".join(art(rows, palette, x + 1, y + 1) for i, (x, y, _) in enumerate(EYES)
+                   if only is None or i in only)
 
 
-PUPIL = ["....", ".KK.", ".KK.", "...."]
-GLINT = ["....", ".K..", "....", "...."]       # white catch-light on the pupil
-PUPIL_S = ["....", ".K..", "....", "...."]      # startled: pin-prick pupils
-LID = ["....", "....", "KKKK", "...."]           # closed
-SLEEP = ["....", "K..K", ".KK.", "...."]         # relaxed closed, curved down
-HAPPY = ["....", ".KK.", "K..K", "...."]         # ^ arcs
-HALF = ["KKKK", "....", ".KK.", "...."]          # heavy lid line over a low pupil
-X = ["K..K", ".KK.", ".KK.", "K..K"]
-SWIRL_A = ["KKK.", "...K", "K.KK", "KK.."]
-SWIRL_B = cc.rot90(SWIRL_A)
-STAR = [".KK.", "KKKK", "KKKK", ".KK."]
+def spread(rows: list[str], color: str = EYE_INK) -> str:
+    return "".join(art(rows, {"K": color}, x, y) for x, y in SPREAD)
 
-MP = {"K": INK, "M": MOUTH, "W": WHITE_L, "T": TONGUE}
+
+IP = {"H": EYE_HI, "W": EYE_HI, "K": EYE_INK, "Y": GOLD, "S": W_S, "D": DIM_INK}
+HILITE = ["....", ".HH.", ".HH.", "....", "...H"]          # catch-light, moves with the gaze
+STARTLED = ["WWWWW", "WWWWW", "WWKWW", "WKKKW", "WWKWW", "WWWWW"]
+X_EYE = ["WWWWW", "KWWWK", "WKWKW", "WWKWW", "WKWKW", "KWWWK"]
+SWIRL_A = ["KKKKK", "WWWWK", "KKKWK", "KWKWK", "KWWWK", "KKKKK"]
+SWIRL_B = [r[::-1] for r in SWIRL_A[::-1]]
+STAR = ["..Y..", ".YYY.", "YYYYY", ".YYY.", "..Y..", "....."]
+HALF = ["SSSSS", "SSSSS", "KKKKK", ".....", ".HH..", "....."]   # heavy lid over a low gaze
+CLOSED = ["K.....K", ".KKKKK."]                                  # relaxed, curving down
+ARC = [".KKKKK.", "K.....K"]                                     # ^ happy
+
+
+# ---------------------------------------------------------------- mouth and cheeks
+
+MP = {"K": MOUTH_INK, "M": MOUTH, "W": EYE_HI, "T": TONGUE}
 MOUTH_X, MOUTH_Y = 10, 23
-SMILE = ["K........K", ".KWMMMMWK.", "..KKKKKK.."]          # rest: smile with two baby fangs
-GRIN = ["KKKKKKKKKK", ".KWMMMMWK.", "..KMTTMK..", "...KKKK..."]
-SMALL = ["..K....K..", "...KKKK..."]
-SMIRK = ["........K.", "..KKKKKK..."]
-O_MOUTH = ["...KKKK...", "..KMMMMK..", "...KKKK..."]
-WAVY = ["..K.K.K.K.", "...K.K.K.."]
+SMILE = [".K......K.", "..KKKKKK..", "...W..W..."]                 # rest: smile with two baby fangs
+GRIN = ["..KKKKKK..", "..KWMMWK..", "...KTTK...", "....KK...."]
+SMALL = ["...KKKK..."]
+SMIRK = [".......K..", "...KKKK..."]
+O_MOUTH = ["....KK....", "...KMMK...", "....KK...."]
+WAVY = ["..K.K.K...", "...K.K.K.."]
 CAT = ["...K.K.K..", "....K.K..."]
 YAWN = {
-    1: ["...KKKK...", "..KMMMMK..", "...KKKK..."],
+    1: ["....KK....", "...KMMK...", "....KK...."],
     2: ["...KKKK...", "..KMMMMK..", "..KMTTMK..", "...KKKK..."],
     3: ["..KKKKKK..", ".KMMMMMMK.", ".KMMMMMMK.", ".KMTTTTMK.", "..KKKKKK.."],
 }
 TYPE = [  # focused: the tongue pokes out while typing, sliding along
-    ["..KKKKKK.."],
-    ["..KKKKKK..", "...TT....."],
-    ["..KKKKKK..", ".....TT..."],
-    ["..KKKKKK..", ".......TT."],
+    ["...KKKK..."],
+    ["...KKKK...", "...T......"],
+    ["...KKKK...", ".....T...."],
+    ["...KKKK...", "......T..."],
 ]
 
 
@@ -191,51 +198,80 @@ def mouth(rows: list[str], dy: int = 0) -> str:
     return art(rows, MP, MOUTH_X, MOUTH_Y + dy)
 
 
-BLUSH = (f'<path fill="{cc.BLUSH}" d="M2 20h4v2h-4zM23 20h4v2h-4z"/>'
-         f'<path fill="{cc.BLUSH_MID}" d="M3 20h2v1h-2zM24 20h2v1h-2z"/>')
-
-
-COOL_LIDS = {2, 6, 7, 8}
-COOL_OPEN = set(range(len(EYES))) - COOL_LIDS
-
-
-def confused_shift(i: int) -> tuple[int, int]:
-    return ((-1, -1), (1, 0), (0, 1), (1, -1), (-1, 1), (0, -1), (-1, 0), (1, 1), (0, 0))[i]
+BLUSH_SVG = art(["BBB", "BBB"], {"B": BLUSH}, 1, 21) + art(["BBB", "BBB"], {"B": BLUSH}, 26, 21)
+COOL_LIDS = {1}  # the right eye half-shut for "cool"
 
 
 def face_defs() -> dict[str, str]:
-    """Faces under the cloud's ids, so every pose of the engine picks them up. The
-    rings are their own layer ("eye-rings"): faces draw only the pupils or lids."""
+    """Every face part the engine's FACES table names. Open-eyed faces sit on the
+    rings (their own layer); closed-eyed faces draw spread lids without rings."""
     return {
         "eye-rings-dim": rings(dim=True),
-        "face-o": per_eye(PUPIL_S) + mouth(O_MOUTH),
-        "face-sleep": per_eye(SLEEP) + mouth(SMALL),
-        "face-dizzy-a": per_eye(SWIRL_A) + mouth(WAVY),
-        "face-dizzy-b": per_eye(SWIRL_B) + mouth(WAVY),
-        "face-x": per_eye(X) + mouth(WAVY),
-        "face-star": per_eye(STAR, GOLD) + per_eye(PUPIL) + per_eye(GLINT, WHITE_L) + mouth(GRIN),
-        "face-oO": per_eye(PUPIL, shift=confused_shift) + per_eye(GLINT, WHITE_L, shift=confused_shift) + mouth(WAVY),
-        "face-wink": per_eye(HAPPY) + mouth(CAT),
-        "eyes-line": per_eye(LID),
+        "face-o": per_eye(STARTLED, IP) + mouth(O_MOUTH),
+        "face-sleep": spread(CLOSED) + mouth(SMALL),
+        "face-dizzy-a": per_eye(SWIRL_A, IP) + mouth(WAVY),
+        "face-dizzy-b": per_eye(SWIRL_B, IP) + mouth(WAVY),
+        "face-x": per_eye(X_EYE, IP) + mouth(WAVY),
+        "face-star": per_eye(STAR, IP) + mouth(GRIN),
+        "face-oO": per_eye(STARTLED, IP, only={0}) + per_eye(HILITE, IP, only={1, 2}) + mouth(WAVY),
+        "face-wink": spread(ARC) + mouth(CAT),
+        "eyes-line": spread(CLOSED),
         "mouth-u": mouth(SMALL),
         "mouth-smirk": mouth(SMIRK),
-        "eyes-half": per_eye(HALF),
+        "lid-half": per_eye(HALF, IP),
+        "face-cool": per_eye(HILITE, IP, only={0, 2}) + per_eye(HALF, IP, only=COOL_LIDS) + mouth(SMIRK),
         **{f"type-{k}": mouth(rows) for k, rows in enumerate(TYPE)},
-        # cool: relaxed half-lids on the right-hand eyes, a lopsided smile
-        "face-cool": (per_eye(PUPIL, only=COOL_OPEN) + per_eye(GLINT, WHITE_L, only=COOL_OPEN)
-                      + per_eye(HALF, only=COOL_LIDS) + mouth(SMIRK)),
     }
+
+
+# Faces: blush first, then the rings (open eyes only), then the parts.
+OPEN = ["eye-rings"]
+FACES = {
+    "rest": OPEN + ["eyes-open", "cursor"], "shut": ["eyes-shut", "cursor"],
+    "happy": ["blush", "face-happy"], "rest-blush": ["blush"] + OPEN + ["eyes-open", "cursor"],
+    "caret": ["face-caret"], "caret-blush": ["blush", "face-caret"],
+    "o": OPEN + ["face-o"], "sleep": ["face-sleep"],
+    "dizzy-a": OPEN + ["face-dizzy-a"], "dizzy-b": OPEN + ["face-dizzy-b"],
+    "x": OPEN + ["face-x"], "x-dim": ["eye-rings-dim", "face-x-dim"], "star": OPEN + ["face-star"],
+    "oO": OPEN + ["face-oO"], "wink": ["blush", "face-wink"], "line": ["eyes-line", "mouth-u"],
+    "smirk": OPEN + ["eyes-open", "mouth-smirk"], "half": OPEN + ["lid-half", "cursor"],
+    "cool": OPEN + ["face-cool"],
+    **{f"focus-{k}": OPEN + ["eyes-open", f"type-{k}"] for k in range(4)},
+}
+FACE_IDS = ["eye-rings", "eye-rings-dim", "eyes-open", "eyes-shut", "cursor", "face-happy", "blush", "face-caret",
+            "face-o", "face-sleep", "face-dizzy-a", "face-dizzy-b", "face-x", "face-x-dim", "face-star", "face-oO",
+            "face-wink", "eyes-line", "mouth-u", "mouth-smirk", "lid-half", "face-cool",
+            "type-0", "type-1", "type-2", "type-3"]
+cc.FACES.clear()
+cc.FACES.update(FACES)
+cc.FACE_IDS[:] = FACE_IDS
+cc.FACE_LAYERS[:] = [(f"f-{i}", use(i)) for i in FACE_IDS]
+
+
+class Pose(cc.Pose):
+    """The cloud blinks its ">_" cursor; the monster's cursor is its mouth, so it
+    always stays on."""
+
+    def face(self, name, x, y, look=(0, 0), cursor=True):
+        super().face(name, x, y, look, True)
+
+
+cc.Pose = Pose
 
 
 # ---------------------------------------------------------------- hands
 
 MITTEN = [".OOO.", "OLLBO", "OLBBO", "OBBSO", ".OOO."]
-HAND_W = art(MITTEN, {"O": OUTLINE, "L": WHITE_L, "B": WHITE, "S": WHITE_S})
-HAND_R = art(MITTEN, {"O": OUTLINE, "L": RED_L, "B": RED, "S": RED_S})
+HAND_W = art(MITTEN, {"O": W_O, "L": W_L, "B": W_B, "S": W_S})
+HAND_R = art(MITTEN, {"O": R_O, "L": R_L, "B": R_B, "S": R_S})
 
 
 def hand_layers(*names: str) -> list:
-    return [(n, cc.use("hand-r" if n == "hr" else "hand")) for n in names]
+    return [(n, use("hand-r" if n == "hr" else "hand")) for n in names]
+
+
+cc.hand_layers = hand_layers
+L_REST, R_REST = cc.L_REST, cc.R_REST
 
 
 # ---------------------------------------------------------------- shared defs
@@ -251,7 +287,7 @@ def defs() -> str:
       <path fill="#000000" fill-opacity="0.3" d="M7 30h16v1h-16z"/>
       <path fill="#000000" fill-opacity="0.15" d="M10 31h10v1h-10z"/>
     </g>
-    <!-- round body: white left, red crescent right, 1 px outline, light top/left -->
+    <!-- round body: white left, cherry crescent right, tonal 1 px outline, light top/left -->
     <g id="cloud">
 {body(0)}
     </g>
@@ -265,72 +301,112 @@ def defs() -> str:
 {body(0, 0.93, 1.07)}
     </g>
     <g id="eye-rings">{rings()}</g>
-    <g id="face-happy">{per_eye(HAPPY)}{mouth(GRIN)}</g>
-    <g id="blush">{BLUSH}</g>
-    <g id="face-caret">{per_eye(HAPPY)}{mouth(SMILE)}</g>
-    <g id="eyes-open">{per_eye(PUPIL)}{per_eye(GLINT, WHITE_L)}</g>
-    <g id="eyes-shut">{per_eye(LID)}</g>
+    <g id="face-happy">{spread(ARC)}{mouth(GRIN)}</g>
+    <g id="blush">{BLUSH_SVG}</g>
+    <g id="face-caret">{spread(ARC)}{mouth(SMILE)}</g>
+    <g id="eyes-open">{per_eye(HILITE, IP)}</g>
+    <g id="eyes-shut">{spread(CLOSED)}</g>
     <g id="cursor">{mouth(SMILE)}</g>
     <g id="mouth-yawn-1">{mouth(YAWN[1])}</g>
     <g id="mouth-yawn-2">{mouth(YAWN[2])}</g>
     <g id="mouth-yawn-3">{mouth(YAWN[3], -1)}</g>
-    <g id="mini-puff">{cc.sprite([".OO.", "OLBO", "OBBO", ".OO."], {"O": OUTLINE, "L": RED_L, "B": RED})}</g>
+    <g id="mini-puff">{cc.sprite([".OO.", "OLBO", "OBBO", ".OO."], {"O": R_O, "L": R_L, "B": R_B})}</g>
     <g id="hand">{HAND_W}</g>
     <g id="hand-r">{HAND_R}</g>'''
 
 
-# Every face sits on the rings, except the dimmed x_x which brings its own.
-RINGED = {k: (["eye-rings"] if k != "x-dim" else ["eye-rings-dim"]) for k in cc.FACES}
-for key, parts in cc.FACES.items():
-    cc.FACES[key] = [*(p for p in parts if p == "blush"), *RINGED[key], *(p for p in parts if p != "blush")]
-cc.FACES["cool"] = ["eye-rings", "face-cool"]
-cc.FACE_IDS[:0] = ["eye-rings", "eye-rings-dim"]
-cc.FACE_IDS.append("face-cool")
-cc.FACE_LAYERS[:0] = [("f-eye-rings", cc.use("eye-rings")), ("f-eye-rings-dim", cc.use("eye-rings-dim"))]
-cc.FACE_LAYERS.append(("f-face-cool", cc.use("face-cool")))
-
-
-class Pose(cc.Pose):
-    """The cloud blinks its ">_" cursor; the monster's cursor is its mouth, so it
-    always stays on."""
-
-    def face(self, name, x, y, look=(0, 0), cursor=True):
-        super().face(name, x, y, look, True)
-
-
-cc.Pose = Pose
-cc.hand_layers = hand_layers
 cc.defs = defs
-cc.face_defs = face_defs
-cc.LIB = cc.kit()
-cc.LIB["face-x-dim"] = cc.LIB["face-x"].replace(INK, DIM_INK)
-
-# The idle scene keeps the cloud's tracks; the rings ride the face so they squash
-# with the hops, and the cursor (now the mouth) never blinks.
-cc.IDLE_SCENE = cc.IDLE_SCENE.replace('<g class="face-sq">', '<g class="face-sq"><use href="#eye-rings"/>')
 
 
-def write_state(name: str, fps: int, frames: int, beats: str, layers: list, pose,
-                viewbox: str = "-15 -25 45 45", wrap: str = 'transform="scale(.5)"', hold_s: float = 0.75) -> str:
-    timeline, rows, ids = cc.animate(frames, fps, layers, pose, hold_s)
-    extra = "\n".join(f'    <g id="{i}">{cc.LIB[i]}</g>' for i in sorted(ids) if i in cc.LIB)
-    loop_s = f"{frames / fps:g}"
-    comment = (f"Monster v2 {name}: {loop_s} s loop, poses at {fps} fps ({frames} frames), same beats as the "
-               f"Codex cloud v2 {name}; appearance swaps step-end, motion interpolated. {beats}")
-    scene = f"  <g {wrap}>\n{rows}\n  </g>\n"
-    svg = cc.svg_doc(comment, loop_s, timeline, scene, extra, viewbox)
-    (OUT / f"monster-{name}-v2.svg").write_text(svg, encoding="utf-8")
-    return name
+# ---------------------------------------------------------------- own props
+
+def outlined(rows, palette, outline, diag=True):
+    return cc.outlined(rows, palette, outline, diag=diag)
 
 
-cc.write_state = write_state
+BLOCK_COLORS = {"blue": ("#1F4E9C", "#3D7BE0", "#8FB8FF"), "green": ("#1E6B34", "#3CB45A", "#8FE3A2"),
+                "gold": ("#8A5A06", "#F2B630", "#FFE08A")}
+BLOCK = ["LLLLLLLL", "LBBBBBBS", "LBBBBBBS", "LBBBBBBS", "SSSSSSSS"]
+BRACKET = ["........", "..K..K..", ".K....K.", "..K..K..", "........"]  # < > on the gold block
 
 
+def block(color: str, code: bool = False) -> str:
+    o, b, l = BLOCK_COLORS[color]
+    rows = BLOCK
+    if code:
+        rows = ["".join("K" if k == "K" else c for c, k in zip(r, br)) for r, br in zip(BLOCK, BRACKET)]
+    return outlined(rows, {"L": l, "B": b, "S": o, "K": EYE_INK}, W_O)
+
+
+def own_props() -> dict[str, str]:
+    p = {"block-blue": block("blue"), "block-green": block("green"), "block-gold": block("gold", True)}
+    p["thumb-up"] = cc.sprite(["..OO...", ".OLBO..", ".OLBO..", "OOLBOOO", "OLLBBBO", "OLBBBSO", "OBBBBSO",
+                               ".OOOOO."], {"O": R_O, "L": R_L, "B": R_B, "S": R_S})
+    # error: blinking pixel ERROR label and grey smoke puffs
+    font = {"E": ["KKK", "K..", "KK.", "K..", "KKK"], "R": ["KK.", "K.K", "KK.", "K.K", "K.K"],
+            "O": [".K.", "K.K", "K.K", "K.K", ".K."]}
+    word = ["".join(font[c][r] + "." for c in "ERROR")[:-1] for r in range(5)]
+    p["error-label"] = outlined([r.replace("K", "R") for r in word], {"R": "#FF4B4B"}, "#3A0E12")
+    p["smoke"] = outlined([".GG.", "GGGG", ".GG."], {"G": "#A9A3AE"}, "#6E6470", diag=False)
+    p["smoke-s"] = outlined(["GG", "GG"], {"G": "#BDB7C1"}, "#6E6470", diag=False)
+    # beacon: cyan (( )) arcs, one per radius, shrinking to dotted at the edge
+    for i, r0 in enumerate((5, 8, 11)):
+        inner, outer = set(), set()
+        for y in range(-14, 15):
+            for x in range(-14, 15):
+                r = math.hypot(x + .5, y + .5)
+                ang = abs(math.degrees(math.atan2(y + .5, abs(x + .5))))
+                if r0 <= r < r0 + 2 and ang <= 42 and (i < 2 or (x + y) % 2 == 0):
+                    (inner if r < r0 + 1 else outer).add((x, y))
+        p[f"wave-{i}"] = f'<path fill="#BDEFFF" d="{cc.to_path(inner)}"/><path fill="#40C4FF" d="{cc.to_path(outer)}"/>'
+    p["tip-on"] = cc.sprite([".OOO.", "OWYYO", "OYYYO", "OYYYO", ".OOO."], {"O": "#2F353C", "W": "#FFFFFF", "Y": "#FFE36B"})
+    # debugger: magnifier held from below, the lens over the right eye
+    p["glass"] = cc.sprite([".OOOOOO...", "OCLLCCO...", "OLLCCCO...", "OCCCCCO...", "OCCCCCO...",
+                            "OCCCCCO...", ".OOOOOOd..", ".......dW.", "........dW", ".........d"],
+                           {"O": "#2F353C", "C": "#BDEFFF", "L": "#FFFFFF", "d": "#5C3922", "W": "#93603E"})
+    # waiting_reply: a small speech bubble, its "!" blinks
+    p["say-bubble"] = cc.sprite([".OOOOOOOOO.", "OWWWWWWWWWO", "OWWWWWWWWWO", "OWWWWWWWWWO", "OWWWWWWWWWO",
+                                 "OWWWWWWWWWO", "OWWWWWWWWWO", "OWWWWWWWWWO", ".OOOOOWWOO.", "......OWO..",
+                                 ".......O..."], {"O": EYE_INK, "W": "#FFFFFF"})
+    p["say-bang"] = cc.sprite(["RR", "RR", "RR", "..", "RR"], {"R": "#E25A35"})
+    # disconnected: Bluetooth badge and its pulsing halo
+    bt = [".BBBBBBBBB.", "BBBBBWBBBBB", "BBBBBWWBBBB", "BBWBBWBWBBB", "BBBWBWWBBBB", "BBBBWWBBBBB",
+          "BBBWBWWBBBB", "BBWBBWBWBBB", "BBBBBWWBBBB", "BBBBBWBBBBB", ".BBBBBBBBB."]
+    p["bt-badge"] = outlined(bt, {"B": "#2F6FE0", "W": "#FFFFFF"}, "#15306B")
+    for i, r0 in enumerate((9, 11)):
+        ring = {(x, y) for y in range(-14, 15) for x in range(-14, 15) if r0 <= math.hypot(x + .5, y + .5) < r0 + 1}
+        p[f"bt-halo-{i}"] = f'<path fill="#8FB8FF" fill-opacity="{0.8 - 0.35 * i}" d="{cc.to_path(ring)}"/>'
+    return p
+
+
+def kit() -> dict[str, str]:
+    """The cloud's kit() with our bodies (no dotted dim outline: tonal outlines are
+    two colours) plus our faces and props."""
+    lib = {}
+    for key, (did, args) in cc.BODIES.items():
+        if args is not None:
+            puff, sx, sy, pal = args
+            lib[did] = cc.body_variant(monster_mask(puff, sx, sy), pal)
+    lib.update(face_defs())
+    lib.update(cc.props())
+    lib["face-x-dim"] = lib["face-x"].replace(EYE_INK, DIM_INK)
+    lib.update(own_props())
+    return lib
+
+
+cc.LIB = kit()
+LIB = cc.LIB
+
+
+# ---------------------------------------------------------------- idle
+
+# Rings ride the face: shown with the open eyes, hidden with the shut ones and the
+# kawaii face; the cursor (now the mouth) only gives way to the yawn.
+cc.IDLE_SCENE = cc.IDLE_SCENE.replace('<g class="ey-look">', '<g class="ey-open"><use href="#eye-rings"/></g>\n      <g class="ey-look">')
 cc_idle_timeline = cc.idle_timeline
 
 
 def idle_timeline() -> dict:
-    """The cloud's idle blinks its cursor; the monster's mouth only gives way to the yawn."""
     tl = cc_idle_timeline()
     yawning = [any(tl[f"yawn-{k}"][0][f] for k in (1, 2, 3)) for f in range(cc.FRAMES)]
     tl["cursor"] = ([not y for y in yawning], tl["cursor"][1])
@@ -344,72 +420,278 @@ def render_idle() -> str:
     return cc.render_idle().replace("Codex cloud v2 idle", "Monster v2 idle (Codex cloud v2 beats)")
 
 
+# ---------------------------------------------------------------- writer
+
+def write_state(name: str, fps: int, frames: int, beats: str, layers: list, pose,
+                viewbox: str = "-15 -25 45 45", wrap: str = 'transform="scale(.5)"', hold_s: float = 0.75) -> str:
+    timeline, rows, ids = cc.animate(frames, fps, layers, pose, hold_s)
+    extra = "\n".join(f'    <g id="{i}">{LIB[i]}</g>' for i in sorted(ids) if i in LIB)
+    loop_s = f"{frames / fps:g}"
+    comment = (f"Monster v2 {name}: {loop_s} s loop, poses at {fps} fps ({frames} frames); appearance swaps "
+               f"step-end, motion interpolated. {beats}")
+    scene = f"  <g {wrap}>\n{rows}\n  </g>\n"
+    svg = cc.svg_doc(comment, loop_s, timeline, scene, extra, viewbox)
+    (OUT / f"monster-{name}-v2.svg").write_text(svg, encoding="utf-8")
+    return name
+
+
+cc.write_state = write_state
+
+BASE = cc.SHADOW_LAYERS + cc.BODY_LAYERS + cc.FACE_LAYERS
+
+
+def L(*names: str) -> list:
+    """Prop layers: "key=lib-id" or just "lib-id"."""
+    return [(n.split("=")[0], use(n.split("=")[-1])) for n in names]
+
+
+# ================================================================ crab-beat states
+# Each follows the beats, fps and loop of the Claude crab's file of the same state.
+
+
+def render_error() -> str:
+    """clawd-error-v2: collapsed flat, X eyes, three little stars orbit above the
+    head, hands limp on the floor, a slow defeated breath, grey smoke rises and a
+    red ERROR label blinks above. 2.4 s."""
+    fps, n = 10, 24
+
+    def pose(f):
+        exhale = (f // 12) % 2
+        p = Pose().body("dfl" if exhale else "dfl2", 0, 0, "x")
+        p["hl"] = (-3, 25)
+        p["hr"] = (28, 25)
+        for k in range(3):  # stars on a flat ellipse, 120 degrees apart
+            a = 2 * math.pi * (f / n + k / 3)
+            p[f"star{k}"] = (round(13 + 11 * math.cos(a)), round(2 + 2 * math.sin(a)))
+        for k, (x0, off) in enumerate(((10, 0), (18, 8), (13, 16))):
+            age = (f - off) % n
+            if age < 10:
+                p[f"smoke{k}" if age < 5 else f"smokes{k}"] = (x0 + age // 3, -1 - age)
+        if (f // 4) % 2 == 0:
+            p["label"] = (2, -16)
+        return p
+
+    layers = (BASE + hand_layers("hl", "hr") + L("star0=sparkle-s", "star1=sparkle-s", "star2=sparkle-s") +
+              [(f"smoke{k}", use("smoke")) for k in range(3)] +
+              [(f"smokes{k}", use("smoke-s")) for k in range(3)] + L("label=error-label"))
+    return write_state("error", fps, n, "Crab beats: collapsed flat with X eyes, three stars orbit above, mittens "
+                       "limp on the floor, slow breath, grey smoke rises, a red ERROR label blinks.", layers, pose)
+
+
+def render_low_battery() -> str:
+    """clawd-idle-low-battery-v2: dozing body that sinks and rises over a 4 s
+    breath, drooping hands, eyes slit shut with one half-open peek, a red battery
+    whose last bar pulses. 8 s."""
+    fps, n = 6, 48
+
+    def pose(f):
+        sink = (f % 24) >= 12
+        peek = 30 <= f < 36
+        p = Pose().body("sq" if sink else "n", 0, 0, "half" if peek else "shut")
+        droop = 3 if sink else 2
+        p["hl"] = at(L_REST, 0, droop)
+        p["hr"] = at(R_REST, 0, droop)
+        p["bat/on" if (f // 3) % 2 == 0 else "bat/off"] = (17, -11)
+        return p
+
+    layers = BASE + hand_layers("hl", "hr") + L("bat/on=battery", "bat/off=battery-dim")
+    return write_state("low_battery", fps, n, "Crab beats: dozes and sinks over a 4 s breath, mittens droop, eyes "
+                       "shut with one half-open peek, the last bar of a red battery pulses.", layers, pose)
+
+
+def render_happy() -> str:
+    """clawd-happy-v2: two hops with squash, flapping hands, happy eyes,
+    twinkling sparkles. 2 s at 10 fps."""
+    fps, n = 10, 20
+    hop = [("sq", 0), ("st", -2), ("n", -4), ("n", -5), ("n", -4), ("n", -2), ("sq", 0), ("n", 0), ("n", 0), ("n", 0)]
+    spots = [((-8, 2), "sparkle"), ((31, -1), "sparkle-s"), ((33, 14), "sparkle"), ((-9, 17), "sparkle-s")]
+
+    def pose(f):
+        v, dy = hop[f % 10]
+        p = Pose().body(v, 0, dy, "caret-blush", shadow=False)
+        p["sh" if dy == 0 else "sh-s"] = (0, 0)
+        air = hop[(f - 1) % 10][1] < 0
+        flap = -2 if (f // 2) % 2 else 0
+        p["hl"] = (-4, 9 + flap + dy) if air else at(L_REST, 0, -1)
+        p["hr"] = (29, 9 + flap + dy) if air else at(R_REST, 0, -1)
+        for k, (xy, _) in enumerate(spots):
+            if (f + 5 * k) % 10 < 4:
+                p[f"spk{k}"] = xy
+        return p
+
+    layers = BASE + hand_layers("hl", "hr") + [(f"spk{k}", use(s)) for k, (_, s) in enumerate(spots)]
+    return write_state("happy", fps, n, "Crab beats: ^ ^ eyes with blush, two hops with squash and stretch, "
+                       "mittens flap while airborne, sparkles twinkle around.", layers, pose, viewbox="-12 -15 40 40")
+
+
+def render_beacon() -> str:
+    """clawd-working-beacon-v2: the antenna tip flashes as each wave is emitted,
+    cyan (( )) arcs travel outward (a new wave every 4 frames, two in flight) and
+    turn dotted at the edge, the body dips on every emission. 2 s at 8 fps."""
+    fps, n = 8, 16
+
+    def pose(f):
+        emit = f % 4 == 0
+        p = Pose().body("sq" if emit else "n", 0, 0, "rest", look=(0, -1))
+        p["ant"] = (11, -11)
+        if emit:
+            p["tip"] = (11, -11)
+        p["hl"] = at(L_REST, 0, 1 if emit else 0)
+        p["hr"] = (16, -3)  # steadies the mast
+        for w in range(2):
+            age = (f - 4 * w) % 8
+            if age < 3:
+                p[f"wave{w}/{age}"] = (13, -9)
+        return p
+
+    waves = [(f"wave{w}/{a}", use(f"wave-{a}")) for w in range(2) for a in range(3)]
+    layers = (cc.SHADOW_LAYERS + L("ant=antenna", "tip=tip-on") + cc.BODY_LAYERS + cc.FACE_LAYERS +
+              hand_layers("hl", "hr") + waves)
+    return write_state("beacon", fps, n, "Crab beats: the antenna tip flashes on each emission, cyan (( )) arcs "
+                       "travel outward (two in flight, dotted at the edge), the body dips with every wave.",
+                       layers, pose)
+
+
+def render_debugger() -> str:
+    """clawd-working-debugger-v2: a hunched sneak left and right (three round
+    trips), tiptoe steps, the magnifier held over the right eye. 12 s at 8 fps."""
+    fps, n = 8, 96
+    trip = 32
+
+    def dx(f):
+        t = f % trip
+        step = t if t < 16 else 32 - t
+        return -6 + round(step * 12 / 16)
+
+    def pose(f):
+        tip = -1 if f % 4 in (1, 2) else 0  # tiptoe: a tiny lift every other step
+        p = Pose().body("sq", dx(f), tip, "rest", look=(1 if (f % trip) < 16 else -1, 0))
+        hx = dx(f - 1)
+        p["glass"] = (17 + hx, 15 + tip)
+        p["hr"] = (26 + hx, 23 + tip)
+        p["hl"] = at(L_REST, hx, 1 + tip)
+        return p
+
+    layers = BASE + L("glass") + hand_layers("hl", "hr")
+    return write_state("debugger", fps, n, "Crab beats: hunched sneak left and right (three round trips) on "
+                       "tiptoe, the red mitten holds a magnifier over the right eye.", layers, pose)
+
+
 def render_waiting_reply() -> str:
-    svg = cc.render_waiting_reply().replace("Codex cloud v2 waiting_reply", "Monster v2 waiting_reply")
-    svg = svg.replace('<use href="#cloud"/><use href="#blush"/>', '<use href="#cloud"/><use href="#blush"/><use href="#eye-rings"/>')
-    return svg.replace('<g transform="translate(26 19)"><use href="#hand"/>', '<g transform="translate(26 19)"><use href="#hand-r"/>')
+    """clawd-waiting-reply-v2: turn finished, waiting for the next prompt. Wide eyes
+    toward the viewer, blush and smile, the left mitten waves, a bubble hops with a
+    blinking "!". 2 s at 8 fps."""
+    fps, n = 8, 16
+    wave = [(-3, 8), (-5, 7), (-3, 8), (-5, 9)]
+
+    def pose(f):
+        p = Pose().body("n", 0, 0, "rest-blush")
+        p["hl"] = wave[(f // 2) % 4]
+        p["hr"] = R_REST
+        hop = -1 if f % 8 in (0, 1) else 0
+        p["bubble"] = (22, -12 + hop)
+        if (f // 4) % 2 == 0:
+            p["bang"] = (26, -10 + hop)
+        return p
+
+    layers = BASE + hand_layers("hl", "hr") + L("bubble=say-bubble", "bang=say-bang")
+    return write_state("waiting_reply", fps, n, "Crab beats: wide eyes toward you, blush and smile, the white "
+                       "mitten waves, a bubble hops with a blinking !.", layers, pose)
 
 
-# ---------------------------------------------------------------- own beats
-# Two activities differ from the cloud, following the key poses of grid v2:
-# CONSTRUYENDO stacks code blocks (no hammer) and COOL is a thumbs-up (no glasses).
+def render_alert() -> str:
+    """clawd-notification-v2 (the crab's alert): startled recoil with a look right
+    and a red "!" popping up, a squash, six stretch-and-land jumps with the mittens
+    flapping up and out, then recover. 4 s at 10 fps."""
+    fps, n = 10, 40
+    jump = [("st", -2), ("n", -4), ("n", -2), ("sq", 0)]
 
-BLOCK_COLORS = {"blue": ("#1F4E9C", "#3D7BE0", "#8FB8FF"), "green": ("#1E6B34", "#3CB45A", "#8FE3A2"),
-                "gold": ("#8A5A06", "#F2B630", "#FFE08A")}
-BLOCK = ["LLLLLLLL", "LBBBBBBS", "LBBBBBBS", "LBBBBBBS", "SSSSSSSS"]
-BRACKET = ["........", "..K..K..", ".K....K.", "..K..K..", "........"]  # < > on the gold block
+    def beat(f):
+        if f < 6:
+            return "n", -1 if f < 3 else 0, 0, "o"
+        if f < 8:
+            return "sq", 0, 0, "o"
+        if f < 32:
+            v, dy = jump[(f - 8) % 4]
+            return v, 0, dy, "rest"
+        return "n", 0, 0, "rest"
+
+    def pose(f):
+        v, dx, dy, face = beat(f)
+        p = Pose().body(v, dx, dy, face, look=(1, 0) if f < 8 else (0, 0), shadow=False)
+        p["sh" if dy == 0 else "sh-s"] = (0, 0)
+        air = beat(f - 1)[2] < 0
+        p["hl"] = (-5, 6 + dy) if air else at(L_REST, dx, 0)
+        p["hr"] = (30, 6 + dy) if air else at(R_REST, dx, 0)
+        if 2 <= f < 34:
+            p["bang"] = (30, -12 + (-2 if f in (2, 3) else 0))
+        return p
+
+    layers = BASE + hand_layers("hl", "hr") + L("bang")
+    return write_state("alert", fps, n, "Crab beats: startled recoil looking right with a red ! popping up, "
+                       "squash, six stretch-and-land jumps with mittens flapping up and out, recover.", layers, pose)
 
 
-def block(color: str, code: bool = False) -> str:
-    o, b, l = BLOCK_COLORS[color]
-    rows = BLOCK
-    if code:
-        rows = ["".join("K" if k == "K" else c for c, k in zip(r, br)) for r, br in zip(BLOCK, BRACKET)]
-    return cc.outlined(rows, {"L": l, "B": b, "S": o, "K": "#14161D"}, outline=OUTLINE)
+def render_disconnected() -> str:
+    """clawd-disconnected-v2: standing to the left staring at a big floating
+    Bluetooth badge whose halo pulses; a "?" pops over the head, the head tilts,
+    and near the end a "!" pops as it hops. 3.2 s at 10 fps."""
+    fps, n = 10, 32
+    hop = {24: ("st", -2), 25: ("n", -4), 26: ("n", -3), 27: ("n", -1), 28: ("sq", 0)}
+
+    def pose(f):
+        v, dy = hop.get(f, ("n", 0))
+        tilt = 1 if 8 <= f < 20 and (f // 4) % 2 else 0  # stepped head tilt, no rotation
+        p = Pose().body(v, -6 + tilt, dy, "o" if f >= 24 else "rest", look=(1, -1 if f < 20 else 0))
+        bob = -1 if (f // 8) % 2 else 0
+        p["badge"] = (30, 0 + bob)
+        p[f"halo/{(f // 4) % 2}"] = (35, 5 + bob)
+        p["hl"] = at(L_REST, -6, 0)
+        p["hr"] = at(R_REST, -6, 0)
+        if 6 <= f < 22:
+            p["q"] = (6, -12 + (-1 if f in (6, 7) else 0))
+        if 24 <= f < 30:
+            p["bang"] = (6, -14 + dy)
+        return p
+
+    layers = (BASE + L("halo/0=bt-halo-0", "halo/1=bt-halo-1", "badge=bt-badge") + hand_layers("hl", "hr") +
+              L("q=q-cyan", "bang"))
+    return write_state("disconnected", fps, n, "Crab beats: stands left staring at a floating Bluetooth badge with "
+                       "a pulsing halo, a ? pops, the head tilts, a ! pops as it hops.", layers, pose)
 
 
-THUMB = ["..OO...", ".OLBO..", ".OLBO..", "OOLBOOO", "OLLBBBO", "OLBBBSO", "OBBBBSO", ".OOOOO."]
-THUMB_UP = cc.sprite(THUMB, {"O": OUTLINE, "L": RED_L, "B": RED, "S": RED_S})
-
-cc.LIB.update({"block-blue": block("blue"), "block-green": block("green"), "block-gold": block("gold", True),
-               "thumb-up": THUMB_UP})
-
+# ================================================================ grid v2 key poses
 
 def render_building() -> str:
     fps, n = 8, 24
-    # The red mitten lifts the gold { } block over the stack, sets it down (squash,
-    # sparks), lets go, then picks it up again for the next loop.
     carry = [(25, 16), (26, 12), (28, 8), (30, 4), (31, 2), (32, 1), (32, 1), (32, 3), (32, 5), (32, 7),
              (32, 8), (32, 9)]
     lift = [(32, 9), (32, 7), (31, 5), (30, 8), (28, 12), (26, 15)]
 
     def pose(f):
-        Pose_ = cc.Pose
         if f < 12:
-            p = Pose_().body("n", 0, 0, "focus-0" if f % 4 < 2 else "focus-1", look=(1, -1))
+            p = Pose().body("n", 0, 0, "focus-0" if f % 4 < 2 else "focus-1", look=(1, -1))
             hand, held = carry[f], True
         elif f < 18:
             landed = f in (12, 13)
-            p = Pose_().body("sq" if f == 12 else "n", 0, 0, "happy" if landed else "rest", look=(1, 0))
+            p = Pose().body("sq" if f == 12 else "n", 0, 0, "happy" if landed else "rest", look=(1, 0))
             hand, held = (26, 19), False
             if f == 12:
                 p["burst"] = (31, 4)
             if f == 13:
                 p["burst-2"] = (30, 2)
         else:
-            p = Pose_().body("n", 0, 0, "rest", look=(1, -1))
+            p = Pose().body("n", 0, 0, "rest", look=(1, -1))
             hand, held = lift[f - 18], True
-        p["hl"] = at(cc.L_REST, 0, -1 if (f // 6) % 2 else 0)
+        p["hl"] = at(L_REST, 0, -1 if (f // 6) % 2 else 0)
         p["hr"] = hand
         p["blk-1"] = (32, 24)
         p["blk-2"] = (32, 17)
         p["blk-3"] = (hand[0] + 1, hand[1] - 6) if held else (32, 10)
         return p
 
-    at = cc.at
-    layers = (cc.SHADOW_LAYERS + [("blk-1", cc.use("block-blue")), ("blk-2", cc.use("block-green"))] +
-              cc.BODY_LAYERS + cc.FACE_LAYERS + [("blk-3", cc.use("block-gold"))] + hand_layers("hl", "hr") +
-              [("burst", cc.use("burst")), ("burst-2", cc.use("burst-2"))])
+    layers = (cc.SHADOW_LAYERS + L("blk-1=block-blue", "blk-2=block-green") + cc.BODY_LAYERS + cc.FACE_LAYERS +
+              L("blk-3=block-gold") + hand_layers("hl", "hr") + L("burst", "burst-2"))
     return write_state("building", fps, n, "Grid v2 CONSTRUYENDO: the red mitten lifts a gold { } block over a "
                        "blue and green stack, sets it down with a squash and sparks, and picks it up again.",
                        layers, pose)
@@ -421,26 +703,28 @@ def render_cool() -> str:
     def pose(f):
         on = 6 <= f < 26
         dy = -1 if on and (f // 6) % 2 and f > 8 else 0
-        p = cc.Pose().body("sq" if f == 6 else "n", 0, dy, "cool" if on else "rest", look=(0, -1) if f < 6 else (0, 0))
-        p["hl"] = cc.at(cc.L_REST, 0, dy)
+        p = Pose().body("sq" if f == 6 else "n", 0, dy, "cool" if on else "rest", look=(0, -1) if f < 6 else (0, 0))
+        p["hl"] = at(L_REST, 0, dy)
         if on:
             p["thumb"] = (26, 11 + dy - (1 if f in (7, 8) else 0))
         else:
-            p["hr"] = cc.R_REST
+            p["hr"] = R_REST
         if f in (10, 11, 18, 19):
             p["spk-a"] = (30, 2)
         if f in (14, 15, 22, 23):
             p["spk-b"] = (-4, 4)
         return p
 
-    layers = (cc.SHADOW_LAYERS + cc.BODY_LAYERS + cc.FACE_LAYERS + hand_layers("hl", "hr") +
-              [("thumb", cc.use("thumb-up")), ("spk-a", cc.use("sparkle")), ("spk-b", cc.use("sparkle-s"))])
-    return write_state("cool", fps, n, "Grid v2 COOL: no glasses; half-lidded eyes on the right, a lopsided "
-                       "smile and a red thumbs-up that bounces while two sparkles twinkle.", layers, pose, hold_s=1.5)
+    layers = BASE + hand_layers("hl", "hr") + L("thumb=thumb-up", "spk-a=sparkle", "spk-b=sparkle-s")
+    return write_state("cool", fps, n, "Grid v2 COOL: no glasses; the right eye half-lidded, a lopsided smile "
+                       "and a red thumbs-up that bounces while two sparkles twinkle.", layers, pose, hold_s=1.5)
 
 
-OWN = {"building": render_building, "cool": render_cool}
-STATE_RENDERERS = [OWN.get(r.__name__.removeprefix("render_"), r) for r in cc.STATE_RENDERERS]
+OWN = {r.__name__.removeprefix("render_"): r for r in (
+    render_error, render_low_battery, render_happy, render_beacon, render_debugger, render_alert,
+    render_disconnected, render_building, render_cool)}
+STATE_RENDERERS = [render_waiting_reply] + [OWN.get(r.__name__.removeprefix("render_"), r)
+                                            for r in cc.STATE_RENDERERS]
 
 
 def compare_page(states: list[str]) -> str:
@@ -463,8 +747,7 @@ thead th{{text-align:center}}</style>
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "monster-idle-v2.svg").write_text(render_idle(), encoding="utf-8")
-    (OUT / "monster-waiting_reply-v2.svg").write_text(render_waiting_reply(), encoding="utf-8")
-    names = ["idle", "waiting_reply"] + [r() for r in STATE_RENDERERS]
+    names = ["idle"] + [r() for r in STATE_RENDERERS]
     (OUT / "compare-v2.html").write_text(compare_page(names), encoding="utf-8")
     print(f"wrote {len(names)} monster states and compare-v2.html to {OUT}")
 
