@@ -32,7 +32,7 @@ Branch: `feat/monster-default-pet`. Engram mirror unavailable (Engram binary too
 
 - T10 L33 · Mochi identity: character sheet, tooltip, presentation sheet, README · inline · commit: 3973540
 
-- T11 L35 · live trial: reload the pet, fake-daemon mochi demo · inline · commit: pending
+- T11 L35 · live trial: reload the pet, fake-daemon mochi demo · inline · commit: 9393577
 
 ## Log
 
