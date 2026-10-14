@@ -23,3 +23,4 @@ Source of truth: `openspec/changes/tauri-shell-hotbar-migration/{proposal,design
 
 - L1 (user) "con eso definido podriamos continuar con esto O:\Proyectos\Clawdy\openspec\changes\tauri-shell-hotbar-migration"
 - L2 (evidence) Base is current HEAD, not `main`: `hooks.py` is 1534 lines on main vs 2575 on HEAD and the design cites HEAD lines (`hooks.py:1107-1165`, `daemon.py:1674`). Pre-existing uncommitted `CLAUDE.md` style block is the user's; stage only own hunks.
+- L3 (evidence) PRs opened on sam-wilkie/margarita-tank, stacked: #7 pr1 -> opencode-product-pr1, #8 pr2 -> pr1, #9 pr3 -> pr2, #10 pr4 -> pr3. Verify fixes c169f2d ride in #10. Base `opencode-product-pr1` (afcf40c) has no PR of its own yet.
