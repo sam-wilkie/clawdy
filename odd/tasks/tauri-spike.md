@@ -82,3 +82,10 @@ Result: unverified until the user runs it.
   - Verdict: T-perm PASS. Tasks 6 done.
 - L18 (user decision) RAM tolerance set to <= 10 % above the Electron baseline. Electron mean 338.5 MB (337-340) gives a limit of ~372 MB. Tauri measured 354 MB: PASS. Caveat: the tolerance was chosen after seeing the 354 MB measurement, not before. The user accepted that knowingly; record it here.
 - Status: T-click PASS, T-cpu PASS (per machine), T-ram PASS (tolerance 10 %), T-perm PASS (re-run), T-mac pending (user runs the checklist on macOS). Verdict: conditional GO, pending T-mac. Change 2 stays blocked until T-mac passes.
+
+## Deuda pendiente: T-mac (no ejecutable ahora)
+
+- L19 (user) El checklist de macOS no se puede correr en este momento. Se documenta como deuda pendiente, no como fallo.
+- Deuda D1: correr el checklist de T7 en macOS (T-click, T-perm, overlay sobre pantalla completa). Responsable: usuario. Condición de cierre: resultados pegados en la bitácora con pass/fail y versión de macOS.
+- Bloqueado por D1: decisión de Change 2 (`tauri-shell-hotbar-migration`). El veredicto queda en GO condicionado; no se inicia Change 2 hasta cerrar D1.
+- Riesgo mientras D1 esté abierto: el click-through y el overlay en macOS no están validados (tauri#11488 / #14102).
