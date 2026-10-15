@@ -143,3 +143,29 @@ test("product order and names include pi (gentle-shell) after antigravity", () =
   assert.deepEqual([...sorted], ["claude", "antigravity", "pi"]);
   assert.equal(vm.runInContext("AGENT_NAMES.pi", ctx), "Pi");
 });
+
+test("pet window is 200x200 CSS px (user chose ~62% of the old 320)", () => {
+  const main = read("main.js");
+  assert.match(main, /const WIN_W = 200;/);
+  assert.match(main, /const WIN_H = 200;/);
+});
+
+test("the default monster art is wired for non-Claude, non-Codex products (Pi)", () => {
+  const src = read("renderer/renderer.js");
+  assert.match(src, /const MONSTER_STATES = /);
+  assert.match(src, /monster: MONSTER_STATES/);
+});
+
+test("badge and name label are placed from the art box, not the window (so they follow the scaled sprite)", () => {
+  const src = read("renderer/renderer.js");
+  assert.match(src, /function placeOverlays\(/);
+  assert.match(src, /badge\.style\.top = /);
+  assert.match(src, /label\.style\.top = /);
+  assert.match(src, /placeOverlays\(s\.vb\)/);
+});
+
+test("name label is anchored to the window bottom, not to the art box, so it never clips and does not jump between states", () => {
+  const src = read("renderer/renderer.js");
+  assert.match(src, /label\.style\.bottom = /);
+  assert.doesNotMatch(src, /label\.style\.top = \(top/);
+});
