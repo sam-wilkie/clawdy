@@ -96,3 +96,11 @@ test("monster sprite is drawn smaller than the window box so it matches Clawd's 
   assert.match(src, /function shrinkVb\(/);
   assert.match(src, /vb: shrinkVb\(CODEX_STATES\[state\]\.vb, MONSTER_SCALE\)/);
 });
+
+test("badge and name label are placed from the art box, not the window (so they follow the scaled sprite)", () => {
+  const src = read("renderer/renderer.js");
+  assert.match(src, /function placeOverlays\(/);
+  assert.match(src, /badge\.style\.top = /);
+  assert.match(src, /label\.style\.top = /);
+  assert.match(src, /placeOverlays\(s\.vb\)/);
+});

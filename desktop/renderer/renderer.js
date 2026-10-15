@@ -192,6 +192,20 @@ function resolveState(name) {
   return "idle";
 }
 
+// Badge and name label are positioned from the art box (vb), not the window, so they
+// stay attached to the sprite when its box is scaled. Full box (vb -15,-25,45) gives the
+// original positions: label just below the box, badge at the top-right corner.
+function placeOverlays(vb) {
+  const left = (15 + vb[0]) / 45 * 100;
+  const top = (25 + vb[1]) / 45 * 100;
+  const size = vb[2] / 45 * 100;
+  if (badge) {
+    badge.style.top = (top + size * 0.24) + "%";
+    badge.style.right = (100 - (left + size * 0.8)) + "%";
+  }
+  if (label) label.style.top = (top + size * 0.98) + "%";
+}
+
 function renderState(name) {
   const key = resolveState(name);
   crab.dataset.state = key;
@@ -206,6 +220,7 @@ function renderState(name) {
   fresh.style.height = (s.vb[2] / 45 * 100) + "%";
   fresh.style.left = ((15 + s.vb[0]) / 45 * 100) + "%";
   fresh.style.top = ((25 + s.vb[1]) / 45 * 100) + "%";
+  placeOverlays(s.vb);
   fresh.onerror = () => console.error("[pet] FAILED to load:", s.src);
   fresh.src = s.src;
   img.replaceWith(fresh);
