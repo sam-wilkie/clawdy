@@ -163,10 +163,18 @@ const CODEX_STATES = Object.fromEntries(
 // The brand monster (tools/monster_pixel.py) is the default pet: every agent with
 // no art set of its own (kiro, opencode, antigravity, pi, unknown) uses
 // assets/monster/monster-<state>-v2.svg, with the same states and vb as Codex.
+// The monster's artwork fills more of its box than Clawd's, so it reads bigger in the
+// same window. Scaling its box down (centered) makes it match Clawd's visual size.
+const MONSTER_SCALE = 0.8;
+function shrinkVb(vb, k) {
+  const [x, y, w] = vb;
+  const inset = (w * (1 - k)) / 2;
+  return [x + inset, y + inset, w * k];
+}
 const MONSTER_STATES = Object.fromEntries(
   Object.keys(CODEX_STATES).map((state) => [
     state,
-    { src: `assets/monster/monster-${state}-v2.svg`, vb: CODEX_STATES[state].vb },
+    { src: `assets/monster/monster-${state}-v2.svg`, vb: shrinkVb(CODEX_STATES[state].vb, MONSTER_SCALE) },
   ]),
 );
 const ART = AGENT === "claude" ? "crab" : AGENT === "codex" ? "cloud" : "monster";

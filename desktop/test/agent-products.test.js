@@ -89,3 +89,10 @@ test("the default monster art is wired for non-Claude, non-Codex products (Pi)",
   assert.match(src, /const MONSTER_STATES = /);
   assert.match(src, /monster: MONSTER_STATES/);
 });
+
+test("monster sprite is drawn smaller than the window box so it matches Clawd's visual size (option 1)", () => {
+  const src = read("renderer/renderer.js");
+  assert.match(src, /const MONSTER_SCALE = 0\.8;/);
+  assert.match(src, /function shrinkVb\(/);
+  assert.match(src, /vb: shrinkVb\(CODEX_STATES\[state\]\.vb, MONSTER_SCALE\)/);
+});
