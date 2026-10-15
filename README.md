@@ -5,9 +5,9 @@
 </picture>
 
 <p align="center">
-<a href="https://github.com/sam-wilkie/margarita-tank/releases/latest"><img src="https://img.shields.io/github/v/release/sam-wilkie/margarita-tank?style=flat-square&color=000000&label=release" alt="Última versión"></a>
+<a href="https://github.com/sam-wilkie/clawdy/releases/latest"><img src="https://img.shields.io/github/v/release/sam-wilkie/clawdy?style=flat-square&color=000000&label=release" alt="Última versión"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/licencia-MIT-000000?style=flat-square" alt="Licencia MIT"></a>
-<a href="https://hits.sh/github.com/sam-wilkie/margarita-tank/"><img src="https://hits.sh/github.com/sam-wilkie/margarita-tank.svg?style=flat-square&color=ff0000&label=views" alt="views"></a>
+<a href="https://hits.sh/github.com/sam-wilkie/clawdy/"><img src="https://hits.sh/github.com/sam-wilkie/clawdy.svg?style=flat-square&color=ff0000&label=views" alt="views"></a>
 </p>
 
 # Mi Buddy Clawdy
@@ -36,24 +36,24 @@ Del mismo proyecto sale un modo opcional para hardware: Clawdy también corre en
 Esta tabla describe el checkout actual, incluidos cambios locales pendientes de entrega. No garantiza que todas las funciones estén incluidas en el instalador publicado. Consulta el [estado técnico actual](docs/clawdy-desktop-estado-2026-10-13.md) para las comprobaciones y pendientes.
 
 > [!NOTE]
-> **Linaje.** Clawdy nació como un fork personal de [**Clawd Tank** de Marcio Granzotto Rodrigues](https://github.com/marciogranzotto/clawd-tank) (MIT) y creció hasta volverse un proyecto propio: la app de escritorio con panel por agente, fondo de escena animado para hardware, nuevas animaciones, mascota Electron e instalador de Windows. El firmware base, el simulador y la arquitectura del daemon originales son de Marcio, y su crédito se conserva en la [licencia](LICENSE). El repositorio todavía se publica bajo el nombre `margarita-tank` mientras se completa el cambio de marca.
+> **Linaje.** Clawdy nació como un fork personal de [**Clawd Tank** de Marcio Granzotto Rodrigues](https://github.com/marciogranzotto/clawd-tank) (MIT) y creció hasta volverse un proyecto propio: la app de escritorio con panel por agente, fondo de escena animado para hardware, nuevas animaciones, mascota Electron e instalador de Windows. El firmware base, el simulador y la arquitectura del daemon originales son de Marcio, y su crédito se conserva en la [licencia](LICENSE). El repositorio se llamó `margarita-tank` hasta octubre de 2026; los enlaces viejos redirigen a este.
 
 ## `$ ./descargar`
 
 <p align="center">
-<a href="https://github.com/sam-wilkie/margarita-tank/releases/latest/download/Margarita-Tank.dmg"><picture>
+<a href="https://github.com/sam-wilkie/clawdy/releases/latest/download/Margarita-Tank.dmg"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/download-macos-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="assets/readme/download-macos-light.svg">
   <img alt="Descargar para macOS (Apple Silicon, .dmg)" src="assets/readme/download-macos-dark.svg" width="332">
 </picture></a>
-<a href="https://github.com/sam-wilkie/margarita-tank/releases/latest/download/Margarita-Tank-Setup.exe"><picture>
+<a href="https://github.com/sam-wilkie/clawdy/releases/latest/download/Margarita-Tank-Setup.exe"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/download-windows-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="assets/readme/download-windows-light.svg">
   <img alt="Descargar para Windows (x64, instalador .exe)" src="assets/readme/download-windows-dark.svg" width="332">
 </picture></a>
 </p>
 
-<p align="center"><sub>¿Buscas otra versión? <a href="https://github.com/sam-wilkie/margarita-tank/releases">Ver todas las releases</a></sub></p>
+<p align="center"><sub>¿Buscas otra versión? <a href="https://github.com/sam-wilkie/clawdy/releases">Ver todas las releases</a></sub></p>
 
 Ambos instaladores incluyen la app de bandeja / barra de menú, que es la que instala los hooks y lanza la mascota. En Windows, el instalador registra los hooks de Codex y ofrece instalar los de Kiro en un workspace elegido; Codex pedirá que apruebes sus hooks en `/hooks`. Los hooks de Claude Code se instalan al primer arranque de la app. Reinicia las sesiones de cada agente después de instalar.
 
