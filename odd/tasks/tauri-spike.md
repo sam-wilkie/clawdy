@@ -1,0 +1,91 @@
+# Tauri 2 spike (Change 0, throwaway)
+
+Go/no-go for the Tauri shell migration. Branch `spike/tauri-hotbar` (worktree `O:\Proyectos\Clawdy-hotbar`), never merged; code lives under `spike/tauri/`.
+Source: `openspec/changes/tauri-shell-hotbar-migration/exploration.md` ("Change 0"). Engram mirror unavailable (binary predates v2.0.0-rc.11); this file is the record.
+
+## Specs
+
+- S1 Scope of go/no-go: "Windows y macOS". Windows is verified here. macOS cannot be run on this machine: its criteria are written, but only the user can mark them pass/fail on a Mac.
+- S2 Window: transparent, always-on-top, frameless Tauri 2 window showing a pet sprite.
+- S3 Click-through: selective, driven by Rust cursor polling (Tauri has no `forward`, tauri#13070). Clicks pass through transparent pixels and are captured on the pet.
+- S4 Permission round trip: an Allow/Deny card sends a real `permission_decision {id, nonce}` through the existing daemon (TCP 127.0.0.1:19872) and the daemon resolves the pending request.
+- S5 Thresholds (proposed by the agent, user chose "Propuestos por mí"):
+  - T-click: click-through is correct on every sampled point (pet pixels capture, transparent pixels pass through) and switches in under 50 ms.
+  - T-cpu: idle CPU under 1 % averaged over 60 s.
+  - T-ram: working set under 150 MB at idle.
+  - T-perm: Allow and Deny each resolve the real pending permission once; a wrong nonce is rejected and changes nothing.
+  - T-mac (user-run): same T-click and T-perm on macOS, plus visibility over a fullscreen app (tauri#11488 / #14102 risks). Result: unverified until the user runs it.
+- S6 Verdict format: a table of S5 rows with measured value, pass/fail, and a final GO / NO-GO. B (Electron + electron-builder) is the fallback on NO-GO.
+
+## Tasks
+
+- T1 S5 · install Rust (rustup, stable) and MSVC Build Tools; verify `cargo --version` and a hello-world build · inline · commit: this commit
+- T2 S2,S3 · scaffold `spike/tauri/`, transparent always-on-top window with a sprite, Rust cursor-polling click-through · inline · commit: see git log (spike commits)
+- T3 S4 · Allow/Deny card round-tripping a real nonce through the daemon · inline · commit: see git log (spike commits)
+- T4 S5,S6 · measure T-click/T-cpu/T-ram/T-perm on Windows, write the verdict, hand T-mac to the user · inline · commit: see git log (spike commits)
+
+## Log
+
+- L1 (user) "con eso definido podriamos continuar con esto O:\Proyectos\Clawdy\openspec\changes\tauri-shell-hotbar-migration" then "ok" to start the spike.
+- L2 (user) go/no-go scope: "Windows y macOS"; thresholds: "Propuestos por mí (recomendado)"; Rust install: "Sí, instalalos".
+- L3 (evidence) This machine has node v24.15.0 and npm 11.12.1 but no cargo, rustc or rustup; only the `Installer` and `Shared` folders under Visual Studio, so no confirmed MSVC.
+- L4 (decision) C: has ~7.8 GB free, so everything lives on O:. Rust via rustup (`RUSTUP_HOME=O:\devustup`, `CARGO_HOME=O:\dev\cargo`, no PATH change); MSVC 14.44 + Windows SDK 26100 via the portable-msvc.py gist (reviewed; license accepted by the user) into `O:\dev\msvc`; Visual Studio untouched. Activate with `. /o/dev/env.sh`. Verified: `cargo run` hello-world prints "Hello, world!" (cargo 1.99.0).
+
+## Verdict (Windows, release build, 2026-10-13)
+
+| Criterion | Measured | Result |
+|---|---|---|
+| T-click correctness | pet got 5/5 clicks on its pixels; 0/3 on a transparent corner; a real window underneath got 3/3 of the transparent clicks and 0/3 of the pet clicks | PASS |
+| T-click latency (<50 ms) | enter-pet median 5.8 ms, p95 7.8; leave-pet median 7.0 ms, p95 8.6 (flag flip observed from outside, n=40 each) | PASS |
+| T-cpu (<1 %, 60 s idle) | 3.81 % of one core = 0.32 % of 12 cores; an 8 ms cursor-polling thread is the likely cause, not tuned | AMBIGUOUS: fails if "one core", passes if "all cores" |
+| T-ram (<150 MB) | 332-340 MB working set, 149 MB private (spike + WebView2). Electron, same scene: 337-340 MB working set, 185-188 MB private | FAIL as written, but Electron fails it too: threshold was unrealistic |
+| T-perm | Allow -> hook `allow`, daemon `closed: allow`; Deny -> `deny`; wrong nonce -> `Ignored a permission decision`, request `closed: none`. Isolated daemon (temp HOME, port 19999), real `clawd-tank-notify` | PASS |
+| T-mac | not run | UNVERIFIED (user-run) |
+
+Electron baseline: see L6-L8 (memory equal, Tauri CPU much higher). Not measured: polling interval tuning; one pet window only (the real shell has several); Windows only.
+Gotcha found: without `capabilities/default.json` (`core:default`) the page cannot call any command, so buttons silently did nothing.
+
+**Verdict: NOT a clean GO.** The hard technical risks (selective click-through via polling, real nonce round trip) are proven on Windows. The footprint criteria are not met as written (RAM) or are ambiguous (CPU), and macOS is untested. Decision needed from the user, see L5.
+
+## Log (cont.)
+
+- L5 (open) Needs the user: (a) accept 340 MB or compare against Electron's measured footprint before judging; (b) define T-cpu per core or per machine; (c) run T-mac on a Mac.
+- L6 (evidence) Electron baseline, same scene (`spike/electron-baseline`, Electron 33.2.1, `setIgnoreMouseEvents(.., {forward:true})`, no polling), own process tree only (the user's live Electron pet was left alone), idle. Clean single instance, 3 runs: 4 processes, working set 337-340 MB, private 185-188 MB, CPU 0.15-0.85 % of one core. Tauri spike: 7 processes (spike + WebView2), working set 332-340 MB, private 149 MB, CPU 3.8-4.0 % of one core.
+- L7 (correction) An intermediate run reported Electron at 741 MB / 8 processes: it was wrong, the first script had left an instance running and two instances were counted. Discarded. Lesson: kill what the measuring script starts.
+- L8 (analysis) Memory is a wash: working set is equal (~335 MB), private memory is about 20 % lower for Tauri. So the 340 MB that failed T-ram is Electron's number too, and the 150 MB threshold was unrealistic for any WebView shell, not a Tauri defect. CPU is the real gap: Tauri uses roughly 5-25x more CPU than Electron, caused by the 8 ms cursor-polling thread (Electron gets hover natively). One sample each, not a benchmark.
+- L9 (open) Needs the user: define T-cpu per core or per machine, run T-mac on a Mac. Suggested next step if GO is still wanted: tune the polling (adaptive interval, e.g. 8 ms near the pet and 50-100 ms when the cursor is far) and re-measure.
+- L10 (user decision) Continue the spike: tune the cursor polling and re-measure on Windows (option "Afinar polling y re-medir"). T-mac is run by the user on a Mac (option "Sí, la corro yo"). Change 2 is blocked until the re-measured verdict is GO.
+- L11 (plan) Adaptive polling: 8 ms when the cursor is within 40 logical px of the pet circle, 25 ms otherwise. Expected: lower idle CPU; risk: enter-pet latency rises when the cursor arrives fast from far away. T-click (<50 ms) must still pass.
+- Tasks: T5 adaptive polling in spike/tauri/src/main.rs · T6 re-measure T-click, T-cpu (idle 60 s), T-ram on Windows and rewrite the verdict · T7 user-run T-mac checklist (not done by the agent).
+- L12 (evidence, T6 adaptive polling, Windows, release build) Click-through script `tests/t4_clickthrough.py`: transparent corner 3/3 to window below; on pet 0/3 to window below; enter-pet median 6.2 ms p95 8.8 max 22.7 (n=40); leave-pet median 6.9 p95 8.0 max 10.0. Exit 0.
+- L13 (evidence, T6 idle 60 s, own process tree, 8 procs): CPU 1.53 % of one core = 0.13 % of all cores (was 3.81 % of one core before polling change). Working set 354 MB (was 332-340 MB; Electron baseline 337-340 MB).
+- L14 (verdict re-measured) T-click PASS. T-perm not re-run (unchanged code path, earlier PASS). T-cpu: FAIL if "one core" (1.53 % > 1 %), PASS if "all cores" (0.13 %). Still ambiguous, needs the user's definition (L5b). T-ram: FAIL as written (354 MB > 150 MB), same as Electron baseline. Overall still NOT a clean GO. Adaptive polling cut CPU ~2.5x. Next: user decides T-cpu definition and whether to accept RAM parity with Electron; T-mac is user-run.
+
+## T7 checklist for the user (macOS, run by the user)
+
+Build the spike on a Mac (`spike/tauri`, `cargo build --release`), then check:
+
+1. **T-click:** the pet captures clicks on its pixels and passes clicks on transparent pixels to the window below. Expect 3/3 and 0/3 each way. Switch time under 50 ms, by eye or with the same test if it ports.
+2. **T-perm:** Allow and Deny each resolve the real pending permission once. A wrong nonce is rejected and changes nothing. Use an isolated daemon (temp HOME, its own port).
+3. **Fullscreen overlay:** with a fullscreen app active, the pet stays visible (tauri#11488 / #14102 risk).
+4. Report back: pass/fail per item, and macOS version. Paste the exact output of any failing item.
+
+Result: unverified until the user runs it.
+- L15 (user decision) T-cpu defined per machine (total of all cores). Measured 0.13 % of all cores: PASS.
+- L16 (user decision, criterion to confirm) RAM: accept parity with Electron. Measured Tauri 354 MB working set vs Electron 337-340 MB, so Tauri is ~4 % above Electron. Strictly, "parity" as a pass needs a tolerance; without one it FAILS. Needs the user to set the tolerance (e.g. <= 5 % above Electron) before the verdict is final.
+- L17 (gap) T-perm was not re-run on the adaptive-polling binary. It ran on the previous binary (PASS). The polling change does not touch the permission path, but the criterion requires a fresh run before GO.
+- Status: T-click PASS, T-cpu PASS (per machine), T-ram PASS only with a tolerance still to be set, T-perm re-run pending, T-mac user-run pending. Verdict: NOT GO yet. Change 2 stays blocked.
+- L17 resolved (evidence, T-perm on the adaptive-polling binary, isolated daemon on port 19999, real clawd-tank-notify):
+  - Allow with correct nonce: hook returned `{"behavior":"allow"}`, daemon `closed: allow`. PASS.
+  - Deny with correct nonce: hook returned `{"behavior":"deny",...}`, daemon `closed: deny`. PASS.
+  - Wrong nonce (SPIKE_WRONG=1): daemon `Ignored a permission decision that matches no pending request`, request stayed open, then `closed: none` after timeout. Hook received no decision. PASS (changes nothing).
+  - Verdict: T-perm PASS. Tasks 6 done.
+- L18 (user decision) RAM tolerance set to <= 10 % above the Electron baseline. Electron mean 338.5 MB (337-340) gives a limit of ~372 MB. Tauri measured 354 MB: PASS. Caveat: the tolerance was chosen after seeing the 354 MB measurement, not before. The user accepted that knowingly; record it here.
+- Status: T-click PASS, T-cpu PASS (per machine), T-ram PASS (tolerance 10 %), T-perm PASS (re-run), T-mac pending (user runs the checklist on macOS). Verdict: conditional GO, pending T-mac. Change 2 stays blocked until T-mac passes.
+
+## Deuda pendiente: T-mac (no ejecutable ahora)
+
+- L19 (user) El checklist de macOS no se puede correr en este momento. Se documenta como deuda pendiente, no como fallo.
+- Deuda D1: correr el checklist de T7 en macOS (T-click, T-perm, overlay sobre pantalla completa). Responsable: usuario. Condición de cierre: resultados pegados en la bitácora con pass/fail y versión de macOS.
+- Bloqueado por D1: decisión de Change 2 (`tauri-shell-hotbar-migration`). El veredicto queda en GO condicionado; no se inicia Change 2 hasta cerrar D1.
+- Riesgo mientras D1 esté abierto: el click-through y el overlay en macOS no están validados (tauri#11488 / #14102).
