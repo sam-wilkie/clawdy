@@ -12,7 +12,7 @@
 
 # Mi Buddy Clawdy
 
-**Clawdy** es una mascota de escritorio para **Claude Code, Codex, Kiro, OpenCode y Antigravity**. La app de escritorio (Electron) pone una mascota por agente, siempre visible sobre tus ventanas, y un panel flotante con las sesiones, los proyectos, los estados y las métricas de consumo de cada producto. También aprueba herramientas cuando el agente te necesita.
+**Clawdy** es una mascota de escritorio para **Claude Code, Codex, Kiro, OpenCode, Antigravity y Pi (gentle-shell)**. La app de escritorio (Electron) pone una mascota por agente, siempre visible sobre tus ventanas, y un panel flotante con las sesiones, los proyectos, los estados y las métricas de consumo de cada producto. También aprueba herramientas cuando el agente te necesita.
 
 - Una mascota por agente, en orden fijo: Claude, Codex, Kiro, OpenCode y Antigravity.
 - Haz clic en una mascota para abrir su panel: sesiones, proyecto, herramienta en uso y subagentes.
@@ -31,6 +31,7 @@ Del mismo proyecto sale un modo opcional para hardware: Clawdy también corre en
 | Kiro | Hooks por workspace; seguimiento de logs | Créditos del plan desde la caché de Kiro IDE | Implementado; la caché puede no reflejar el consumo más reciente |
 | OpenCode | Plugin local de Clawdy | Tokens y costo informado, por día, mes y acumulado | Implementado; la aparición de la mascota está confirmada, las aprobaciones v2 siguen sin certificar |
 | Antigravity CLI / IDE | Plugin registrado mediante `agy` | Tokens del historial local, por día, mes y acumulado | Implementado; instalación y flujo completo con `agy` real pendientes |
+| Pi (gentle-shell) | Extensión instalada desde la bandeja (**Install Pi Extension**) | Sin medidor de consumo | Implementado; estados y aprobaciones comprobados en una sesión aislada, falta probarlo con el `Clawdy.exe` instalado |
 
 Esta tabla describe el checkout actual, incluidos cambios locales pendientes de entrega. No garantiza que todas las funciones estén incluidas en el instalador publicado. Consulta el [estado técnico actual](docs/clawdy-desktop-estado-2026-10-13.md) para las comprobaciones y pendientes.
 
@@ -109,14 +110,14 @@ Haz clic en la mascota de un agente y se abre su panel flotante, sin marco, sin 
 
 Cuando un agente pide permiso, la mascota correspondiente muestra los botones **Allow / Deny**:
 
-- **Claude Code, Codex, Kiro y OpenCode** tienen aprobación real. En Kiro, además, `PreToolUse` actúa como puerta explícita: **cada** herramienta espera tu respuesta; si no respondes, la llamada se bloquea.
+- **Claude Code, Codex, Kiro, OpenCode y Pi** tienen aprobación real. En Kiro, además, `PreToolUse` actúa como puerta explícita: **cada** herramienta espera tu respuesta; si no respondes, la llamada se bloquea.
 - **Antigravity no bloquea herramientas**: su hook de `PreToolUse` responde siempre `allow`.
 - La tarjeta muestra el título **Permission request**, la herramienta y el proyecto, con un `+N` cuando hay más peticiones esperando detrás.
 - **La tarjeta no caduca.** Queda abierta hasta que respondes o el agente cancela la petición; antes se retiraba a los 15 segundos y la pregunta volvía a la terminal.
 
 ### Estados de la mascota
 
-La mascota de escritorio usa un juego de arte SVG propio, independiente del firmware: 28 estados animados para el cangrejo de Claude, un set de arte pixelado propio para Codex y **Mochi**, la mascota por defecto de Kiro, OpenCode, Antigravity y de cualquier agente sin arte propio.
+La mascota de escritorio usa un juego de arte SVG propio, independiente del firmware: 28 estados animados para el cangrejo de Claude, un set de arte pixelado propio para Codex y **Mochi**, la mascota por defecto de Kiro, OpenCode, Antigravity, Pi y de cualquier agente sin arte propio.
 
 - **Trabajo y herramientas** — pensar, escribir, construir, con el estado ligado a la herramienta en uso.
 - **Subagentes** — `conducting` al lanzar y `grooving` cuando hay subagentes trabajando en segundo plano; el mini-cangrejo cuenta cuántos.
@@ -170,12 +171,12 @@ Límites de Claude, límites de cuenta de Codex, créditos de Kiro y tokens y co
 <tr>
 <td width="50%" valign="top">
 <b>Aprobaciones Allow / Deny</b><br>
-Tarjetas de aprobación sobre la mascota para Claude Code, Codex, Kiro y OpenCode, en cola y con protección contra clics repetidos.<br>
+Tarjetas de aprobación sobre la mascota para Claude Code, Codex, Kiro, OpenCode y Pi, en cola y con protección contra clics repetidos.<br>
 <code>hooks · plugin</code>
 </td>
 <td width="50%" valign="top">
-<b>Cinco agentes, un solo panel</b><br>
-Claude Code, Codex, Kiro, OpenCode y Antigravity con sus propios hooks o plugins, su prefijo de sesión y su ícono, sin salir de la misma app.<br>
+<b>Seis agentes, un solo panel</b><br>
+Claude Code, Codex, Kiro, OpenCode, Antigravity y Pi con sus propios hooks o plugins, su prefijo de sesión y su ícono, sin salir de la misma app.<br>
 <code>Python · adaptadores</code>
 </td>
 </tr>
