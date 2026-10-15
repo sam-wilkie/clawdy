@@ -16,7 +16,6 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const COMMAND_FILE = join(dirname(fileURLToPath(import.meta.url)), "clawd-tank.command")
-const PERMISSION_WAIT_MS = 22000
 
 let cachedCommand
 function notifyCommand() {
@@ -42,10 +41,11 @@ function send(payload, wait = false) {
         stdio: ["pipe", wait ? "pipe" : "ignore", "ignore"],
       })
       let out = ""
-      const timer = setTimeout(() => {
+      // Permission waits end when the bridge answers or the host cancels it.
+      const timer = wait ? null : setTimeout(() => {
         try { child.kill() } catch {}
         resolve("")
-      }, wait ? PERMISSION_WAIT_MS : 5000)
+      }, 5000)
       if (wait) child.stdout.on("data", (d) => { out += d })
       child.on("error", () => { clearTimeout(timer); resolve("") })
       child.on("close", () => {

@@ -14,12 +14,9 @@ ASK_USER_QUESTION_TOOL = "AskUserQuestion"
 # project triggered it. Change this one line to rename the crab in the UI.
 DISPLAY_NAME = "Margarita"
 
-# How long a PermissionRequest hook waits for the pet's Allow/Deny before giving
-# up and letting Claude Code ask in the terminal. Kept short (15 s) so a user who
-# wants to answer in the terminal is not blocked long when they ignore the pet
-# bubble; still ample time to see and click it. The daemon waits 5 s less, and
-# the installed hook timeout (hooks.PERMISSION_HOOK_TIMEOUT_SECONDS) stays above.
-PERMISSION_WAIT_SECONDS = 15
+# Keep approvals open until a decision or cancellation. None disables the
+# bridge/daemon deadline; the host may still enforce its own hook lifetime.
+PERMISSION_WAIT_SECONDS = None
 
 # Longest tool summary sent to the desk window (ellipsis included).
 PERMISSION_SUMMARY_MAX = 120

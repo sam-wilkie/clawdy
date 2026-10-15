@@ -534,15 +534,40 @@ def test_permission_hook_gives_up_silently_when_the_daemon_never_answers(variant
 
 
 @pytest.mark.parametrize("variant", VARIANTS)
-def test_permission_hook_default_wait_is_sixty_seconds(variant):
-    """The default wait is 60 s; CLAWD_PERMISSION_WAIT (a test knob) may only shorten it, never
-    stretch it past the limit the installed hook timeout is sized for."""
+def test_permission_hook_default_wait_has_no_deadline(variant):
+    """The bridge waits for a decision or cancellation by default."""
     import re
     if variant == "embedded":
-        assert re.search(r"^PERMISSION_WAIT_SECONDS = 15$", NOTIFY_SCRIPT, re.M)
+        assert re.search(r"^PERMISSION_WAIT_SECONDS = None$", NOTIFY_SCRIPT, re.M)
     else:
         from tests.test_notify_standalone import _load_notify_script
-        assert _load_notify_script().PERMISSION_WAIT_SECONDS == 15
+        assert _load_notify_script().PERMISSION_WAIT_SECONDS is None
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_permission_reply_can_arrive_without_a_socket_deadline(variant):
+    if variant == "embedded":
+        namespace = {"__name__": "clawdy_notify_test"}
+        exec(NOTIFY_SCRIPT, namespace)
+        read_decision = namespace["_read_decision"]
+    else:
+        from tests.test_notify_standalone import _load_notify_script
+        read_decision = _load_notify_script()._read_decision
+
+    class ReplySocket:
+        def __init__(self):
+            self.chunks = iter([b'{"decision":', b'"allow"}\n'])
+            self.timeouts = []
+
+        def settimeout(self, timeout):
+            self.timeouts.append(timeout)
+
+        def recv(self, size):
+            return next(self.chunks)
+
+    sock = ReplySocket()
+    assert read_decision(sock, None) == "allow"
+    assert sock.timeouts == [None, None]
 
 
 @pytest.mark.parametrize("variant", VARIANTS)

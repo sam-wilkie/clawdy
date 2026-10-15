@@ -85,15 +85,9 @@ DESKTOP_PET_ANIM_FALLBACKS = {
 # protocol. It has no version characteristic to read.
 SIM_PROTOCOL_VERSION = 3
 
-# How long the daemon holds a permission request open for the desk window. It is
-# shorter than the hook's own wait so the daemon always answers (or cleans up)
-# before the hook gives up on its side.
-PERMISSION_DAEMON_WAIT_SECONDS = PERMISSION_WAIT_SECONDS - 5
+# Wait for the user's decision or the hook/session to close.
+PERMISSION_DAEMON_WAIT_SECONDS = PERMISSION_WAIT_SECONDS
 PERMISSION_DECISIONS = ("allow", "deny")
-# Codex registers PostToolUse only for AskUserQuestion, so nothing tells the daemon
-# that a permission it could not resolve (timeout, no desktop pet) was answered in
-# Codex's own prompt. Its permission alert therefore expires after this long.
-CODEX_PERMISSION_ALERT_SECONDS = 120
 # Defensive caps on what is shown in the bubble (the hook already truncates).
 _PERMISSION_FIELD_MAX = {"project": 64, "tool": 64, "summary": 120}
 
@@ -177,13 +171,13 @@ def _state_to_anim(state: dict, has_subagents: bool, usage_low: bool) -> str:
 # "kiro", and the agy CLI and the Antigravity IDE are both "antigravity". Lets the desktop pet pick a
 # per-product crab (and group/count by product) without the daemon storing
 # anything new — the prefix is the single source of truth. Unknown/unprefixed
-    ("pi:", "pi"),
 # ids are Claude Code, the original agent.
 SESSION_AGENT_PREFIXES = (
     ("codex:", "codex"),
     ("kiro:", "kiro"),
     ("opencode:", "opencode"),
     ("antigravity:", "antigravity"),
+    ("pi:", "pi"),
 )
 
 
@@ -1160,14 +1154,6 @@ class ClawdDaemon:
             # expires with the NORMAL timeout below (the user may be thinking, so
             # not the short no-PID one).
             if s.get("state") == "waiting":
-                since = s.get("permission_since_monotonic")
-                if (since is not None and not s.get("awaiting_prompt")
-                        and _session_agent(sid) == "codex"
-                        and now_mono - since > CODEX_PERMISSION_ALERT_SECONDS):
-                    logger.info("Codex permission alert expired: %s", sid[:12])
-                    s["state"] = "thinking"
-                    s.pop("permission_since_monotonic", None)
-                    continue
                 if not (s.get("awaiting_prompt") and s.get("pid") is None
                         and not s.get("subagents")):
                     continue

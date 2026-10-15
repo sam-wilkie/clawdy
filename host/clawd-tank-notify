@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from clawd_tank_daemon.protocol import PERMISSION_WAIT_SECONDS  # noqa: E402
 
-# CLAWD_PERMISSION_WAIT may only shorten the wait (tests, debugging).
+# CLAWD_PERMISSION_WAIT supplies a finite wait for tests/debugging.
 PERMISSION_WAIT_ENV = "CLAWD_PERMISSION_WAIT"
 PERMISSION_DENY_MESSAGE = "Denied from Clawdy desk window"
 # Longest reply line read from the daemon; anything longer is junk.
@@ -106,7 +106,7 @@ def _permission_wait_seconds() -> float:
         value = float(os.environ.get(PERMISSION_WAIT_ENV, ""))
     except ValueError:
         return PERMISSION_WAIT_SECONDS
-    return value if 0 < value <= PERMISSION_WAIT_SECONDS else PERMISSION_WAIT_SECONDS
+    return value if 0 < value < float("inf") else PERMISSION_WAIT_SECONDS
 
 
 def _read_decision(sock: socket.socket, wait_seconds: float):
@@ -114,11 +114,11 @@ def _read_decision(sock: socket.socket, wait_seconds: float):
     anything else (no answer in time, EOF, junk, any error). Never raises and
     never returns allow unless the daemon said exactly that."""
     try:
-        deadline = time.monotonic() + wait_seconds
+        deadline = None if wait_seconds is None else time.monotonic() + wait_seconds
         buf = b""
         while b"\n" not in buf:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
+            remaining = None if deadline is None else deadline - time.monotonic()
+            if remaining is not None and remaining <= 0:
                 return None
             sock.settimeout(remaining)
             chunk = sock.recv(MAX_REPLY_BYTES)

@@ -35,11 +35,9 @@ NOTIFY_SCRIPT_PATH = CLAWD_DIR / (
 )
 CLAUDE_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
 
-# Hosts kill hooks that run longer than their configured timeout. Permission
-# hooks and Kiro's PreToolUse gate wait up to PERMISSION_WAIT_SECONDS for the pet,
-# so their entries carry a larger timeout.
-PERMISSION_HOOK_TIMEOUT_SECONDS = 25
-assert PERMISSION_HOOK_TIMEOUT_SECONDS > PERMISSION_WAIT_SECONDS
+# Hosts require a finite hook timeout. Allow a day to answer at the pet instead
+# of withdrawing its buttons after a few seconds; cancellation still ends early.
+PERMISSION_HOOK_TIMEOUT_SECONDS = 86400
 
 # Windows runs the Python bridge through an explicit interpreter, so it needs the
 # .py suffix; macOS and Linux run a plain sh script and need no Python at all.
@@ -78,10 +76,9 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
     # Fixed name on every notification card (protocol.DISPLAY_NAME).
     DISPLAY_NAME = __DISPLAY_NAME__
 
-    # A PermissionRequest hook waits this long for the pet's Allow/Deny
-    # (protocol.PERMISSION_WAIT_SECONDS; the installed hook timeout is larger).
-    PERMISSION_WAIT_SECONDS = 15
-    # CLAWD_PERMISSION_WAIT may only shorten the wait (tests, debugging).
+    # No bridge deadline: keep the pet's decision channel open until answered.
+    PERMISSION_WAIT_SECONDS = None
+    # CLAWD_PERMISSION_WAIT supplies a finite wait for tests/debugging.
     PERMISSION_WAIT_ENV = "CLAWD_PERMISSION_WAIT"
     PERMISSION_DENY_MESSAGE = "Denied from Clawdy desk window"
     # Longest reply line read from the daemon; anything longer is junk.
@@ -258,7 +255,7 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
             value = float(os.environ.get(PERMISSION_WAIT_ENV, ""))
         except ValueError:
             return PERMISSION_WAIT_SECONDS
-        return value if 0 < value <= PERMISSION_WAIT_SECONDS else PERMISSION_WAIT_SECONDS
+        return value if 0 < value < float("inf") else PERMISSION_WAIT_SECONDS
 
 
     def _read_decision(sock, wait_seconds):
@@ -266,11 +263,11 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
         anything else (no answer in time, EOF, junk, any error). Never raises and
         never returns allow unless the daemon said exactly that."""
         try:
-            deadline = time.monotonic() + wait_seconds
+            deadline = None if wait_seconds is None else time.monotonic() + wait_seconds
             buf = b""
             while b"\\n" not in buf:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
+                remaining = None if deadline is None else deadline - time.monotonic()
+                if remaining is not None and remaining <= 0:
                     return None
                 sock.settimeout(remaining)
                 chunk = sock.recv(_MAX_REPLY_BYTES)

@@ -2292,10 +2292,33 @@ async def test_daemon_side_timeout_replies_none_and_clears(monkeypatch):
     assert clears == [{"action": "permission_clear", "id": req["id"]}]
 
 
-def test_daemon_wait_is_shorter_than_the_hook_wait():
+def test_permission_wait_has_no_default_deadline():
     from clawd_tank_daemon.protocol import PERMISSION_WAIT_SECONDS
-    assert PERMISSION_WAIT_SECONDS == 15
-    assert daemon_mod.PERMISSION_DAEMON_WAIT_SECONDS == PERMISSION_WAIT_SECONDS - 5
+    assert PERMISSION_WAIT_SECONDS is None
+    assert daemon_mod.PERMISSION_DAEMON_WAIT_SECONDS is None
+
+
+@pytest.mark.asyncio
+async def test_old_pending_permission_stays_clickable_until_decided(monkeypatch):
+    d = make_sim_daemon()
+    _working(d)
+    reply = FakeReply()
+    task, req = await _start_wait(d, reply)
+    try:
+        later = time.monotonic() + 3600
+        monkeypatch.setattr(daemon_mod.time, "monotonic", lambda: later)
+        d._evict_stale_sessions()
+        assert not task.done()
+        assert req["id"] in d._pending_permissions
+        assert d._session_states["s1"]["state"] == "waiting"
+        assert _payloads(d._transport_queues["sim"], "permission_clear") == []
+        d.handle_sim_event(_decision(req, "allow"))
+        await task
+        assert reply.sent == [{"decision": "allow"}]
+        assert d._session_states["s1"]["state"] == "working"
+    finally:
+        d._cancel_all_permissions()
+        await task
 
 
 @pytest.mark.asyncio
@@ -2845,13 +2868,13 @@ def _codex_permission_session(d, age):
     return sid
 
 
-def test_codex_permission_alert_expires_after_the_bounded_window():
+def test_codex_permission_alert_remains_until_resolved():
     d = make_daemon()
-    sid = _codex_permission_session(d, daemon_mod.CODEX_PERMISSION_ALERT_SECONDS + 1)
+    sid = _codex_permission_session(d, 100_000)
     d._evict_stale_sessions()
     s = d._session_states[sid]
-    assert s["state"] == "thinking"
-    assert "permission_since_monotonic" not in s
+    assert s["state"] == "waiting"
+    assert "permission_since_monotonic" in s
 
 
 def test_codex_permission_alert_holds_inside_the_window():

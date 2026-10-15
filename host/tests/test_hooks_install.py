@@ -680,17 +680,17 @@ def _our_permission_hooks(settings: dict) -> list[dict]:
     ]
 
 
-def test_permission_hook_timeout_exceeds_the_wait():
+def test_permission_hook_host_allows_a_day_to_answer():
     from clawd_tank_daemon.protocol import PERMISSION_WAIT_SECONDS
-    assert hooks.PERMISSION_HOOK_TIMEOUT_SECONDS == 25
-    assert hooks.PERMISSION_HOOK_TIMEOUT_SECONDS > PERMISSION_WAIT_SECONDS
+    assert hooks.PERMISSION_HOOK_TIMEOUT_SECONDS == 86400
+    assert PERMISSION_WAIT_SECONDS is None
 
 
-def test_install_gives_our_permission_request_hook_a_timeout_of_25(settings_path):
+def test_install_gives_our_permission_request_hook_a_timeout_of_one_day(settings_path):
     install_hooks()
     ours = _our_permission_hooks(_read(settings_path))
     assert len(ours) == 1
-    assert ours[0]["timeout"] == 25
+    assert ours[0]["timeout"] == hooks.PERMISSION_HOOK_TIMEOUT_SECONDS
 
 
 def test_only_the_permission_request_hook_has_a_timeout(settings_path):
@@ -699,7 +699,7 @@ def test_only_the_permission_request_hook_has_a_timeout(settings_path):
         for group in groups:
             for h in group["hooks"]:
                 if event == "PermissionRequest":
-                    assert h["timeout"] == 25
+                    assert h["timeout"] == hooks.PERMISSION_HOOK_TIMEOUT_SECONDS
                 else:
                     assert "timeout" not in h, event
 
@@ -716,7 +716,7 @@ def test_old_permission_hook_without_timeout_is_outdated_and_replaced(settings_p
     settings = _read(settings_path)
     ours = _our_permission_hooks(settings)
     assert len(ours) == 1, "old entry must be replaced, not duplicated"
-    assert ours[0]["timeout"] == 25
+    assert ours[0]["timeout"] == hooks.PERMISSION_HOOK_TIMEOUT_SECONDS
     assert are_hooks_installed() is True
 
 
@@ -728,7 +728,7 @@ def test_old_permission_hook_with_wrong_timeout_is_replaced(settings_path):
     settings_path.write_text(json.dumps(settings))
     assert are_hooks_installed() is False
     install_hooks()
-    assert [h["timeout"] for h in _our_permission_hooks(_read(settings_path))] == [25]
+    assert [h["timeout"] for h in _our_permission_hooks(_read(settings_path))] == [hooks.PERMISSION_HOOK_TIMEOUT_SECONDS]
 
 
 def test_foreign_permission_request_hook_survives_the_timeout_upgrade(settings_path):
@@ -738,7 +738,7 @@ def test_foreign_permission_request_hook_survives_the_timeout_upgrade(settings_p
     install_hooks()
     groups = _read(settings_path)["hooks"]["PermissionRequest"]
     assert foreign in groups, "user's PermissionRequest hook was changed or removed"
-    assert [h["timeout"] for h in _our_permission_hooks(_read(settings_path))] == [25]
+    assert [h["timeout"] for h in _our_permission_hooks(_read(settings_path))] == [hooks.PERMISSION_HOOK_TIMEOUT_SECONDS]
     install_hooks()  # idempotent
     again = _read(settings_path)["hooks"]["PermissionRequest"]
     assert again == groups
