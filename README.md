@@ -65,7 +65,7 @@ Ambos instaladores incluyen la app de bandeja / barra de menú, que es la que in
 <br>
 
 - **macOS**: abre el DMG y arrastra la app a Aplicaciones. Está firmada ad-hoc pero no notarizada por Apple, así que la primera vez hay que hacer clic derecho → **Abrir** (o *Ajustes del Sistema → Privacidad y seguridad → Abrir igualmente*). Si macOS dice que la app "está dañada", ejecuta `xattr -dr com.apple.quarantine "/Applications/Clawdy.app"`.
-- **Windows**: instalación por usuario, sin permisos de administrador. El instalador no está firmado, así que SmartScreen puede mostrar un aviso: haz clic en **Más información** → **Ejecutar de todas formas**. Al desinstalar se quitan de `~/.claude/settings.json` solo los hooks de Clawdy; tus propios hooks quedan intactos.
+- **Windows**: instalación por usuario en `%LOCALAPPDATA%\Programs\Clawdy`, sin permisos de administrador; la app es `Clawdy.exe`. El instalador no está firmado, así que SmartScreen puede mostrar un aviso: haz clic en **Más información** → **Ejecutar de todas formas**. Al desinstalar se quitan de `~/.claude/settings.json` solo los hooks de Clawdy; tus propios hooks quedan intactos.
 - **Windows y Electron**: el instalador incluye la mascota Electron en `desktop/`, junto al ejecutable, así que **Floating desk pet** funciona sin configuración extra. La bandeja la busca primero en `CLAWDY_DESKTOP_DIR`, después en esa carpeta empaquetada y, por último, en una carpeta `desktop/` del repositorio con sus dependencias; si no encuentra ninguna usa la ventana SDL2. `CLAWDY_DESKTOP_PET=0` fuerza siempre la ventana SDL2.
 - **Hardware**: el firmware del ESP32 no va en los instaladores; se flashea aparte (ver [Pantalla ESP32](#pantalla-esp32-opcional)). Sin hardware, el simulador SDL2 incluido permite previsualizar esa pantalla desde el menú de la app.
 - **Bluetooth en PC de escritorio**: si la conexión se corta o falla con `Unreachable`, revisa que la placa tenga puestas las antenas Wi-Fi/Bluetooth. Sin ellas la señal llega muy débil (cerca de -95 dBm) aunque el ESP32 esté al lado.
@@ -111,6 +111,8 @@ Cuando un agente pide permiso, la mascota correspondiente muestra los botones **
 
 - **Claude Code, Codex, Kiro y OpenCode** tienen aprobación real. En Kiro, además, `PreToolUse` actúa como puerta explícita: **cada** herramienta espera tu respuesta; si no respondes, la llamada se bloquea.
 - **Antigravity no bloquea herramientas**: su hook de `PreToolUse` responde siempre `allow`.
+- La tarjeta muestra el título **Permission request**, la herramienta y el proyecto, con un `+N` cuando hay más peticiones esperando detrás.
+- **La tarjeta no caduca.** Queda abierta hasta que respondes o el agente cancela la petición; antes se retiraba a los 15 segundos y la pregunta volvía a la terminal.
 
 ### Estados de la mascota
 
@@ -180,7 +182,7 @@ Claude Code, Codex, Kiro, OpenCode y Antigravity con sus propios hooks o plugins
 <tr>
 <td width="50%" valign="top">
 <b>App e instalador de Windows</b><br>
-App de bandeja y un instalador por usuario (sin admin), con el simulador integrado y la instalación de hooks en el primer arranque.<br>
+`Clawdy.exe` en la bandeja y un instalador por usuario (sin admin), con el simulador integrado y la instalación de hooks en el primer arranque.<br>
 <code>Python · PyInstaller · Inno Setup</code>
 </td>
 <td width="50%" valign="top">
@@ -199,6 +201,18 @@ Sesiones, proyectos y consumo por agente en una ventana que se abre al hacer cli
 <b>Robustez en Windows</b><br>
 Conexión BLE con un solo bucle por transporte, sin caché GATT de Windows y con límites de tiempo en escaneo/conexión; limpieza adaptativa de sesiones fantasma; fix de watchdog del ESP32-C6.<br>
 <code>Python · bleak · WinRT · FreeRTOS</code>
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<b>Mochi y su kit de arte</b><br>
+Mochi, la mascota por defecto, con sus 29 estados. Un art bible, el skill <code>new-pet</code> y el validador <code>pet_check.py</code> para que cada mascota nueva siga las mismas reglas.<br>
+<code>SVG · docs/pet-art-bible.md · tools/pet_check.py</code>
+</td>
+<td width="50%" valign="top">
+<b>Daemon sin bandeja</b><br>
+El daemon aplica <code>preferences.json</code>, instala los hooks y reasigna los que quedaron apuntando a un ejecutable borrado, aunque la bandeja no esté abierta.<br>
+<code>Python · clawd_tank_daemon</code>
 </td>
 </tr>
 </table>
@@ -259,6 +273,8 @@ python -m venv .venv
 .venv/bin/python -m clawd_tank_menubar               # app de bandeja / barra de menú
 ```
 
+El daemon no necesita la bandeja. Al arrancar con `python -m clawd_tank_daemon.daemon` lee `~/.clawd-tank/preferences.json` (`ble_enabled`, `sim_enabled`, `sim_desk_mode`) e instala o actualiza los hooks; los que apuntan a un ejecutable que ya no existe se reasignan. `--no-install-hooks` deja los hooks como están, y `--sim`, `--sim-only` y `--sim-port` mandan sobre las preferencias.
+
 ### Simulador (sin hardware)
 
 ```bash
@@ -287,6 +303,7 @@ En Windows el puerto es `COMx` (p. ej., `COM5`); en macOS/Linux, `/dev/ttyACM0` 
 | --- | --- | --- |
 | `CLAWDY_DESKTOP_DIR` | gestor de proceso | Ruta alternativa de la carpeta `desktop/` desde la que se lanza la mascota |
 | `CLAWDY_DESKTOP_PET` | gestor de proceso | `=0` fuerza la ventana SDL2 en lugar de Electron |
+| `CLAWD_TANK_HOOK_EXE_DIR` | bandeja y daemon (Windows empaquetado) | Carpeta absoluta con `margarita-notify.exe` y `margarita-statusline.exe` a la que apuntan los hooks |
 | `CLAWDY_CODEX_BIN` | app de escritorio | Ruta absoluta al ejecutable nativo de Codex |
 | `CLAWDY_OPENCODE_BIN` | app de escritorio | Ruta absoluta al ejecutable nativo de OpenCode |
 | `CLAWDY_KIRO_STATE_DB` | app de escritorio | Ruta absoluta al `state.vscdb` de Kiro |
