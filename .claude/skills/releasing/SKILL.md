@@ -9,9 +9,9 @@ The release is **fully automated by CI**. `.github/workflows/release.yml`
 triggers on any `v*` tag push and builds, in parallel:
 
 - macOS: static simulator → py2app → simulator bundled into
-  `Margarita Tank.app` → `Margarita-Tank.dmg`
+  `Clawdy.app` → `Clawdy.dmg`
 - Windows: static simulator → PyInstaller (`host/windows/margarita_tank.spec`)
-  → Inno Setup (`host/windows/installer.iss`) → `Margarita-Tank-Setup.exe`
+  → Inno Setup (`host/windows/installer.iss`) → `Clawdy-Setup.exe`
 
 then creates the GitHub release with both assets attached. Asset names are
 unversioned on purpose: the README links to
@@ -96,7 +96,7 @@ gh release edit vX.Y.Z \
 **8. Verify:**
 ```bash
 gh release view vX.Y.Z --json tagName,isDraft,assets
-# expect: isDraft false, assets Margarita-Tank.dmg and Margarita-Tank-Setup.exe present
+# expect: isDraft false, assets Clawdy.dmg and Clawdy-Setup.exe present
 ```
 
 ## Optional: update your own machine

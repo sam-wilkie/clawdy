@@ -1,7 +1,7 @@
 ; host/windows/installer.iss — Inno Setup script for the Windows installer.
 ;
 ; Packages the PyInstaller onedir build (host/windows/margarita_tank.spec) into
-; dist/Margarita-Tank-Setup.exe. Per-user install, no admin rights needed.
+; dist/Clawdy-Setup.exe. Per-user install, no admin rights needed.
 ;
 ;   cd host
 ;   .venv/Scripts/python.exe -m PyInstaller windows/margarita_tank.spec --noconfirm
@@ -36,7 +36,7 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 DisableDirPage=auto
 OutputDir=..\dist
-OutputBaseFilename=Margarita-Tank-Setup
+OutputBaseFilename=Clawdy-Setup
 SetupIconFile={#BuildDir}\Clawdy.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName}

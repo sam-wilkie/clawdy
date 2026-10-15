@@ -2,8 +2,8 @@ name: Release
 
 # Builds both desktop installers and attaches them to the GitHub release:
 #
-#   Margarita-Tank.dmg          macOS (Apple Silicon) menu bar app + Electron pet
-#   Margarita-Tank-Setup.exe    Windows tray app (per-user Inno Setup installer)
+#   Clawdy.dmg                  macOS (Apple Silicon) menu bar app + Electron pet
+#   Clawdy-Setup.exe            Windows tray app (per-user Inno Setup installer)
 #
 # Asset names carry no version on purpose, so the README can link to
 # https://github.com/sam-wilkie/clawdy/releases/latest/download/<asset>.
@@ -129,10 +129,10 @@ jobs:
           # hdiutil intermittently fails with "Resource busy" on hosted
           # runners (a system process holds the volume); retry a few times.
           for attempt in 1 2 3 4 5; do
-            if hdiutil create -volname "Margarita Tank" \
+            if hdiutil create -volname "Clawdy" \
                 -srcfolder dmg-staging \
                 -ov -format UDZO \
-                "dist/Margarita-Tank.dmg"; then
+                "dist/Clawdy.dmg"; then
               break
             fi
             if [ "$attempt" -eq 5 ]; then
@@ -147,8 +147,8 @@ jobs:
       - name: Upload DMG as artifact
         uses: actions/upload-artifact@v7
         with:
-          name: Margarita-Tank-macOS
-          path: host/dist/Margarita-Tank.dmg
+          name: Clawdy-macOS
+          path: host/dist/Clawdy.dmg
           if-no-files-found: error
 
   windows:
@@ -214,12 +214,12 @@ jobs:
 
       - name: Bundle Electron desktop pet
         # macOS copies the pet right after py2app because that is when the bundle
-        # exists; here PyInstaller owns dist/MargaritaTank, so it goes in
+        # exists; here PyInstaller owns dist/Clawdy, so it goes in
         # afterwards. installer.iss already ships everything under
-        # host/dist/MargaritaTank recursively, so nothing there has to change.
+        # host/dist/Clawdy recursively, so nothing there has to change.
         # Without this the tray's desk pet silently falls back to the SDL2 window.
         run: |
-          pet="host/dist/MargaritaTank/desktop"
+          pet="host/dist/Clawdy/desktop"
           mkdir -p "$pet/node_modules/electron"
           cp desktop/main.js desktop/preload.js desktop/dashboard-preload.js desktop/daemon-bridge.js desktop/codex-usage.js desktop/agent-usage.js desktop/antigravity-usage.js desktop/session-labels.js desktop/package.json "$pet/"
           cp -R desktop/renderer "$pet/renderer"
@@ -229,9 +229,9 @@ jobs:
           cp -R desktop/node_modules/electron/dist "$pet/node_modules/electron/dist"
 
       - name: Check the build
-        working-directory: host/dist/MargaritaTank
+        working-directory: host/dist/Clawdy
         run: |
-          for f in MargaritaTank.exe margarita-notify.exe margarita-statusline.exe clawd-tank-sim.exe MargaritaTank.ico; do
+          for f in Clawdy.exe margarita-notify.exe margarita-statusline.exe clawd-tank-sim.exe Clawdy.ico; do
             test -f "$f" || { echo "ERROR: missing $f"; exit 1; }
           done
           # The Electron pet ships next to the exe; without it the tray app
@@ -276,8 +276,8 @@ jobs:
       - name: Upload installer as artifact
         uses: actions/upload-artifact@v7
         with:
-          name: Margarita-Tank-Windows
-          path: host/dist/Margarita-Tank-Setup.exe
+          name: Clawdy-Windows
+          path: host/dist/Clawdy-Setup.exe
           if-no-files-found: error
 
   publish:
@@ -297,5 +297,5 @@ jobs:
           overwrite_files: true
           fail_on_unmatched_files: true
           files: |
-            assets/Margarita-Tank.dmg
-            assets/Margarita-Tank-Setup.exe
+            assets/Clawdy.dmg
+            assets/Clawdy-Setup.exe

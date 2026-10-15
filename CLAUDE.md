@@ -101,7 +101,7 @@ The build script always rebuilds the static simulator, runs `py2app`, and copies
 # PyInstaller onedir build -> host/dist/MargaritaTank/ (MargaritaTank.exe + margarita-notify.exe)
 cd host && .venv/Scripts/python.exe -m PyInstaller windows/margarita_tank.spec --noconfirm
 
-# Inno Setup installer -> host/dist/Margarita-Tank-Setup.exe (per-user, no admin)
+# Inno Setup installer -> host/dist/Clawdy-Setup.exe (per-user, no admin)
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=1.2.3 host/windows/installer.iss
 ```
 
@@ -111,7 +111,7 @@ Uninstalling runs `MargaritaTank.exe --uninstall-hooks` (after killing the tray,
 
 ### Releases
 
-`.github/workflows/release.yml` runs on a `vX.Y.Z` tag push (or a release published from the UI) and attaches `Margarita-Tank.dmg` and `Margarita-Tank-Setup.exe` to the release. Asset names are unversioned so the README links to `releases/latest/download/<asset>`.
+`.github/workflows/release.yml` runs on a `vX.Y.Z` tag push (or a release published from the UI) and attaches `Clawdy.dmg` and `Clawdy-Setup.exe` to the release. Asset names are unversioned so the README links to `releases/latest/download/<asset>`.
 
 ### Tests
 

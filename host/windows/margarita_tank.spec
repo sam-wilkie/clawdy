@@ -23,7 +23,7 @@
 # to the exe, matching how sim_process.py's _find_binary() looks next to
 # sys.executable, and how windows_tray.py loads icons via importlib.resources.
 #
-# host/windows/installer.iss packages this folder into Margarita-Tank-Setup.exe.
+# host/windows/installer.iss packages this folder into Clawdy-Setup.exe.
 import os
 import sys
 
