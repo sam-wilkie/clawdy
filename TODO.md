@@ -9,7 +9,7 @@
 - [x] Electron: mascotas y panel para Claude Code, Codex, Kiro, OpenCode y Antigravity.
 - [x] Consumo: Claude por statusLine, Codex por app-server, Kiro IDE por cache y OpenCode/Antigravity por historial (dia/mes/acumulado); Antigravity no informa costo monetario.
 - [x] Reinicios concedidos de Codex con confirmacion y reutilizacion de clave ante respuestas inciertas.
-- [x] npm test ejecuta la suite completa mediante node --test.
+- [x] pnpm test ejecuta la suite completa mediante node --test.
 - [x] OpenCode 2.0.27: adaptador setup v2 instalado; el usuario confirmo que la mascota aparece. Protocolo/integracion/standalone: 28 pruebas aprobadas.
 - [x] Etiqueta local para claude/opencode: Terminal - permisos de OpenCode; no cambia el agente.
 - [x] Escritorio (2026-10-13): 43 aprobadas, sin fallos. Corregido el doble de ventana; cubiertos adaptador OpenCode v2 y etiquetas de sesion.
@@ -53,7 +53,7 @@ Custom app icon. Proactive BLE reconnection with full state sync on disconnect.
 - [ ] Untested against a real `agy` on a clean Windows machine: the `.cmd` wrapper, re-install of an already installed plugin, MCP tool naming, an IDE without `agy` on PATH.
 - [x] 11 pre-existing failing host tests (tests updated to the new contract; production unchanged): 10 in `tests/test_session_state.py` (`daemon.py` now adds a `sessions` key) and `tests/test_kiro_protocol.py::test_pre_tool_use_execute_pwsh_maps_to_bash` (Kiro PreToolUse now emits `permission` with wait True).
 - [ ] `tests/test_daemon.py::test_ble_connects_and_reconnects_by_itself_after_a_scan_error` hangs.
-- [x] npm test now runs the full desktop suite (node --test); see the current result above.
+- [x] pnpm test now runs the full desktop suite (node --test); see the current result above.
 - [ ] Not verified in a real Electron window: new product labels and window ordering.
 
 ## PID-less end-of-turn sessions never expired - Fixed (option A)
@@ -354,14 +354,14 @@ Multi-agent review of the attention-hooks work surfaced 15 findings; fixes:
 - [x] `protocol.py` + embedded `NOTIFY_SCRIPT` (`NOTIFY_SCRIPT_VERSION` 2026-10-11-subagent-agent-id) add `agent_id` to tool_use/tool_done/tool_failed/permission only when present.
 - [x] Daemon: a subagent's tool event no longer overwrites the main session's state/tool_name (it only refreshes liveness). A subagent permission still raises the alert.
 - [x] `products[].bg` = running subagents (omitted when 0), sim/pet transport only; `anims`/BLE payloads unchanged.
-- [x] Pet: `renderer/anim-map.js` (`mapAnim`, tested with `npm test`): main-agent tool/thinking/alert > conducting (first 4s of an Agent dispatch) > grooving (bg>0) > idle. `fake-daemon.js` demo exercises it.
+- [x] Pet: `renderer/anim-map.js` (`mapAnim`, tested with `pnpm test`): main-agent tool/thinking/alert > conducting (first 4s of an Agent dispatch) > grooving (bg>0) > idle. `fake-daemon.js` demo exercises it.
 - [ ] Manual check in the live pet with a real Claude session running subagents (conducting -> grooving, main-agent tool wins).
 - [ ] Open: a subagent tool_use still cancels the parent's pending permission bubble (pre-existing per-session cancel; now could be made agent-aware).
 
 ## Desktop pet: no_credits (broke crab) — Implemented (live pet untested)
 
 - [x] `products[].exhausted: true` (omitted when false, pet/sim transport only): set when a product has an `out_of_credits` session and its final `anim` is still `low_battery`, so an active/alert/thinking/error/conducting sibling session keeps the pet on that. `anims`, BLE and v2 downgrade unchanged (out_of_credits stays `low_battery`/idle for hardware). Tests in `host/tests/test_session_state.py`.
-- [x] `anim-map.js` `mapAnim(name, bg, conductMs, exhausted)`: alert > exhausted -> `no_credits` > the rest. New art `renderer/assets/clawd-no-credits-v2.svg` (declined card with blinking red X slides over the head, shrug, flapping empty pockets, tear), registered in `renderer.js` STATES; Codex window reuses the low-battery cloud. `fake-daemon.js` cycle and scenario include it. `npm test`: 6 pass.
+- [x] `anim-map.js` `mapAnim(name, bg, conductMs, exhausted)`: alert > exhausted -> `no_credits` > the rest. New art `renderer/assets/clawd-no-credits-v2.svg` (declined card with blinking red X slides over the head, shrug, flapping empty pockets, tear), registered in `renderer.js` STATES; Codex window reuses the low-battery cloud. `fake-daemon.js` cycle and scenario include it. `pnpm test`: 6 pass.
 - [ ] Manual check in the live pet with a real exhaustion (or `fake-daemon.js`), and a Codex window.
 - [ ] Optional: dedicated Codex cloud art for no_credits.
 

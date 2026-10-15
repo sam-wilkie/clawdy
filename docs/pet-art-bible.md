@@ -77,7 +77,7 @@ A set ships one file per state: `desktop/renderer/assets/<set>/<prefix>-<state>-
 5. **Gallery.** `desktop/renderer/assets/<set>/compare-v2.html` shows Claude, Codex and the set side by side.
 6. **Checks.**
    - `python tools/pet_check.py desktop/renderer/assets/<set> <prefix>`: checks the 29 files, each file's viewBox against the renderer, and that every coordinate is a whole art pixel. It is cheap, so run it before looking at any picture.
-   - `cd desktop && npm test`: the art-selection tests also check that every referenced file exists.
+   - `cd desktop && pnpm test`: the art-selection tests also check that every referenced file exists.
    - The other sets' files are unchanged.
 7. **Wire a new set.**
    - Map the agent to the set in `renderer.js` (`ART`, `<SET>_STATES`).

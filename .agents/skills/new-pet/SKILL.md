@@ -34,7 +34,7 @@ The rules live in `docs/pet-art-bible.md`; this skill is the short version. Do n
 - Visual: **one** contact sheet per batch, with the crab's file in the first row:
   `python tools/pet_sheet.py out.png desktop/renderer/assets/clawd-<x>-v2.svg desktop/renderer/assets/<set>/<prefix>-<x>-v2.svg ... --frames 8 --size 200`.
   Never take one screenshot per frame or per state.
-- Tests: `cd desktop && npm test`.
+- Tests: `cd desktop && pnpm test`.
 - The other sets' files must stay unchanged; compare checksums before and after.
 
 ## Do not

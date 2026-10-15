@@ -26,7 +26,7 @@ Start a new change with `/sdd-new <change-name>` or run a single phase with `/sd
 | --- | --- | --- | --- |
 | firmware | `firmware/` | ESP-IDF 5.3.2 C, ESP32-C6, LVGL 9.5 | `make test` (in `firmware/test/`), `idf.py build` |
 | host | `host/` | Python asyncio + rumps/pystray; five agent adapters | `host\.venv\Scripts\python.exe -m pytest` |
-| desktop | `desktop/` | Electron, JavaScript, HTML/CSS, SVG, sql.js | `npm test` (in `desktop/`, full `node --test` suite) |
+| desktop | `desktop/` | Electron, JavaScript, HTML/CSS, SVG, sql.js | `pnpm test` (in `desktop/`, full `node --test` suite) |
 | tools | `tools/` | Python asset pipeline | system Python 3.11 `-m pytest tools/tests` |
 | simulator | `simulator/` | SDL2 (compiles firmware source) | `cmake -B build && cmake --build build` |
 

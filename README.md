@@ -356,7 +356,7 @@ Día y mes comienzan a medianoche y el primer día del mes en la zona horaria lo
 
 ```bash
 # Suite del escritorio (Node.js) — el producto principal
-cd desktop && npm test
+cd desktop && pnpm test
 
 # Tests del host (daemon + protocolo + plugins)
 cd host && .venv/bin/python -m pytest -v   # Windows: .venv\Scripts\python -m pytest -v
