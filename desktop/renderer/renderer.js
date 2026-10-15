@@ -17,7 +17,7 @@ const label = document.getElementById("crab-label");
 
 // Human-readable product name for the always-visible identity label. Set once:
 // each window renders a single product for its whole lifetime.
-const AGENT_LABELS = { claude: "Claude", codex: "Codex", kiro: "Kiro", opencode: "OpenCode", antigravity: "Antigravity" };
+const AGENT_LABELS = { claude: "Claude", codex: "Codex", kiro: "Kiro", opencode: "OpenCode", antigravity: "Antigravity", pi: "Pi" };
 const AGENT = (window.pet && window.pet.agent) || "claude";
 if (label) label.textContent = AGENT_LABELS[AGENT] || AGENT;
 crab.dataset.agent = AGENT;

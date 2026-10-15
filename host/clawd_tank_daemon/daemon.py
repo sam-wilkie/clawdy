@@ -177,6 +177,7 @@ def _state_to_anim(state: dict, has_subagents: bool, usage_low: bool) -> str:
 # "kiro", and the agy CLI and the Antigravity IDE are both "antigravity". Lets the desktop pet pick a
 # per-product crab (and group/count by product) without the daemon storing
 # anything new — the prefix is the single source of truth. Unknown/unprefixed
+    ("pi:", "pi"),
 # ids are Claude Code, the original agent.
 SESSION_AGENT_PREFIXES = (
     ("codex:", "codex"),
