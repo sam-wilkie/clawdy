@@ -6,10 +6,10 @@
 #   cd host
 #   .venv/Scripts/pyinstaller.exe windows/margarita_tank.spec --noconfirm
 #
-# Produces a onedir build in dist/MargaritaTank/ holding three executables that
+# Produces a onedir build in dist/Clawdy/ holding three executables that
 # share one set of runtime files:
 #
-#   MargaritaTank.exe     the tray app (windowed, no console)
+#   Clawdy.exe            the tray app (windowed, no console)
 #   margarita-notify.exe  the Claude Code hook handler (console subsystem, so
 #                         it reads the hook payload from the stdin pipe Claude
 #                         Code hands it). hooks.py points HOOK_COMMAND at it
@@ -32,7 +32,7 @@ from PIL import Image
 HOST_DIR = os.path.abspath(os.path.join(SPECPATH, ".."))
 REPO_ROOT = os.path.abspath(os.path.join(HOST_DIR, ".."))
 
-APP_NAME = "MargaritaTank"
+APP_NAME = "Clawdy"
 NOTIFY_NAME = "margarita-notify"  # must match hooks.NOTIFY_EXE_NAME
 STATUSLINE_NAME = "margarita-statusline"  # must match hooks.STATUSLINE_EXE_NAME
 

@@ -405,13 +405,16 @@ class ClawdDaemon:
         sim_port: int = 0,
         sim_only: bool = False,
         sessions_path: Optional[Path] = None,
+        ble_enabled: bool = True,
+        sim_desktop_pet: bool = False,
+        startup=None,
     ):
         self._transports: dict[str, TransportClient] = {}
         self._transport_queues: dict[str, asyncio.Queue] = {}
 
         if headless:
             # Headless (CLI) mode — create transports from args
-            if not sim_only:
+            if not sim_only and ble_enabled:
                 ble = ClawdBleClient(
                     on_disconnect_cb=lambda: self._on_transport_disconnect("ble"),
                     on_connect_cb=lambda: self._on_transport_connect("ble"),
@@ -425,6 +428,7 @@ class ClawdDaemon:
                     on_disconnect_cb=lambda: self._on_transport_disconnect("sim"),
                     on_connect_cb=lambda: self._on_transport_connect("sim"),
                     on_event_cb=self.handle_sim_event,
+                    desktop_pet=sim_desktop_pet,
                 )
                 self._transports["sim"] = sim
                 self._transport_queues["sim"] = asyncio.Queue()
@@ -449,6 +453,8 @@ class ClawdDaemon:
         self._lock_fd: int | None = None
         self._observer = observer
         self._headless = headless
+        # Callable run once after the daemon lock is won (hook install); None skips it.
+        self._startup = startup
         self._sessions_path = sessions_path if sessions_path is not None else session_store.SESSIONS_PATH
         # Per-product preference gate: a user can keep the OpenCode plugin
         # installed while still suppressing its events (debugging, switching
@@ -1664,6 +1670,15 @@ class ClawdDaemon:
                     ),
                 )
 
+    def _run_startup(self) -> None:
+        """Run the startup callable; a failure is logged and never stops the daemon."""
+        if self._startup is None:
+            return
+        try:
+            self._startup()
+        except Exception:
+            logger.exception("Daemon startup task failed")
+
     async def run(self) -> None:
         """Main daemon loop."""
         logging.basicConfig(
@@ -1672,6 +1687,7 @@ class ClawdDaemon:
         )
 
         self._lock_fd = _acquire_lock(takeover=not self._headless)
+        self._run_startup()
         self._write_pid()
 
         if self._headless:
@@ -1701,7 +1717,13 @@ class ClawdDaemon:
         logger.info("Daemon run() finished")
 
 
-def main():
+def _build_daemon(argv=None) -> "ClawdDaemon":
+    """Build a headless daemon from CLI flags and ~/.clawd-tank/preferences.json.
+
+    Explicit --sim/--sim-only/--sim-port keep today's transport logic and win
+    over ble_enabled/sim_enabled. sim_desk_mode marks the simulator transport
+    as the desktop pet. sim_window_visible/sim_always_on_top are tray-only.
+    """
     import argparse
     parser = argparse.ArgumentParser(description="Clawd Tank daemon")
     parser.add_argument("--sim", action="store_true",
@@ -1710,14 +1732,32 @@ def main():
                         help="Simulator only (no BLE)")
     parser.add_argument("--sim-port", type=int, default=SIM_DEFAULT_PORT,
                         help=f"Simulator TCP port (default: {SIM_DEFAULT_PORT})")
-    args = parser.parse_args()
+    parser.add_argument("--no-install-hooks", action="store_true",
+                        help="Do not install/update Claude Code hooks on start")
+    args = parser.parse_args(argv)
 
-    sim_port = 0
+    # Lazy: stdlib-only modules of the tray package (its __init__ is empty).
+    from clawd_tank_menubar import hooks
+    from clawd_tank_menubar.preferences import load_preferences
+    prefs = load_preferences()
+
     if args.sim or args.sim_only or args.sim_port != SIM_DEFAULT_PORT:
-        sim_port = args.sim_port
+        sim_port, sim_only, ble_enabled = args.sim_port, args.sim_only, True
+    else:
+        sim_port = SIM_DEFAULT_PORT if prefs.get("sim_enabled", True) else 0
+        sim_only, ble_enabled = False, bool(prefs.get("ble_enabled", True))
 
-    daemon = ClawdDaemon(sim_port=sim_port, sim_only=args.sim_only)
-    asyncio.run(daemon.run())
+    return ClawdDaemon(
+        sim_port=sim_port,
+        sim_only=sim_only,
+        ble_enabled=ble_enabled,
+        sim_desktop_pet=bool(prefs.get("sim_desk_mode", False)),
+        startup=None if args.no_install_hooks else hooks.ensure_hooks_current,
+    )
+
+
+def main():
+    asyncio.run(_build_daemon().run())
 
 
 if __name__ == "__main__":

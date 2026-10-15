@@ -26,8 +26,9 @@ def load_preferences(path: Path | None = None) -> dict:
     result = dict(DEFAULTS)
     try:
         stored = json.loads(path.read_text())
-        stored.pop("claude_mod_enabled", None)
-        result.update(stored)
+        if isinstance(stored, dict):
+            stored.pop("claude_mod_enabled", None)
+            result.update(stored)
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass
     return result

@@ -8,12 +8,6 @@ Margarita Tank (a fork of Clawd Tank) is a physical notification display for Cla
 
 Three components: **firmware** (ESP-IDF C), **simulator** (native macOS), **host** (Python daemon + Claude Code hooks).
 
-## Package Manager (MANDATORY)
-
-- Use **pnpm** for all Node/JavaScript work (install, add, remove, run scripts). Lockfile: `pnpm-lock.yaml`.
-- **Never run `npm`, `npx`, or `yarn`** on this machine. Equivalents: `npm install` -> `pnpm install`; `npm test` -> `pnpm test`; `npx <bin>` -> `pnpm dlx <bin>` (or `pnpm exec <bin>` for local bins).
-- Never create or commit `package-lock.json`.
-
 ## Build Commands
 
 ### Firmware (ESP-IDF 5.3.2)
@@ -199,7 +193,7 @@ Key simulator-specific files:
 ### Host (`host/`)
 
 - **clawd-tank-notify** — Standalone hook handler (installed to `~/.clawd-tank/clawd-tank-notify` by the menu bar app). Reads Claude Code hook stdin, converts to daemon message, forwards via Unix socket. Uses only stdlib — no external imports.
-- **clawd_tank_daemon/** — Async Python daemon (asyncio). Multi-transport architecture with `TransportClient` Protocol. Supports BLE (`ClawdBleClient`) and TCP simulator (`SimClient`) transports with independent per-transport queues and sender tasks. Dynamic transport add/remove at runtime. Per-transport protocol versioning (v1 `set_status` for legacy, v2 `set_sessions` with per-session animations and UUIDs). BLE client reads the protocol version GATT characteristic on connect. Session state tracking with priority-based display state computation, staleness eviction, subagent lifecycle tracking, and per-session sweeping for v2 transports. `SimProcessManager` manages the simulator subprocess lifecycle (spawn, window commands, stdout/stderr logging through Python logger, SIGKILL on quit). `session_store.py` handles atomic save/load of session state to `~/.clawd-tank/sessions.json` for restart recovery. `claude_usage.py` is a read-only, offline reader of `~/.claude/projects/**/*.jsonl` (`ClaudeUsageReader.refresh()` blocking, call via `to_thread`; `snapshot(now)` returns per-project today/7d/30d/month tokens plus API-equivalent cost from the dated `PRICES` table; unpriced models give `cost: null`/`cost_partial`). The daemon refreshes it every 60 s (`_project_usage_checker`, `to_thread`) and sends `set_project_usage` (top 30 projects by 30d tokens, `estimate: true`) only to `desktop_pet` transports, on change and on pet connect; never to BLE or the SDL sim. `desktop/main.js` ignores the action.
+- **clawd_tank_daemon/** — Async Python daemon (asyncio). Multi-transport architecture with `TransportClient` Protocol. Supports BLE (`ClawdBleClient`) and TCP simulator (`SimClient`) transports with independent per-transport queues and sender tasks. Dynamic transport add/remove at runtime. Per-transport protocol versioning (v1 `set_status` for legacy, v2 `set_sessions` with per-session animations and UUIDs). BLE client reads the protocol version GATT characteristic on connect. Session state tracking with priority-based display state computation, staleness eviction, subagent lifecycle tracking, and per-session sweeping for v2 transports. `SimProcessManager` manages the simulator subprocess lifecycle (spawn, window commands, stdout/stderr logging through Python logger, SIGKILL on quit). `session_store.py` handles atomic save/load of session state to `~/.clawd-tank/sessions.json` for restart recovery. `claude_usage.py` is a read-only, offline reader of `~/.claude/projects/**/*.jsonl` (`ClaudeUsageReader.refresh()` blocking, call via `to_thread`; `snapshot(now)` returns per-project today/7d/30d/month tokens plus API-equivalent cost from the dated `PRICES` table; unpriced models give `cost: null`/`cost_partial`). The daemon refreshes it every 60 s (`_project_usage_checker`, `to_thread`) and sends `set_project_usage` (top 30 projects by 30d tokens, `estimate: true`) only to `desktop_pet` transports, on change and on pet connect; never to BLE or the SDL sim. `desktop/main.js` ignores the action. Hook commands are built from `hooks.resolve_hook_executable()`: on frozen Windows, `CLAWD_TANK_HOOK_EXE_DIR` (absolute dir holding both `margarita-notify.exe` and `margarita-statusline.exe`, no `"`) overrides the exe folder for notify, statusline, Codex and Antigravity hooks; invalid values are ignored with a warning. `hooks.ensure_hooks_current()` (tray startup in `app.py`/`__main__.py`) installs or re-points hooks and skips when the frozen notify exe is missing. Headless start (`python -m clawd_tank_daemon.daemon`, via `_build_daemon`) applies `preferences.json`: `ble_enabled:false` drops BLE, `sim_enabled` (default true) adds the sim transport on the default port, `sim_desk_mode` marks it `desktop_pet`; `sim_window_visible`/`sim_always_on_top` are tray-only and ignored. `--sim`/`--sim-only`/`--sim-port` keep the old logic and beat `ble_enabled`/`sim_enabled`. After winning the lock it runs `hooks.ensure_hooks_current()` (errors logged, never fatal) unless `--no-install-hooks`, which the legacy autostart in `host/clawd-tank-notify` always passes. A non-object `preferences.json` yields defaults and is never rewritten at startup.
 - **clawd_tank_menubar/** — macOS status bar app (rumps). Transport submenus (BLE/Simulator) with independent enable/disable, connection status with colored emoji indicators, simulator window controls (show/hide, always-on-top), brightness/session timeout config, Claude Code hook installer (`hooks.py`), version display, log file output (`~/Library/Logs/ClawdTank/clawd-tank.log`). Preferences persisted to `~/.clawd-tank/preferences.json` with read-modify-write pattern. Auto-updates hooks on startup when the installed version is outdated (no manual "Install Hooks" click required). Periodic health check timer detects daemon thread crashes and shows a disconnected icon; daemon thread exceptions are caught and logged instead of dying silently.
 - **Retired Claude terminal panel**: no activation/menu or bundled source remains. `controller.cleanup_legacy_claude_mod()` removes only the former Clawdy entry/files on startup; preserve all other plugins and activity hooks.
 
@@ -230,21 +224,6 @@ The daemon tracks per-session state and computes display state sent to the devic
 ## TODO Tracking
 
 Always check `TODO.md` at the start of a session to understand current project status. After completing any work, update `TODO.md` to reflect what was done — check off finished items, add progress notes to partial items, and add new items as they are discovered.
-
-## Default Response Style (caveman + ponytail)
-
-Active by default in this project. Every session, no reminder needed. Off only if the user says "stop caveman", "normal mode", or "ponytail off".
-
-**Caveman (full):** terse prose. Drop articles, filler (just/really/basically/actually), pleasantries, hedging. Fragments OK. Pattern: `[thing] [action] [reason]. [next step].` Keep technical terms exact; quote errors exact.
-
-**Ponytail (default level):** lazy senior dev. Smallest complete change. Reuse existing helpers and patterns; no unrequested abstraction, option, config, or dependency. Finish every part the task needs (callers, tests, fixtures). End each reply with one or two lines: what was skipped or not checked, and risks the user must know.
-
-**Precedence and exceptions:**
-- Persona and language rules win: reply in the user's language (Spanish → rioplatense voseo), still compressed.
-- Caveman auto-clarity applies: write normal, full sentences for security warnings, irreversible or destructive confirmations, and multi-step sequences where dropped words risk misreading. Resume terse afterward.
-- Code, code comments, identifiers, commit messages, PR text, docs, and tests stay in normal English, per the Language Boundary rules.
-- Ponytail never cuts validation at trust boundaries, data-loss error handling, security, accessibility, or hardware calibration.
-- The ODD workflow, RDD/review gates, and verification rules still apply in full. Terse style never skips them.
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
