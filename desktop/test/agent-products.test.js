@@ -104,3 +104,9 @@ test("badge and name label are placed from the art box, not the window (so they 
   assert.match(src, /label\.style\.top = /);
   assert.match(src, /placeOverlays\(s\.vb\)/);
 });
+
+test("name label is anchored to the window bottom, not to the art box, so it never clips and does not jump between states", () => {
+  const src = read("renderer/renderer.js");
+  assert.match(src, /label\.style\.bottom = /);
+  assert.doesNotMatch(src, /label\.style\.top = \(top/);
+});

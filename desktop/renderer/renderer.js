@@ -203,7 +203,8 @@ function placeOverlays(vb) {
     badge.style.top = (top + size * 0.24) + "%";
     badge.style.right = (100 - (left + size * 0.8)) + "%";
   }
-  if (label) label.style.top = (top + size * 0.98) + "%";
+  // Anchored to the window bottom: it must not move with the art box of each state.
+  if (label) { label.style.top = "auto"; label.style.bottom = "2%"; }
 }
 
 function renderState(name) {
