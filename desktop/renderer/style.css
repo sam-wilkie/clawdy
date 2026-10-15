@@ -103,53 +103,94 @@ img.crab-layer[hidden] { display: none; }
 }
 #crab-label:empty { display: none; }
 
-/* Permission bubble: a compact card above the crab with Allow/Deny. Colors
-   mirror the SDL2 simulator's bubble (sim_permission.c). Shown only while a
-   request is pending; the renderer enables window interactivity so the buttons
-   are clickable (the rest of the window stays click-through). */
+/* Permission card: a rounded white card above the crab with Allow/Deny. Sans-serif
+   chrome with a monospace command block; palette from Mochi (white body, cherry red,
+   plum outline and ink; see tools/monster_pixel.py). Shown only while a request is
+   pending; the renderer enables window interactivity so the buttons are clickable
+   (the rest of the window stays click-through). The SDL2 simulator keeps its pixel bubble. */
 #perm-card {
+  --perm-white: #FFFFFF;                  /* Mochi white */
+  --perm-paper: #F6F1F0;                  /* Mochi white, shaded */
+  --perm-ink: #2A1A22;                    /* Mochi eye ink */
+  --perm-plum: #5E4B5A;                   /* Mochi outline */
+  --perm-muted: #6E6470;                  /* Mochi dim ink */
+  --perm-cherry: #DE4553;                 /* Mochi red */
+  --perm-green: #28964a;
+
   position: absolute;
   left: 50%;
   top: 6px;
   transform: translateX(-50%);
   width: 220px;
   box-sizing: border-box;
-  padding: 7px 8px 8px;
-  border: 1px solid #f0b43c;              /* amber edge */
-  border-radius: 8px;
-  background: rgba(24, 28, 42, .96);       /* dark card */
-  color: #f0f0f0;
-  font: 12px/1.3 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, .5);
+  padding: 10px 11px 11px;
+  border-radius: 12px;
+  background: var(--perm-white);
+  color: var(--perm-ink);
+  font: 12px/1.35 system-ui, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 2px 8px rgba(42, 26, 34, .35);
   -webkit-user-select: none;
   user-select: none;
 }
 #perm-card[hidden] { display: none; }
-#perm-head { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#perm-project { color: #f0f0f0; }
-#perm-sep { color: #96a0be; }
-#perm-tool { color: #f0b43c; font-weight: 700; }
-#perm-count { color: #96a0be; float: right; }
-#perm-summary {
-  margin: 4px 0 7px;
-  color: #dfe3ee;
-  max-height: 2.6em;
+#perm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+#perm-title { font-weight: 600; font-size: 13px; color: var(--perm-ink); }
+#perm-tool {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--perm-cherry);
+  color: var(--perm-white);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+#perm-tool:empty { display: none; }
+#perm-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+  color: var(--perm-muted);
+  font-size: 11px;
+  white-space: nowrap;
   overflow: hidden;
-  word-break: break-word;
+}
+#perm-project { overflow: hidden; text-overflow: ellipsis; }
+#perm-count:empty { display: none; }
+#perm-summary {
+  margin: 7px 0 9px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--perm-paper);
+  color: var(--perm-plum);
+  font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  max-height: 3.2em;
+  overflow: hidden;
+  word-break: break-all;
 }
 #perm-buttons { display: flex; gap: 6px; }
 #perm-buttons button {
   flex: 1;
-  padding: 4px 0;
-  border: 1px solid #f0f0f0;
-  border-radius: 5px;
-  color: #fff;
+  min-height: 30px;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--perm-white);
   font: inherit;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
+  transition: filter .12s ease, transform .08s ease;
 }
-#perm-allow { background: #28964a; }      /* green */
-#perm-deny  { background: #be3232; }      /* red */
+#perm-buttons button:hover { filter: brightness(1.08); }
+#perm-buttons button:focus-visible { outline: 2px solid var(--perm-plum); outline-offset: 2px; }
+#perm-allow { background: var(--perm-green); }
+#perm-deny  { background: var(--perm-cherry); }
 #perm-buttons button:active { transform: translateY(1px); }
 
 @media (prefers-reduced-motion: reduce) {
