@@ -136,3 +136,10 @@ test("Mochi is drawn at 80 % and only Mochi: the crab and the cloud keep full si
   assert.match(css, /#crab\[data-art="monster"\] #crab-art \{ scale: 0\.8; \}/);
   assert.equal((css.match(/scale:/g) || []).length, 1);
 });
+
+test("product order and names include pi (gentle-shell) after antigravity", () => {
+  const ctx = mainContext();
+  const sorted = vm.runInContext('orderedAgents(["pi","antigravity","claude"])', ctx);
+  assert.deepEqual([...sorted], ["claude", "antigravity", "pi"]);
+  assert.equal(vm.runInContext("AGENT_NAMES.pi", ctx), "Pi");
+});

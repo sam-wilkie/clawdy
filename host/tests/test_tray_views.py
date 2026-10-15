@@ -226,3 +226,40 @@ def test_windows_simulator_label_and_window_items_follow_desk_mode(windows_view)
     assert entries["Always on Top"].enabled(entries["Always on Top"]) is False
     view.render(_state(sim_desk=False))
     assert entries["Show Window"].enabled(entries["Show Window"]) is True
+
+
+PI_LABEL_INSTALL = "Install Pi Extension"
+PI_LABEL_UNINSTALL = "Uninstall Pi Extension"
+
+
+def _label(item):
+    return item.text(item) if callable(item.text) else item.text
+
+
+def test_windows_menu_has_the_pi_item_after_antigravity(windows_view):
+    view = windows_view.WindowsTrayView()
+    view.build(_Controller())
+    texts = [_label(i) for i in _win_items(view)]
+    assert texts.index(PI_LABEL_INSTALL) == texts.index("Install Antigravity Hooks") + 1
+
+
+def test_windows_pi_label_describes_install_or_uninstall(windows_view):
+    view = windows_view.WindowsTrayView()
+    view.build(_Controller())
+    view.render(_state(pi_hooks_installed=False))
+    labels = [item.text(item) if callable(item.text) else item.text for item in _win_items(view)]
+    assert PI_LABEL_INSTALL in labels
+    view.render(_state(pi_hooks_installed=True))
+    labels = [item.text(item) if callable(item.text) else item.text for item in _win_items(view)]
+    assert PI_LABEL_UNINSTALL in labels
+    assert PI_LABEL_INSTALL not in labels
+
+
+def test_windows_clicking_pi_item_calls_the_controller(windows_view):
+    view = windows_view.WindowsTrayView()
+    controller = _Controller()
+    controller.toggle_pi_hooks = lambda: controller.calls.append("toggle_pi_hooks")
+    view.build(controller)
+    item = next(i for i in _win_items(view) if _label(i) == PI_LABEL_INSTALL)
+    item.action(item)
+    assert controller.calls == ["toggle_pi_hooks"]

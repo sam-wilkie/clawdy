@@ -161,6 +161,11 @@ class WindowsTrayView:
                 checked=has_state(lambda s: s.antigravity_hooks_installed),
             ),
             pystray.MenuItem(
+                lambda item: "Uninstall Pi Extension" if self._state and self._state.pi_hooks_installed else "Install Pi Extension",
+                lambda item: controller.toggle_pi_hooks(),
+                checked=has_state(lambda s: s.pi_hooks_installed),
+            ),
+            pystray.MenuItem(
                 "Launch at Login",
                 lambda item: controller.toggle_login(),
                 checked=has_state(lambda s: s.login_enabled),

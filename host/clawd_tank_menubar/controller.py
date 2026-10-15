@@ -71,6 +71,8 @@ class TrayState:
     # Antigravity (agy CLI + IDE) plugin installed? Reflects
     # hooks.are_antigravity_hooks_installed(), same pattern as OpenCode above.
     antigravity_hooks_installed: bool = False
+    # Pi (gentle-shell) extension installed? Reflects hooks.are_pi_hooks_installed().
+    pi_hooks_installed: bool = False
 
 
 class TrayView(Protocol):
@@ -139,6 +141,7 @@ class ClawdTankController(DaemonObserver):
         self._hooks_installed = hooks.are_hooks_installed()
         self._opencode_hooks_installed = hooks.are_opencode_hooks_installed()
         self._antigravity_hooks_installed = hooks.are_antigravity_hooks_installed()
+        self._pi_hooks_installed = hooks.are_pi_hooks_installed()
 
         if autostart.is_enabled() and autostart.is_stale():
             logger.info("Autostart entry is stale, updating to current executable")
@@ -199,6 +202,10 @@ class ClawdTankController(DaemonObserver):
         return self._opencode_hooks_installed
 
     @property
+    def pi_hooks_installed(self) -> bool:
+        return self._pi_hooks_installed
+
+    @property
     def antigravity_hooks_installed(self) -> bool:
         return self._antigravity_hooks_installed
 
@@ -247,6 +254,7 @@ class ClawdTankController(DaemonObserver):
             sim_desk=self._sim_desk,
             opencode_hooks_installed=self._opencode_hooks_installed,
             antigravity_hooks_installed=self._antigravity_hooks_installed,
+            pi_hooks_installed=self._pi_hooks_installed,
         )
         self._view.render(state)
 
@@ -614,6 +622,39 @@ class ClawdTankController(DaemonObserver):
                 ),
             )
         self._render()
+
+    def toggle_pi_hooks(self) -> None:
+        """Toggle the Pi (gentle-shell) extension: install when missing, remove
+        when present. Stateless like toggle_opencode_hooks: the checkmark reads
+        hooks.are_pi_hooks_installed() on every render."""
+        if hooks.are_pi_hooks_installed():
+            if not hooks.uninstall_pi_hooks():
+                self._view.alert(
+                    title="Pi Extension Not Removed",
+                    message="Could not remove the Pi extension. Check the log and try again.",
+                )
+                self._render()
+                return
+            self._pi_hooks_installed = False
+            self._render()
+            self._view.alert(
+                title="Pi Extension Removed",
+                message="The Clawdy extension was removed from Pi. Restart Pi for the change to take effect.",
+            )
+        else:
+            if not hooks.install_pi_hooks():
+                self._view.alert(
+                    title="Pi Extension Not Installed",
+                    message="The Clawdy extension could not be installed: the bundled source is missing from this build. See the log.",
+                )
+                self._render()
+                return
+            self._pi_hooks_installed = True
+            self._render()
+            self._view.alert(
+                title="Pi Extension Installed",
+                message="The Clawdy extension was added to Pi. Restart Pi for the extension to load.",
+            )
 
     def toggle_antigravity_hooks(self) -> None:
         """Toggle the Antigravity plugin (agy CLI + Antigravity IDE): install it

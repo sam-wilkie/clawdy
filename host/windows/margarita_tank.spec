@@ -91,6 +91,8 @@ tray = Analysis(
         (os.path.join(HOST_DIR, "clawd_tank_menubar", "icons"), "clawd_tank_menubar/icons"),
         # OpenCode plugin shim, copied into the OpenCode config by hooks.install_opencode_hooks().
         (os.path.join(REPO_ROOT, "host", "opencode-plugin", "clawd-tank-opencode.js"), "opencode-plugin"),
+        # Pi (gentle-shell) extension, copied by hooks.install_pi_hooks().
+        (os.path.join(HOST_DIR, "pi-extension", "clawd-tank.js"), "pi-extension"),
         (ICON_PATH, "."),
     ],
     hiddenimports=[
