@@ -83,6 +83,14 @@ def test_duplicate_response_id_once_across_files(tmp_path, repo):
     assert r.snapshot(NOW)[0]["today"]["in"] == 70
 
 
+def test_cached_tokens_exceed_input_clamps_fresh_input(tmp_path, repo):
+    root = tmp_path / "sessions"
+    write(root / "s.jsonl", header(repo) + [response("r1", inp=10, cr=20, cw=5)])
+    w = reader(root).snapshot(NOW)[0]["today"]
+    assert (w["in"], w["cr"], w["cw"]) == (0, 20, 5)
+    assert w["cost"] == 0.000315
+
+
 @pytest.mark.parametrize("kind", ["temp", "relative", "non-git"])
 def test_excluded_cwd(tmp_path, repo, kind):
     root = tmp_path / "sessions"
