@@ -62,4 +62,21 @@ mod tests {
         }
         std::fs::remove_dir_all(dir).unwrap();
     }
+
+    #[test]
+    fn remove_deletes_only_its_own_record() {
+        let dir = std::env::temp_dir().join(format!("clawdy-pidfile-own-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("hotbar.pid");
+        let mine = PidFile { pid: 1, exe: "a.exe".into() };
+        let owned = OwnedPidFile { path: path.clone(), record: PidFile { pid: 1, exe: "a.exe".into() } };
+        write(&path, &PidFile { pid: 2, exe: "a.exe".into() }).unwrap();
+        owned.remove();
+        assert!(path.exists(), "another instance's pidfile must survive");
+        write(&path, &mine).unwrap();
+        owned.remove();
+        assert!(!path.exists());
+        owned.remove(); // already gone: no panic
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }

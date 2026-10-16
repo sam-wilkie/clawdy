@@ -19,8 +19,13 @@ fn main() {
                 pid: std::process::id(),
                 exe: std::env::current_exe()?,
             };
-            pidfile::write(&path, &record)?;
-            app.manage(pidfile::OwnedPidFile { path, record });
+            // The pidfile only helps the tray clean up orphans; never block startup on it.
+            match pidfile::write(&path, &record) {
+                Ok(()) => {
+                    app.manage(pidfile::OwnedPidFile { path, record });
+                }
+                Err(err) => eprintln!("hotbar: cannot write {}: {err}", path.display()),
+            }
             let handle = app.handle().clone();
             watchdog::start(move || handle.exit(0));
             Ok(())
@@ -29,7 +34,9 @@ fn main() {
         .expect("failed to build hotbar");
     app.run(|app, event| {
         if matches!(event, tauri::RunEvent::Exit) {
-            app.state::<pidfile::OwnedPidFile>().remove();
+            if let Some(owned) = app.try_state::<pidfile::OwnedPidFile>() {
+                owned.remove();
+            }
         }
     });
 }
