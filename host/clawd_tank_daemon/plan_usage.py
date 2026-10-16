@@ -47,14 +47,21 @@ def find_codex_exe(env=None, home=None, platform=None):
     return next((str(p) for p in candidates if native(p)), None)
 
 
+CODEX_CACHE_S = 300        # the app-server is a heavy spawn; quotas move slowly
+CODEX_TIMEOUT_S = 15       # hard kill so a hung server cannot stall the refresh loop
+CODEX_MAX_LINE = 65536     # one JSON-RPC message per line; we read one byte more to detect longer ones
+CODEX_EXIT_GRACE_S = 0.5   # time to exit after stdin closes before we kill it
+JSONRPC_METHOD_NOT_FOUND = -32601
+
+
 class CodexPlanSource:
     """Read account quotas with bounded process lifetime and a five-minute cache."""
-    def __init__(self, exe_finder=find_codex_exe, popen=subprocess.Popen, timeout_s=15):
+    def __init__(self, exe_finder=find_codex_exe, popen=subprocess.Popen, timeout_s=CODEX_TIMEOUT_S):
         self._find, self._popen, self._timeout = exe_finder, popen, timeout_s
         self._last, self._result, self._failed = None, None, False
 
     def refresh(self, now):
-        if self._last is None or (now - self._last).total_seconds() >= 300:
+        if self._last is None or (now - self._last).total_seconds() >= CODEX_CACHE_S:
             self._last = now
             try:
                 self._result = self._read()
@@ -89,15 +96,16 @@ class CodexPlanSource:
         def request(identifier, method, params=None):
             send({"id": identifier, "method": method, "params": params or {}})
             while not expired.is_set():
-                line = child.stdout.readline(65537)
-                if expired.is_set() or not line or len(line) > 65536 or not line.endswith(b"\n"):
+                line = child.stdout.readline(CODEX_MAX_LINE + 1)
+                if expired.is_set() or not line or len(line) > CODEX_MAX_LINE or not line.endswith(b"\n"):
                     raise ValueError("Invalid Codex line")
                 message = json.loads(line)
                 if not isinstance(message, dict):
                     raise ValueError("Invalid Codex message")
                 if "method" in message:
                     if "id" in message:
-                        send({"id": message["id"], "error": {"code": -32601, "message": "Unsupported client request"}})
+                        # The server may ask us things (approvals, input); this read-only client answers none.
+                        send({"id": message["id"], "error": {"code": JSONRPC_METHOD_NOT_FOUND, "message": "Unsupported client request"}})
                     continue
                 if message.get("id") == identifier:
                     if "error" in message or not isinstance(message.get("result"), dict):
@@ -140,7 +148,7 @@ class CodexPlanSource:
             except OSError:
                 pass
             try:
-                child.wait(timeout=0.5)
+                child.wait(timeout=CODEX_EXIT_GRACE_S)
             except subprocess.TimeoutExpired:
                 child.kill()
                 child.wait()
