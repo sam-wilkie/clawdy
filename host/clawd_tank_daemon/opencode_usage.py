@@ -20,7 +20,7 @@ class OpenCodeUsageReader:
     def __init__(self, path: Path, tz: Optional[tzinfo] = None,
                  temp_root: Optional[str] = None):
         self._path, self._tz, self._temp_root = Path(path), tz, temp_root
-        self.buckets, self._costs = self._empty()
+        self._state = self._empty()
         self.status = "absent"
         self._failures = set()
 
@@ -31,7 +31,7 @@ class OpenCodeUsageReader:
         now = now or datetime.now(timezone.utc)
         try:
             if not self._path.exists():
-                self.buckets, self._costs = self._empty()
+                self._state = self._empty()
                 self.status = "absent"
                 return
             try:
@@ -42,7 +42,7 @@ class OpenCodeUsageReader:
                         or self._wal_exists()):
                     raise
                 buckets, costs = self._read(now, immutable=True)
-            self.buckets, self._costs = buckets, costs
+            self._state = buckets, costs
             self.status = "ok"
         except (sqlite3.Error, OSError) as exc:
             self.status = "error"
@@ -65,6 +65,7 @@ class OpenCodeUsageReader:
         buckets, costs = self._empty()
         cutoff = int((now - timedelta(days=62)).timestamp() * 1000)
         with closing(sqlite3.connect(uri, uri=True, timeout=0.5)) as connection:
+            connection.text_factory = bytes
             rows = connection.execute("SELECT data FROM message WHERE time_created >= ?", (cutoff,))
             for (raw,) in rows:
                 try:
@@ -92,8 +93,9 @@ class OpenCodeUsageReader:
         return buckets, costs
 
     def snapshot(self, now: datetime) -> list[dict]:
-        projects = self.buckets.snapshot(now)
-        costs = {p["key"]: p for p in self._costs.snapshot(now)}
+        buckets, cost_buckets = self._state
+        projects = buckets.snapshot(now)
+        costs = {p["key"]: p for p in cost_buckets.snapshot(now)}
         for project in projects:
             for name in ("today", "7d", "30d", "month"):
                 window, reported = project[name], costs[project["key"]][name]
