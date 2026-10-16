@@ -137,10 +137,10 @@ GitNexus impact first: `build_document`, `PiUsageReader.__init__`, `ClawdDaemon.
 
 GitNexus impact first: `_refresh_project_usage`, `build_document` (plans input only). Threat matrix row "Process integration: Codex app-server" applies; every RED below is required.
 
-- [ ] 7c.1 RED `host/tests/test_codex_plan.py` exe lookup: `CLAWDY_CODEX_BIN` existing file wins, missing file -> `not_installed`; `PATH` native exe; `.cmd`/`.bat` rejected; `CODEX_HOME` releases, `%LOCALAPPDATA%` and npm vendor candidates (injected env/home/fs). Spec: plan Script shim rejected.
-- [ ] 7c.2 RED same file with a fake popen speaking JSON-RPC lines: exact argv `[exe, "app-server", "--listen", "stdio://"]`, no shell, stderr discarded, no-window flag on Windows; `chatgpt` account -> `primary`/`weekly` with `window_min` and `reset_credits`; `apiKey` -> `payg`, rate limits not requested; no account -> `signed_out`; JSON-RPC error and malformed lines -> `error`; server request answered `-32601`; never sends a consume method. Spec: plan ChatGPT account, API key account, Server request refused.
-- [ ] 7c.3 RED same file: 15 s timeout kills the child and keeps the previous `billing`; child stdin closed and reaped on every path; second refresh inside 300 s spawns nothing; `billing` before the first success is `plan`. Spec: plan Timeout, Within cadence.
-- [ ] 7c.4 GREEN `CodexPlanSource` in `plan_usage.py`, daemon wiring (off-thread, 300 s). Dep 7c.1-7c.3.
+- [x] 7c.1 RED `host/tests/test_codex_plan.py` exe lookup: `CLAWDY_CODEX_BIN` existing file wins, missing file -> `not_installed`; `PATH` native exe; `.cmd`/`.bat` rejected; `CODEX_HOME` releases, `%LOCALAPPDATA%` and npm vendor candidates (injected env/home/fs). Spec: plan Script shim rejected.
+- [x] 7c.2 RED same file with a fake popen speaking JSON-RPC lines: exact argv `[exe, "app-server", "--listen", "stdio://"]`, no shell, stderr discarded, no-window flag on Windows; `chatgpt` account -> `primary`/`weekly` with `window_min` and `reset_credits`; `apiKey` -> `payg`, rate limits not requested; no account -> `signed_out`; JSON-RPC error and malformed lines -> `error`; server request answered `-32601`; never sends a consume method. Spec: plan ChatGPT account, API key account, Server request refused.
+- [x] 7c.3 RED same file: 15 s timeout kills the child and keeps the previous `billing`; child stdin closed and reaped on every path; second refresh inside 300 s spawns nothing; `billing` before the first success is `plan`. Spec: plan Timeout, Within cadence.
+- [x] 7c.4 GREEN `CodexPlanSource` in `plan_usage.py`, daemon wiring (off-thread, 300 s). Dep 7c.1-7c.3.
 - [ ] 7c.5 REFACTOR; `pytest tests/test_codex_plan.py tests/test_usage_export.py`; manual: real Codex login gives limits and no `codex` process remains after the pass; commit `feat(host): read Codex plan limits from the app-server`.
 
 ## PR 8: Panel window and UI state (~320) base: PR 7c

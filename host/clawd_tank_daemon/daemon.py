@@ -20,7 +20,7 @@ from .codex_usage import CodexUsageReader
 from .opencode_usage import OpenCodeUsageReader
 from .pi_usage import PiUsageReader, pi_sessions_root
 from .usage_export import build_document, write_json_atomic
-from .plan_usage import read_claude_plan, read_kiro_plan, kiro_state_paths
+from .plan_usage import CodexPlanSource, read_claude_plan, read_kiro_plan, kiro_state_paths
 from .kiro_log_watcher import run_kiro_log_watcher
 from .process_utils import pid_alive, terminate_pid
 from .protocol import (
@@ -461,6 +461,7 @@ class ClawdDaemon:
         self._project_usage_path = Path.home() / ".clawd-tank" / "project-usage.json"
         self._project_usage_document = None
         self._plan_sources = {
+            "codex": CodexPlanSource().refresh,
             "claude": lambda now: read_claude_plan(USAGE_CACHE_PATH, now),
             "kiro": lambda now: read_kiro_plan(kiro_state_paths(), now),
         }
