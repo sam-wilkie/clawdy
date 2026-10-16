@@ -1,5 +1,5 @@
 import { WINDOWS, acceptUsage, panelState, cardState, limitName, resetLabel,
-  formatTokens, projectRows, projectShare, costLabel, projectLabel } from './state.js';
+  formatTokens, projectRows, projectShare, costLabel, projectLabel, formatPct } from './state.js';
 
 const api = window.__TAURI__, body = document.getElementById('agents');
 let data = null, selected = 'all', range = 'today', connectionError = false;
@@ -46,7 +46,7 @@ function card(row, state) {
     for (const limit of model.limits) {
       const high = limit.used_pct >= 90 ? ' hi' : '', line = element('div', `limit${high}`, '', limits);
       element('span', 'lname', limitName(limit), line);
-      element('span', 'lpct', `${limit.used_pct} %`, line);
+      element('span', 'lpct', formatPct(limit.used_pct), line);
       fill(line, `bar${high}`, limit.used_pct / 100);
       const reset = resetLabel(limit.resets_at);
       if (reset) element('span', 'reset', reset, line);

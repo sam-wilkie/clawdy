@@ -7,6 +7,7 @@ export const agentOf = (data, id) => data?.agents?.[id] ?? { status: 'absent' };
 export const billingOf = (agent) => agent?.billing === 'plan' ? 'plan' : 'payg';
 const usd = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'USD' });
 const number = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
+export const formatPct = (value) => `${number.format(value)} %`;
 export const formatUsd = (value) => usd.format(value);
 export const WINDOWS = [['today', 'Hoy'], ['7d', '7 días'], ['30d', '30 días'], ['month', 'Mes']];
 export function costLabel(agent, window = 'today') {
@@ -105,7 +106,7 @@ export function dockLabel(id, agent) {
   let detail;
   if (billingOf(agent) === 'plan') {
     detail = ringOf(agent) ? agent.plan.limits.map((limit) =>
-      `${limitNames[limit.id] ?? limit.label ?? 'Límite'} ${number.format(limit.used_pct)} %`).join(', ')
+      `${limitNames[limit.id] ?? limit.label ?? 'Límite'} ${formatPct(limit.used_pct)}`).join(', ')
       : 'Sin datos de límites';
   } else {
     const today = agent.totals?.today;

@@ -174,3 +174,10 @@ test('project rows are named by the label the usage file writes', () => {
   assert.equal(cards.projectLabel({ key: 'C:\\work\\web-store\\' }), 'web-store');
   assert.equal(cards.projectLabel({}), 'Proyecto');
 });
+
+test('plan percentages are rounded the same way in the dock and the cards', () => {
+  assert.equal(cards.formatPct(100 / 3), '33,33 %');
+  assert.equal(cards.formatPct(34), '34 %');
+  assert.match(dockLabel('kiro', { status: 'ok', billing: 'plan', plan: { status: 'ok',
+    limits: [{ id: 'credits', used_pct: 100 / 3 }] } }), /33,33 %/);
+});
