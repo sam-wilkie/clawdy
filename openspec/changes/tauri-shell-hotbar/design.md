@@ -2,15 +2,17 @@
 
 ## Technical Approach
 
-The daemon reads usage for four agents, the Tauri hotbar shows it, and the tray owns the hotbar's lifetime. The daemon writes one file, `~/.clawd-tank/project-usage.json`, and the hotbar polls it. There is no new port or transport. Python keeps all parsing and prices. Rust handles the window, placement, config and actions. The UI is vanilla HTML/JS with `withGlobalTauri` and no node dependencies.
+The daemon reads token usage for four agents and plan limits for three (Claude, Codex, Kiro), the Tauri hotbar shows it, and the tray owns the hotbar's lifetime. The daemon writes one file, `~/.clawd-tank/project-usage.json`, and the hotbar polls it. There is no new port or transport. Python keeps all parsing, prices and plan reading. Rust handles the window, placement, config and actions. The UI is vanilla HTML/JS (ES modules) with `withGlobalTauri` and no node dependencies.
 
-    ~/.claude/projects  ~/.codex/sessions  opencode.db (ro)  ~/.pi/agent/sessions
-            └──────────────┴── readers (usage_common) ──┴──────────┘
-                                   │ daemon, every 60 s, to_thread
+    ~/.claude/projects  ~/.codex/sessions  opencode.db (ro)  ~/.gentle-shell/agent/sessions
+            └──────────────┴── usage readers (usage_common) ──┴──────────┘
+    statusline-cache.json  codex app-server  Kiro state.vscdb (ro)
+            └──────────── plan sources (plan_usage) ────────────┘
+                                   │ daemon, every 60 s, to_thread (Codex plan: 300 s)
                                    ▼
                   ~/.clawd-tank/project-usage.json (atomic, always rewritten)
                                    │ mtime poll 5 s
-    tray ──spawn/kill──► clawdy-hotbar.exe ──event "usage"──► bar.html / panel.html
+    tray ──spawn/kill──► clawdy-hotbar.exe ──event "usage"──► bar.html (dock) / panel.html
          CLAWDY_PARENT_PID      ▲ hotbar.json (user) / hotbar-state.json (hotbar)
 
 ## Architecture Decisions
@@ -36,12 +38,30 @@ The daemon reads usage for four agents, the Tauri hotbar shows it, and the tray 
 | Stale cleanup | The hotbar writes `~/.clawd-tank/hotbar.pid` `{pid, exe}`. Before spawning, `HotbarProcess.start()` kills the recorded pid only if the live image path (ctypes `QueryFullProcessImageNameW`) equals both the recorded `exe` and the resolved exe. Skipped off Windows. | `taskkill /IM` (as for the sims) | Limits cleanup to our install path and survives PID reuse. This also covers a fast tray restart, where the orphan is still alive and single-instance would swallow the new launch |
 | Process manager | New synchronous `host/clawd_tank_daemon/hotbar_process.py` (`subprocess.Popen`, stderr appended to `~/.clawd-tank/hotbar.log`). It shares no code with `SimProcessManager`. | Subclass or extract from `SimProcessManager` | The sim manager is asyncio plus TCP. The only overlap is about 5 lines of `taskkill`; extracting it would touch stable code |
 | Exe lookup | `CLAWDY_HOTBAR_EXE` (absolute existing file), then `clawdy-hotbar(.exe)` next to `sys.executable`, then repo `hotbar/src-tauri/target/release/`. None logs a warning and is skipped. | PATH | Matches the proposal |
-| Panel | A second hidden window, `panel`. Pure `panel_side(bar, size, work_area)` puts it on the left if it fits, else the right, aligned with the bar's top and clamped. It hides on blur. | Resizing one window | The bar never moves |
-| Placement | Pure `clamp(rect, work_areas, primary)`: if a monitor contains the saved rect's centre, clamp the rect into that monitor's work area. Otherwise (monitor removed, no saved state, rect fully off-screen) use the default placement: right edge of the primary work area, vertically centred, 8 px margin. Collapsing shrinks the bar to a 16 px tab on the nearer edge. | — | Unit-testable |
+| Panel | A second hidden window, `panel`. Pure `panel_side(bar, size, work_area)` puts it on the left if it fits, else the right, aligned with the bar's top and clamped. It hides on blur. An agent button opens it focused on that agent's card; the "all agents" button shows every card. | Resizing one window | The bar never moves |
+| Placement | Pure `clamp(rect, work_areas, primary)`: if a monitor contains the saved rect's centre, clamp the rect into that monitor's work area. Otherwise (monitor removed, no saved state, rect fully off-screen) use the default placement: right edge of the primary work area, vertically centred, 8 px margin. Collapsing resizes the window to the collapsed pill, anchored to the nearer edge (r3). | — | Unit-testable |
 | Staleness (Q4) | `stale_after_s` in config, default 300. UI states: `missing` (no file or invalid on first read), `stale` (`now - generated_at > stale_after_s`), per-agent `absent`/`error`. | Hard-coded | Q4 is unconfirmed, so the value is configurable |
 | CSP | `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src ipc: http://ipc.localhost` | `csp: null` (spike) | Exploration requirement |
 | Edit / reload config | Menu "Edit config" calls a Rust handler that runs `tauri-plugin-opener` `open_path` on the fixed `hotbar.json` path (created with defaults first if missing), so the OS default editor opens it. No user input reaches it. The http/https rule applies only to `open:` cells. "Reload config" re-reads the file. | Spawn `notepad.exe`; expose `open_path` to JS | Fixed path, cross-platform, no JS permission |
 | Capabilities | `core:default` + `core:window:allow-start-dragging` for windows `bar` and `panel`. The opener is used from Rust only, so it gets no JS permission. | Opener JS permissions | The spike gotcha (`core:default` required) is kept |
+
+### r3 decisions: plan-first dock (user-approved UI direction)
+
+| Decision | Choice | Rejected | Rationale |
+|---|---|---|---|
+| Bar structure | Vertical pill dock on the screen edge: collapse chevron, one button per agent, "all agents" button, settings (gear opens the same menu as right-click, PR 9). Collapsed: a small pill with the chevron and one dot per agent. | Horizontal row of text cells (r2) | Approved mockup; fits a narrow edge dock |
+| Agents | `claude`, `codex`, `opencode`, `kiro`, `pi`. `pi` is displayed as "Gentle Shell" everywhere in the hotbar; data ids never change. | Rename the id to `gentle` | Keeps the v1 file and existing readers stable |
+| Plan first | `billing: "plan"` agents (Claude, Kiro, Codex with a ChatGPT login) show plan limits and no money. Money is shown only for `billing: "payg"` (OpenCode and Gentle Shell reported, Codex with an API key estimated). A file without `billing` (r2 daemon) is treated as `payg`, so nothing is hidden before PR 7b ships. | Show estimated cost for subscription users | An API-equivalent figure on a flat plan misleads; the limit is what the user can act on |
+| Dock signal | Plan agent: ring = highest `used_pct` among its limits, stroked in the brand colour, cherry at >= 90 %; no ring when `plan` is absent, malformed or not `ok`. Payg agent: a small "$" badge. Read error: cherry badge. Stale file: badge on "all agents". Collapsed dot: brand colour; dimmed below 30 %; cherry with halo at >= 90 % or on agent `error`; track colour when `absent`. The collapsed tooltip names the agents needing attention (>= 90 % or error). | Traffic-light ring (green/orange/red) shown in the mockup copy | The approved brief specifies brand colour plus cherry; one alarm colour |
+| Visual system | Tokens from the pets' approval card (`desktop/renderer/style.css` `#perm-card`, Mochi): `--surface #FFFFFF`, `--surface-2 #F6F1F0`, `--fg #2A1A22`, `--plum #5E4B5A`, `--muted #6E6470`, `--err #DE4553`, `--ok #28964A`, shadow `0 2px 8px rgba(42,26,34,.35)`, radius 12/8, chips 10 px 700 uppercase; text `system-ui, "Segoe UI"`, numbers `ui-monospace, Consolas`. Dark theme = the mockup's warm plum-ink set (`--surface #241A20`, `--surface-2 #2E222A`, `--fg #F6F1F0`, `--muted #B9AAB5`, `--err #F06B77`, `--ok #4CC071`). Default follows `prefers-color-scheme` until the user picks a theme. UI copy in Spanish, numbers via `Intl.NumberFormat("es-CO")` as in `desktop/renderer/dashboard.js`. | A new palette | Same family as the pets |
+| Brand colours | Light / dark: Claude `#D97757`/`#E8906C`, Codex `#10A37F`/`#2DC79A`, Kiro `#9046FF`/`#AB7BFF`, Gentle Shell `#EB1889`/`#F2509F`, OpenCode ink `#2A1A22`/`#F6F1F0`. Used for rings, dots, plan bars and project share bars. | — | Mockup values |
+| Logos | Dock: monochrome logos, `currentColor` SVGs from `hotbar/ui/assets/agents/{claude,codex,opencode,kiro}.svg` and `gentle-shell-mask.png` as a CSS mask (ink in light, white in dark). Panel: the original coloured logo beside the agent name (`gentle-shell.png` for Gentle Shell). | Coloured logos in the dock | The ring carries colour; logos stay legible on both themes |
+| Pets | Each panel card shows the agent's idle pet: Claude `clawd-idle-living-v2.svg`, Codex `codex/cloud-idle-v2.svg`, Kiro/OpenCode/Gentle Shell `monster/monster-idle-v2.svg`, copied from `desktop/renderer/assets/` into `hotbar/ui/assets/pets/` with only the `viewBox` cropped to the sprite. Shipped in an asset-only PR (8b). | Reference the desktop folder | Tauri serves only `hotbar/ui`; a copy-only PR keeps authored diffs reviewable |
+| Plan data shape | Additive, `version` stays 1: per agent `billing` and optional `plan {status, limits:[{id, label, used_pct, resets_at, window_min?}], reset_credits?, credits?{used, limit}}`. Kiro is a new plan-only entry (`cost_kind:"none"`, no `totals`/`projects`). The UI labels limits by `id` in Spanish and falls back to `label`. The Rust validator (`usage.rs valid_document`) is unchanged: it still requires only the four r2 agents and ignores `plan`; the UI validates `plan` and ignores a malformed one. | Version 2 | Old hotbars and old files keep working in both directions |
+| Plan sources | New `host/clawd_tank_daemon/plan_usage.py`, kept apart from the token readers. Claude: `USAGE_CACHE_PATH` `rate_limits.five_hour/seven_day` (`used_percentage`, epoch `resets_at`), same fields as `protocol.read_usage_from_cache`. Kiro: `%APPDATA%/Kiro/User/globalStorage/state.vscdb` plus `User/profiles/*/globalStorage/state.vscdb` (`CLAWDY_KIRO_STATE_DB` override), files over 64 MiB skipped, opened `mode=ro` with the OpenCode retry rule, only `SELECT value FROM ItemTable WHERE key IN ('kiro.kiroAgent','kiro.kiroagent')`, `usageState.usageBreakdowns[type=CREDIT]` newest by `timestamp`. Codex: `codex app-server --listen stdio://` JSON-RPC (`initialize`, `account/read`, `account/rateLimits/read`), same exe lookup as `desktop/codex-usage.js`, `apiKey` account gives `billing:"payg"`. `build_document(readers, now, previous, plans=None)` merges plan results; a plan failure never affects token data. | Read plan data in Rust or JS | Python owns all parsing (r2); mirrors Electron's verified sources |
+| Codex plan cadence | Refreshed every 300 s off-thread, last result kept between runs and on failure; billing changes only on a positive `account/read` answer. | Every 60 s | One process spawn per pass is heavy; limits move slowly |
+| Gentle Shell path | `PiUsageReader` root = `$PI_CODING_AGENT_DIR/sessions` when set, else `~/.gentle-shell/agent/sessions`, the same resolution as `hooks.py` (:2713). Fixes the verified bug: `daemon.py:458` reads `~/.pi/agent/sessions`, stale since June. | Read both dirs | One source of truth with the extension installer |
+| Slicing | PR 7 commits the Rust poll/placement with the existing placeholder bar; the dock rewrite is PR 7a. Plan data is PR 7b (Claude, Kiro, export, Gentle Shell path) and 7c (Codex app-server). Panel is PR 8 (model, window) and 8a (cards); pets are 8b. The collapsed pill moves to PR 9 with collapse. | One PR 7 with the rewrite (about 540 lines) | Keeps each authored diff at or under about 350 |
 
 ## Interfaces / Contracts
 
@@ -51,18 +71,25 @@ The daemon reads usage for four agents, the Tauri hotbar shows it, and the tray 
 {"version":1,"generated_at":"2026-10-15T12:00:00+02:00","currency":"USD",
  "agents":{"claude":{"status":"ok","cost_kind":"estimated",
    "totals":{"today":{"in":0,"out":0,"cw":0,"cr":0,"cost":0.0,"cost_partial":false},"7d":{},"30d":{},"month":{}},
-   "projects":[{"key":"C:\\src\\repo","label":"repo","today":{},"7d":{},"30d":{},"month":{}}]},
-  "codex":{"status":"absent"},"opencode":{"status":"error","cost_kind":"reported"}}}
+   "projects":[{"key":"C:\\src\\repo","label":"repo","today":{},"7d":{},"30d":{},"month":{}}],
+   "billing":"plan","plan":{"status":"ok","limits":[
+     {"id":"session","label":"5h session","used_pct":62,"resets_at":"2026-10-15T14:14:00+02:00","window_min":300},
+     {"id":"weekly","label":"Weekly","used_pct":38,"resets_at":"2026-10-18T16:00:00+02:00"}]}},
+  "codex":{"status":"absent"},"opencode":{"status":"error","cost_kind":"reported","billing":"payg"},
+  "kiro":{"status":"ok","cost_kind":"none","billing":"plan","plan":{"status":"ok",
+   "limits":[{"id":"credits","label":"Cycle credits","used_pct":34,"resets_at":"2026-10-28T00:00:00Z"}],
+   "credits":{"used":340,"limit":1000}}}}}
 ```
 
 - `status` is `ok`, `absent` (source not found) or `error` (kept from the last good blocks).
-- `cost_kind` is `reported` (Pi, OpenCode), `estimated` (Claude, Codex) or `none` (reserved for later agents).
+- `cost_kind` is `reported` (Pi, OpenCode), `estimated` (Claude, Codex) or `none` (Kiro, which has no token data).
 - `cost: null` means no price data. `totals` sum all projects. `projects` lists the top 30 by 30d tokens.
+- r3, additive: `billing` is `plan` or `payg`. `plan.status` is `ok`, `no_data` (no cache or no limits), `signed_out`, `not_installed` or `error`; `limits` is present only when `ok`. Codex adds `reset_credits` (integer or null); Kiro adds `credits`. Absent `billing` means `payg`.
 
 `hotbar.json`:
 
 ```json
-{"version":1,"stale_after_s":300,"agents":["claude","codex","opencode","pi"],
+{"version":1,"stale_after_s":300,"agents":["claude","codex","opencode","kiro","pi"],
  "cells":[{"id":"gh","label":"GH","action":"open:https://github.com"},
           {"id":"w","label":"W","action":"panel:C:\\tools\\w.exe","args":["--short"]}]}
 ```
@@ -76,7 +103,18 @@ class HotbarProcess:
     def stop(self) -> None: ...    # idempotent, sync; safe from quit()
     @property
     def is_running(self) -> bool: ...
+
+# plan_usage.py (r3). Each source returns PlanResult or raises; the daemon catches per source.
+PlanResult = dict  # {"status": "ok"|"absent", "billing": "plan"|"payg", "plan": {...} | None}
+def read_claude_plan(cache_path, now) -> PlanResult: ...
+def read_kiro_plan(paths, now) -> PlanResult: ...      # absent when no state.vscdb exists
+class CodexPlanSource:                                   # 300 s cadence, keeps last result
+    def __init__(self, exe_finder=find_codex_exe, popen=subprocess.Popen, timeout_s=15): ...
+    def refresh(self, now) -> PlanResult: ...
+def pi_sessions_root(env=os.environ, home=Path.home()) -> Path: ...  # lives in pi_usage.py
 ```
+
+UI modules in `hotbar/ui/`: `state.js` (pure: agent list and display names, `billingOf`, `ringOf`, `dotOf`, `attention`, cost and number formatting, stale/missing rules), `bar.{html,js}` (dock), `panel.{html,js}` (cards), `style.css` (Mochi tokens, light and dark).
 
 Rust modules in `hotbar/src-tauri/src/`: `main.rs` (builder, plugins, windows, menu), `watchdog.rs`, `usage.rs` (5 s mtime poll that emits `usage`), `config.rs`, `actions.rs`, `placement.rs`, `state.rs`, `pidfile.rs`.
 
@@ -90,13 +128,18 @@ Rust modules in `hotbar/src-tauri/src/`: `main.rs` (builder, plugins, windows, m
 | 4 | `opencode_usage.py` (ro/immutable open), `tests/test_opencode_usage.py` (fixture WAL DB built in the test) | 280 |
 | 5 | `usage_export.py`; `daemon.py` (reader list, file write); `tests/test_usage_export.py` | 230 |
 | 6 | `hotbar/src-tauri/{Cargo.toml,build.rs,tauri.conf.json,capabilities/default.json}`, `main.rs`, `watchdog.rs`, `pidfile.rs`, single-instance + cargo tests | 250 |
-| 7 | `usage.rs` (mtime poll + event), `placement.rs` + cargo tests, bar window with agent cells (`hotbar/ui/bar.{html,js}`, `style.css`) | 260 |
-| 8 | `state.js`, `state.test.js`, `hotbar/ui/package.json` (`"type":"module"`, no deps), panel window (`panel.{html,js}`, `panel_side`) | 310 |
-| 9 | `state.rs` (position, collapse, theme), context menu, Edit/Reload config | 240 |
+| 7 | `usage.rs` (mtime poll + event), `placement.rs` + cargo tests, `main.rs` wiring, existing placeholder bar (`bar.{html,js}`, `style.css`) as the run harness | 290 |
+| 7a | Dock rewrite (r3): `hotbar/ui/package.json` (`"type":"module"`, no deps), `state.js` dock helpers + `state.test.js`, `bar.{html,js}`, `style.css` (Mochi tokens light/dark), `assets/agents/*` logos | 350 (split candidate) |
+| 7b | `plan_usage.py` (Claude, Kiro), `usage_export.build_document(plans=)` + `billing`, Kiro entry, `daemon.py` wiring, `pi_usage.pi_sessions_root` + daemon root fix, tests (`test_plan_usage.py`, `test_usage_export.py`, `test_pi_usage.py`) | 330 |
+| 7c | `CodexPlanSource` (exe lookup, app-server JSON-RPC, 15 s timeout, 300 s cadence, `apiKey` -> payg), daemon wiring, `test_codex_plan.py` with a fake app-server | 300 |
+| 8 | `state.js` panel helpers + tests (cost rule, stale/missing/absent/error, rows), panel window (`panel.{html,js}` shell, `panel_side`, blur, focus by agent) | 320 |
+| 8a | Panel cards: plan limit bars with reset times, Codex reset credits, Kiro credits grid, payg summary, token grid, project share bars, coloured logos | 300 |
+| 8b | Pet assets copied into `hotbar/ui/assets/pets/` (viewBox crop only) and the card `<img>` | 15 authored (+ about 1,420 copied) |
+| 9 | `state.rs` (position, collapse, theme), collapsed pill (dots, attention tooltip), context menu and gear button, Edit/Reload config | 280 |
 | 10 | `config.rs`, `actions.rs` + cargo tests; UI custom cells | 330 |
 | 11 | `hotbar_process.py`, `tests/test_hotbar_process.py`; `controller.py` (factory, start/quit/toggle), `preferences.py` (`hotbar_enabled: True`), `TrayState.hotbar_enabled`, `windows_tray.py`, `rumps_view.py`, controller tests, headless test | 340 |
 
-The total is about 3,050 lines, against about 2,050 in the proposal. The proposal predates two things: the three extra readers with fixtures under strict TDD (about 800 lines with their tests), and the fresh per-PR estimates. The earlier design's total of 2,530 was a summing error; its own rows came to 2,730. PR 11 is independent of PRs 6-10 at test level (fake factory).
+The total is about 4,425 authored lines (PRs 1-6 about 1,570 as committed estimates, PRs 7-11 about 2,855), plus about 1,420 copied pet SVG lines in PR 8b that are not authored. r3 adds about 1,375 over r2: the plan sources (about 630 with tests), the plan-first dock and panel cards (about 600), and the collapsed pill. PR 11 is independent of PRs 6-10 at test level (fake factory); PRs 7b and 7c are host-only and independent of the UI PRs at test level.
 
 ## Testing Strategy (strict TDD: RED first)
 
@@ -106,7 +149,8 @@ The total is about 3,050 lines, against about 2,050 in the proposal. The proposa
 | Pi / Codex / OpenCode | Exact fixture totals per project and window. Reported cost summed, with `cost_partial` when one message lacks cost. Codex: `token_count` ignored, duplicate `response_id` counted once, unpriced model gives `null`. OpenCode: `part` ignored, a missing table gives `error` while the last snapshot is kept, a DB held by a live WAL writer connection is still readable, and its result matches committed rows only. A cleanly closed WAL DB (no `-wal`/`-shm`) is readable with the directory listing unchanged afterwards (no `-wal`/`-shm` created). A failed ro open while `-wal` exists gives `error` and never uses `immutable`. DB bytes are unchanged |
 | Export | Schema keys. Written on an unchanged pass (mtime advances). An absent root gives `absent`. One reader raising leaves the other agents written. Atomic: no `.tmp` left behind. `set_project_usage` payload format unchanged (same keys and window shape; values may differ because of Q3) |
 | Rust (`cargo test`) | `clamp` (off-screen, negative coords; monitor removed or no saved state gives right edge of primary, centred, 8 px), `panel_side` left/right/both-tight. Config: unknown prefix, `open:file://` rejected, `javascript:` rejected, empty program. `panel:` timeout kills the child, the output cap truncates. Pidfile round-trip |
-| UI (`node --test`) | Cost formatting `$X`, `~$X (API-equiv.)`, `no price data`. Stale/missing/absent/error states. Today is the default window. Rows sorted by output tokens |
+| Plan sources (r3, pytest) | Claude: fixture cache gives both limits with ISO `resets_at`; missing cache or no `rate_limits` gives `plan.status:"no_data"`. Kiro: fixture `state.vscdb` (built in the test) with a CREDIT breakdown gives `used_pct` and `credits`; newest profile wins; no DB gives `absent`; a row under another key is never read; DB bytes and directory listing unchanged; over 64 MiB skipped. Codex (fake app-server via fake popen): `chatgpt` account gives limits and `reset_credits`; `apiKey` gives `billing:"payg"` and no plan; signed out, timeout (child killed) and malformed lines keep the last result; argv is exact, no shell, `.cmd` shims rejected; refresh skipped inside 300 s. Export: `billing` for all five agents, Kiro entry without `totals`, a raising plan source leaves token data intact. Gentle Shell: `PI_CODING_AGENT_DIR` wins, default `~/.gentle-shell/agent/sessions`, daemon wiring uses it |
+| UI (`node --test`) | Plan-first rule: money only for `billing:"payg"`, absent `billing` treated as payg. Ring = max `used_pct`, cherry at >= 90, none when `plan` absent, malformed or not `ok`. Dot classes (dim < 30, alert >= 90 or error, track when absent) and the attention list. `pi` displayed as "Gentle Shell". Cost formatting (es-CO USD, `≈` and "estimado" for estimated, "Sin precio" for null). Stale/missing/absent/error states. Today is the default window. Rows sorted by output tokens |
 | Tray (pytest, fake popen) | Starts with `controller.start` when enabled. `quit` stops it, including the force-exit path. The toggle persists `hotbar_enabled` and starts or stops the hotbar. A missing exe logs a warning and nothing crashes. Exe lookup order. Stale kill only on an image path match; a mismatch or dead pid does not kill. `CLAWDY_PARENT_PID` passed. Headless: `daemon._build_daemon`/`main` with prefs `hotbar_enabled:true` never constructs or starts `HotbarProcess` (patched to raise) |
 | Manual (Windows) | Proposal success criteria plus: no `msedgewebview2` left after a tray kill, and a fast tray restart still ends with exactly one hotbar |
 
@@ -118,14 +162,16 @@ The total is about 3,050 lines, against about 2,050 in the proposal. The proposa
 | Git repository selection | Applicable: project key walks to `.git` | Filesystem walk only; temp, relative and non-git excluded | `usage_common` rows |
 | Commit / Push state | N/A: no VCS writes | — | — |
 | PR / composed commands | Applicable (process): `run:`/`panel:`, hotbar spawn, `taskkill` | Argv only, no shell; programs resolved from config by id; open URLs limited to http/https; `taskkill` by verified PID | Config rejection cases, timeout/cap, image-path mismatch, argv assertions |
+| Process integration: Codex app-server (r3) | Applicable: the daemon spawns `codex app-server --listen stdio://` | Fixed argv, no shell, native exe only (`.cmd`/`.bat` rejected), `CLAWDY_CODEX_BIN` must be an existing file, stderr discarded, no console window, 15 s timeout then kill, stdin closed and child reaped on every path; server-initiated requests answered `-32601`; never calls the reset-credit consume method | Fake popen: argv, timeout kill, `.cmd` rejection, malformed output, server request refused |
+| Data exposure: Kiro state DB (r3) | Applicable: reads another app's SQLite store that also holds secrets | `mode=ro`, never writes or creates `-wal`/`-shm`; only the two `kiro.kiroAgent` keys are queried; only CREDIT numbers and the reset date leave the reader | Other-key row never read, DB bytes and listing unchanged |
 
 ## Migration / Rollout
 
-No migration. New files only appear under `~/.clawd-tank`. Behaviour change: Claude totals now exclude temp and non-git sessions (Q3). Rollback is per PR. `hotbar_enabled:false` disables the hotbar.
+No migration. New files only appear under `~/.clawd-tank`. Behaviour change: Claude totals now exclude temp and non-git sessions (Q3). Rollback is per PR. `hotbar_enabled:false` disables the hotbar. r3: the file stays `version` 1; until PR 7b ships every agent reads as payg (cost shown, no rings). After PR 7b, Gentle Shell totals jump from stale June data to current data.
 
 ## Symbols apply must impact-check (GitNexus)
 
-`project_key`, `ClaudeUsageReader` (`refresh`, `_read_file`, `_ingest`, `_prune`, `snapshot`), `_apply_cost`, `_price`, `PRICES`, `ClawdDaemon.__init__`, `_refresh_project_usage`, `_project_usage_checker`, `project_usage_to_payload`, `ClawdTankController` (`__init__`, `start`, `quit`, `_render`, `_shutdown_sequence`, `_kill_sim_now`), `TrayState`, `WindowsTrayView` menu build, `RumpsTrayView.build/render`, `preferences.DEFAULTS`.
+`project_key`, `ClaudeUsageReader` (`refresh`, `_read_file`, `_ingest`, `_prune`, `snapshot`), `_apply_cost`, `_price`, `PRICES`, `ClawdDaemon.__init__`, `_refresh_project_usage`, `_project_usage_checker`, `project_usage_to_payload`, `ClawdTankController` (`__init__`, `start`, `quit`, `_render`, `_shutdown_sequence`, `_kill_sim_now`), `TrayState`, `WindowsTrayView` menu build, `RumpsTrayView.build/render`, `preferences.DEFAULTS`. r3: `build_document`, `PiUsageReader.__init__`, `read_usage_from_cache` (read only, not changed), `valid_document` (must stay unchanged).
 
 ## Open Questions
 
@@ -133,6 +179,9 @@ No migration. New files only appear under `~/.clawd-tank`. Behaviour change: Cla
 - [ ] OpenCode: when it stops writing the legacy `message` table, add a `session_message` path (detect with an empty legacy result alongside non-empty v2 tables).
 - [ ] Q4: the 5-minute stale default is still unconfirmed by the user.
 - [ ] SQLite `mode=ro` behaviour on a WAL DB without `-shm` varies by SQLite version (Python's bundled 3.4x). The PR 4 RED tests decide whether the `immutable` retry is ever reached.
+- [ ] r3: Claude is always `billing:"plan"`. A Claude Code user on an API key has no `rate_limits`, so they get `plan.status:"no_data"` and no money shown. Confirm, or define a payg signal for Claude.
+- [ ] r3: Codex `billing` before the first successful `account/read` (and when Codex is signed out) defaults to `plan`. Confirm.
+- [ ] r3: the mockup's explanatory copy mentions green/orange rings from 70 %; the approved brief (brand colour, cherry at >= 90 %) is followed.
 
 ## Revision log
 
@@ -145,3 +194,11 @@ No migration. New files only appear under `~/.clawd-tank`. Behaviour change: Cla
   - Edit-config mechanism stated.
   - Headless test added.
   - Default placement stated for a removed monitor.
+- r3 (user-approved UI direction, mockup `clawdy-hotbar-preview.html`):
+  - Vertical pill dock, collapsed pill with per-agent dots, Mochi tokens with a plum-ink dark theme, Spanish copy.
+  - Five agents: Kiro added as a plan-only entry; `pi` displayed as "Gentle Shell".
+  - Plan-first display; money only for payg agents; rings from the new additive `plan` block.
+  - New plan sources (Claude statusline cache, Codex app-server, Kiro state DB) and the Gentle Shell sessions path fix.
+  - Monochrome dock logos, coloured panel logos, idle pets per card.
+  - Re-sliced PRs 7-9 into 7, 7a, 7b, 7c, 8, 8a, 8b, 9; total about 4,425 authored lines.
+  - Threat matrix rows added for the Codex app-server spawn and the Kiro DB read.
