@@ -89,3 +89,9 @@ Result: unverified until the user runs it.
 - Deuda D1: correr el checklist de T7 en macOS (T-click, T-perm, overlay sobre pantalla completa). Responsable: usuario. Condición de cierre: resultados pegados en la bitácora con pass/fail y versión de macOS.
 - Bloqueado por D1: decisión de Change 2 (`tauri-shell-hotbar-migration`). El veredicto queda en GO condicionado; no se inicia Change 2 hasta cerrar D1.
 - Riesgo mientras D1 esté abierto: el click-through y el overlay en macOS no están validados (tauri#11488 / #14102).
+
+## Decisión: saltear macOS (2026-10-15)
+
+- L20 (user decision) No hay Mac disponible. El usuario decide no esperar a D1 y arrancar Change 2: "no, salteá macOS y arrancá el Change 2".
+- D1 queda abierta como riesgo aceptado, no cerrada: click-through, permisos y overlay sobre pantalla completa en macOS siguen sin validar (tauri#11488 / #14102). Change 2 debe tratar macOS como no verificado hasta que alguien corra el checklist de T7.
+- Change 2 deja de estar bloqueado por D1.
