@@ -73,7 +73,8 @@ function render(data) {
 }
 async function connect() {
   let received = false;
-  await window.__TAURI__.event.listen('usage', ({ payload }) => { received = true; render(payload); });
+  // A later event proves the link works, even if the initial snapshot call failed.
+  await window.__TAURI__.event.listen('usage', ({ payload }) => { received = true; connectionError = false; render(payload); });
   const initial = await window.__TAURI__.core.invoke('usage_snapshot');
   if (!received) render(initial);
 }
