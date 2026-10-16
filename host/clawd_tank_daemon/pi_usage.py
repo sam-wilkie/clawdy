@@ -27,19 +27,20 @@ class PiUsageReader(JsonlTailReader):
         temp_root: Optional[str] = None,
     ):
         super().__init__(root, tz, retention_days, temp_root)
+        self._retention_days = retention_days
         # Reuse the same window and retention rules for [reported USD, missing count].
         self._costs = UsageBuckets(tz, retention_days, {})
         self.status = "absent"
 
     def refresh(self) -> None:
-        try:
-            self.status = "ok" if self._root.is_dir() else "absent"
-            if self.status == "ok":
-                super().refresh()
-                self._costs.prune()
-        except OSError:
-            self.status = "error"
-            logger.warning("pi usage: cannot read %s", self._root, exc_info=True)
+        self.status = "ok" if self._root.is_dir() else "absent"
+        if self.status == "absent":
+            super().__init__(self._root, self._tz, self._retention_days, self._temp_root)
+            self._costs = UsageBuckets(self._tz, self._retention_days, {})
+            return
+        # The common tail reader logs and skips scan/file failures internally.
+        super().refresh()
+        self._costs.prune()
 
     def _ingest(self, raw: bytes, ctx: dict) -> None:
         try:
@@ -88,7 +89,7 @@ class PiUsageReader(JsonlTailReader):
             for name in ("today", "7d", "30d", "month"):
                 window = project[name]
                 reported = costs[project["key"]][name]
-                window["cost"] = reported["in"]
+                window["cost"] = round(reported["in"], 6)
                 window["cost_partial"] = bool(reported["out"])
                 window.pop("unpriced", None)
         return projects
