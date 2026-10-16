@@ -9,7 +9,7 @@
     "windows": [
       {
         "label": "bar", "title": "Clawdy Hotbar", "url": "bar.html",
-        "width": 180, "height": 400, "decorations": false,
+        "width": 82, "height": 466, "decorations": false, "transparent": true, "shadow": false,
         "alwaysOnTop": true, "resizable": false, "skipTaskbar": true
       },
       {
