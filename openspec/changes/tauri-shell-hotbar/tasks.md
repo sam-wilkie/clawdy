@@ -46,16 +46,16 @@ GitNexus impact first: `project_key`, `ClaudeUsageReader` (`refresh`, `_read_fil
 - [x] 1.3 GREEN `host/clawd_tank_daemon/usage_common.py`: `project_key(cwd, temp_root)`, `price_lookup`, `JsonlTailReader`, `UsageBuckets`. Dep 1.1, 1.2.
 - [x] 1.4 RED update `host/tests/test_claude_usage.py`: `reader()` and direct `project_key` calls pass fake `temp_root`; change expectations of `test_project_key_non_git_falls_back_to_cwd` (:72, None), `test_project_key_nonexistent_and_relative_used_verbatim` (:76, None), `test_monorepo_merges_and_temp_dir_is_own_project` (:98, `scratch` excluded). Spec: claude Excluded sessions.
 - [x] 1.5 GREEN `host/clawd_tank_daemon/claude_usage.py`: `ClaudeUsageReader` subclasses the common layer, drops None rows. Dep 1.3, 1.4.
-- [ ] 1.6 REFACTOR; run full `tests/test_claude_usage.py`; `git diff --stat`; commit `refactor(host): extract shared usage reader layer`.
+- [x] 1.6 REFACTOR; run full `tests/test_claude_usage.py`; `git diff --stat`; commit `refactor(host): extract shared usage reader layer`.
 - Split point if over 400: PR 1a = tasks 1.1-1.3 (`usage_common` + its test); PR 1b = 1.4-1.6 (Claude refactor + edited tests), based on 1a. PR 2 then bases on 1b.
 
 ## PR 2: Pi reader (~220) base: PR 1
 
 GitNexus impact: none (new file); reuse `usage_common` only.
 
-- [ ] 2.1 RED `host/tests/test_pi_usage.py` + fixtures: exact totals per project/window; cwd from `session` record; missing `cost` -> `cost_partial`; duplicate entry `id` counted once; garbage/truncated lines skipped; absent root -> `absent`. Spec: pi Fixture totals, Missing cost, Duplicate entry id, Garbage and truncated lines, Absent.
-- [ ] 2.2 GREEN `host/clawd_tank_daemon/pi_usage.py` (reported cost summed, `temp_root` seam). Dep 2.1.
-- [ ] 2.3 REFACTOR; verify with `pytest tests/test_pi_usage.py`; commit `feat(host): add Pi usage reader`.
+- [x] 2.1 RED `host/tests/test_pi_usage.py` + fixtures: exact totals per project/window; cwd from `session` record; missing `cost` -> `cost_partial`; duplicate entry `id` counted once; garbage/truncated lines skipped; absent root -> `absent`. Spec: pi Fixture totals, Missing cost, Duplicate entry id, Garbage and truncated lines, Absent.
+- [x] 2.2 GREEN `host/clawd_tank_daemon/pi_usage.py` (reported cost summed, `temp_root` seam). Dep 2.1.
+- [x] 2.3 REFACTOR; verify with `pytest tests/test_pi_usage.py`; commit `feat(host): add Pi usage reader`.
 
 ## PR 3: Codex reader (~270) base: PR 2
 
