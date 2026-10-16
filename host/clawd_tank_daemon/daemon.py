@@ -1282,9 +1282,13 @@ class ClawdDaemon:
                 reader.status = "error"
                 logger.exception("Project usage refresh failed for %s", name)
         now = datetime.now().astimezone()
-        self._project_usage_document = build_document(
-            self._project_usage_readers, now, self._project_usage_document)
-        await asyncio.to_thread(write_json_atomic, self._project_usage_path, self._project_usage_document)
+        try:
+            self._project_usage_document = build_document(
+                self._project_usage_readers, now, self._project_usage_document)
+            await asyncio.to_thread(write_json_atomic, self._project_usage_path, self._project_usage_document)
+        except Exception:
+            # An export bug must not end the checker loop or the pet push below.
+            logger.exception("Project usage export failed")
         try:
             reader = self._project_usage_reader
             if getattr(reader, "status", "ok") == "error":

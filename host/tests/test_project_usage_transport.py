@@ -114,6 +114,19 @@ async def test_only_desktop_pet_receives_project_usage():
 
 
 @pytest.mark.asyncio
+async def test_export_failure_does_not_stop_pet_push(caplog, monkeypatch):
+    def boom(*args):
+        raise TypeError("not serializable")
+
+    monkeypatch.setattr("clawd_tank_daemon.daemon.write_json_atomic", boom)
+    d, ts = make(FakeReader([[project("a", 5)]]))
+    with caplog.at_level("ERROR"):
+        await d._refresh_project_usage()  # must not raise
+    assert "project usage export failed" in caplog.text.lower()
+    assert len(usage_lines(ts["pet"])) == 1
+
+
+@pytest.mark.asyncio
 async def test_unchanged_snapshot_not_resent():
     d, ts = make(FakeReader([[project("a", 5)]]))
     await d._refresh_project_usage()
