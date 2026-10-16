@@ -27,19 +27,12 @@ fn main() {
     let app = tauri::Builder::default()
         .manage(usage::UsageState::default())
         .manage(panel::Selection::default())
+        .manage(panel::Generation::default())
         .invoke_handler(tauri::generate_handler![usage::usage_snapshot, panel::open_panel,
             panel::hide_panel, panel::panel_selection])
         .on_window_event(|window, event| {
             if window.label() == "panel" && matches!(event, tauri::WindowEvent::Focused(false)) {
-                // On Windows, focus briefly leaves the window when its WebView2 child takes it;
-                // hide only if the panel is still unfocused after that hand-off.
-                let window = window.clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(150));
-                    if !window.is_focused().unwrap_or(false) {
-                        let _ = window.hide();
-                    }
-                });
+                panel::on_blur(window.clone());
             }
         })
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
