@@ -60,6 +60,9 @@ def kiro_state_paths(env=None, home=None, platform=None):
 
 
 def _kiro_rows(path, immutable=False):
+    if Path(str(path) + "-wal").exists() and not Path(str(path) + "-shm").exists():
+        # A ro WAL open would create the missing -shm beside Kiro's DB; skip this pass instead.
+        raise RuntimeError("Kiro state DB has a WAL file without its shared-memory file")
     uri = path.resolve().as_uri() + "?mode=ro"
     if immutable:
         uri += "&immutable=1"
@@ -71,7 +74,7 @@ def _kiro_rows(path, immutable=False):
 
 
 def read_kiro_plan(paths, now):
-    found, latest, timestamp = False, None, -1
+    found, latest, timestamp, skipped = False, None, -1, False
     for path in paths:
         path = Path(path)
         try:
@@ -82,6 +85,9 @@ def read_kiro_plan(paths, now):
                 continue
             try:
                 rows = _kiro_rows(path)
+            except RuntimeError:
+                skipped = True  # this DB only; other profiles may still be readable
+                continue
             except sqlite3.Error as exc:
                 if ((getattr(exc, "sqlite_errorcode", 0) & 0xff) not in
                         (sqlite3.SQLITE_CANTOPEN, sqlite3.SQLITE_READONLY)
@@ -113,5 +119,8 @@ def read_kiro_plan(paths, now):
                     continue
         except (OSError, sqlite3.Error):
             continue
+    if latest is None and skipped:
+        # Nothing readable this pass; raising keeps the daemon's last good plan.
+        raise RuntimeError("Kiro state DB has a WAL file without its shared-memory file")
     return ({"status": "ok", "billing": "plan", "plan": latest or {"status": "no_data"}}
             if found else {"status": "absent"})

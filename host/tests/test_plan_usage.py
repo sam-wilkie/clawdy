@@ -44,6 +44,25 @@ def make_db(path, used=340, timestamp=100):
     return path
 
 
+def test_kiro_wal_without_shm_is_skipped_without_creating_files(tmp_path):
+    # A crash can leave -wal without -shm; a ro open would create the -shm next to Kiro's DB.
+    db = make_db(tmp_path / "state.vscdb")
+    (tmp_path / "state.vscdb-wal").write_bytes(b"")
+    before = sorted(p.name for p in tmp_path.iterdir())
+    with pytest.raises(RuntimeError):
+        plan.read_kiro_plan([db], NOW)
+    assert sorted(p.name for p in tmp_path.iterdir()) == before
+
+
+def test_kiro_bad_profile_does_not_hide_a_healthy_one(tmp_path):
+    bad = make_db(tmp_path / "default" / "state.vscdb", used=900, timestamp=200)
+    (tmp_path / "default" / "state.vscdb-wal").write_bytes(b"")
+    good = make_db(tmp_path / "profile" / "state.vscdb", used=340, timestamp=100)
+    result = plan.read_kiro_plan([bad, good], NOW)
+    assert result["plan"]["credits"] == {"used": 340, "limit": 1000}
+    assert sorted(p.name for p in (tmp_path / "default").iterdir()) == ["state.vscdb", "state.vscdb-wal"]
+
+
 def test_kiro_paths_newest_and_security(tmp_path, monkeypatch):
     user = tmp_path / "Kiro/User"
     first = make_db(user / "globalStorage/state.vscdb")
@@ -80,8 +99,9 @@ def test_kiro_paths_newest_and_security(tmp_path, monkeypatch):
 @pytest.mark.parametrize("wal", [False, True])
 def test_kiro_immutable_retry_guard(tmp_path, monkeypatch, wal):
     path = make_db(tmp_path / "state.vscdb")
-    if wal:
+    if wal:  # a running Kiro has both sidecars
         path.with_name(path.name + "-wal").touch()
+        path.with_name(path.name + "-shm").touch()
     attempts = []
     def denied(database, **kwargs):
         attempts.append(database)
