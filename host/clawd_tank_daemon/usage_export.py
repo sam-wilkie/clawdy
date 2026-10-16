@@ -10,7 +10,7 @@ WINDOWS = ("today", "7d", "30d", "month")
 TOKENS = ("in", "out", "cw", "cr")
 
 
-def build_document(readers, now, previous=None):
+def build_document(readers, now, previous=None, plans=None):
     """Aggregate all projects before capping rows; preserve last good error blocks."""
     agents = {}
     for name, reader in readers.items():
@@ -39,6 +39,29 @@ def build_document(readers, now, previous=None):
         entry.update((previous or {}).get("agents", {}).get(name, {}))
         entry["status"] = "error"
         entry.setdefault("cost_kind", getattr(reader, "cost_kind", "estimated"))
+    plans = plans or {}
+    agents["kiro"] = {"status": "absent"}
+    for name, entry in agents.items():
+        old = (previous or {}).get("agents", {}).get(name, {})
+        if name == "kiro" and name in plans:
+            entry.update(plans[name] or {"status": "error"})
+        if entry["status"] == "absent":
+            continue
+        entry["billing"] = "plan" if name in ("codex", "kiro") else "payg"
+        if name == "kiro":
+            entry["cost_kind"] = "none"
+        if name not in plans:
+            continue
+        result = plans[name]
+        if result is None:
+            entry["billing"] = old.get("billing", entry["billing"])
+            entry["plan"] = {**old.get("plan", {}), "status": "error"}
+        else:
+            entry["billing"] = result.get("billing", entry["billing"])
+            if result.get("plan") is not None:
+                entry["plan"] = result["plan"]
+            else:
+                entry.pop("plan", None)
     return {"version": 1, "generated_at": now.astimezone().isoformat(),
             "currency": "USD", "agents": agents}
 

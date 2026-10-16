@@ -30,6 +30,10 @@ def sandbox_home(tmp_path_factory, monkeypatch):
     clawd_dir.mkdir(parents=True)
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setenv("APPDATA", str(home / "AppData" / "Roaming"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / ".config"))
+    monkeypatch.delenv("CLAWDY_KIRO_STATE_DB", raising=False)
+    monkeypatch.delenv("PI_CODING_AGENT_DIR", raising=False)
     monkeypatch.delenv("CLAWD_TANK_SOCKET", raising=False)
     monkeypatch.delenv("CLAWD_TANK_HOOK_EXE_DIR", raising=False)
 

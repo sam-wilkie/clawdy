@@ -205,3 +205,19 @@ def test_unreadable_file_skipped_and_tree_unchanged(tmp_path, repo, monkeypatch,
     assert r.snapshot(NOW)[0]["today"]["in"] == 10
     assert caplog.records
     assert before == {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in before}
+
+
+@pytest.mark.parametrize("env", [{}, {"PI_CODING_AGENT_DIR": ""}, {"PI_CODING_AGENT_DIR": "custom"}])
+def test_sessions_root_and_daemon_wiring(env, sandbox_home, monkeypatch):
+    from clawd_tank_daemon.pi_usage import pi_sessions_root
+    from clawd_tank_daemon.daemon import ClawdDaemon
+    expected = (Path(env["PI_CODING_AGENT_DIR"]) if env.get("PI_CODING_AGENT_DIR") else
+                sandbox_home / ".gentle-shell" / "agent") / "sessions"
+    assert pi_sessions_root(env=env, home=sandbox_home) == expected
+    monkeypatch.setenv("PI_CODING_AGENT_DIR", env.get("PI_CODING_AGENT_DIR", ""))
+    (sandbox_home / ".pi" / "agent" / "sessions").mkdir(parents=True)
+    reader = ClawdDaemon(sim_only=True)._project_usage_readers["pi"]
+    assert reader._root == expected == pi_sessions_root()
+    assert PiUsageReader()._root == expected
+    reader.refresh()
+    assert reader.status == "absent"
