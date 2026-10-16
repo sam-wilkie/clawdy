@@ -1,7 +1,7 @@
 use std::time::{Duration, SystemTime};
 use serde_json::Value;
 use std::{fs, path::PathBuf, sync::{Arc, Mutex}};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 pub const INTERVAL: Duration = Duration::from_secs(5);
 
@@ -69,7 +69,7 @@ pub fn start(path: PathBuf, bar: tauri::WebviewWindow, cache: Arc<Mutex<Value>>)
             let modified = fs::metadata(&path).and_then(|m| m.modified()).ok();
             if let Some(document) = poller.poll(clock.elapsed(), modified, || fs::read(&path).ok()) {
                 *cache.lock().unwrap() = document.clone();
-                let _ = bar.emit("usage", document);
+                let _ = bar.app_handle().emit("usage", document);
             }
             std::thread::sleep(INTERVAL);
         }
