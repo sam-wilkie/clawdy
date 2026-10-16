@@ -156,8 +156,8 @@ GitNexus unavailable during implementation; `rg` checked placement, usage event/
 
 ## PR 8a: Panel agent cards (~300) base: PR 8
 
-- [ ] 8a.1 RED `state.test.js`: limit names by `id` in Spanish with `label` fallback, `window_min` shown when present; reset time text from `resets_at` (and none when `null`); Kiro credits used/plan/remaining (es-CO grouping); Codex `reset_credits` note only when numeric; billing chip text ("Plan", "Pago por uso", "API · estimado"); plan agent without `ok` plan -> no-limits note; project share = tokens / max. Spec: panel Claude on a plan, Kiro credits, Plan without data, Codex card.
-- [ ] 8a.2 GREEN `panel.js` cards and `style.css` panel hunks: coloured logo beside the name, chips (10 px 700 uppercase), plan bars in brand colour (cherry at >= 90), token grid, project rows with brand share bars and "ver todos" toggle, payg cost per project, error and stale notes. Dep 8a.1.
+- [x] 8a.1 RED `state.test.js`: limit names by `id` in Spanish with `label` fallback, `window_min` shown when present; reset time text from `resets_at` (and none when `null`); Kiro credits used/plan/remaining (es-CO grouping); Codex `reset_credits` note only when numeric; billing chip text ("Plan", "Pago por uso", "API · estimado"); plan agent without `ok` plan -> no-limits note; project share = tokens / max. Spec: panel Claude on a plan, Kiro credits, Plan without data, Codex card.
+- [x] 8a.2 GREEN `panel.js` cards and `style.css` panel hunks: coloured logo beside the name, chips (10 px 700 uppercase), plan bars in brand colour (cherry at >= 90), token grid, project rows with brand share bars and "ver todos" toggle, payg cost per project, error and stale notes. Dep 8a.1.
 - [ ] 8a.3 REFACTOR; `node --test`; manual check of plan, payg, error and absent cards in both themes; commit `feat(hotbar): add plan-first agent cards`.
 
 ## PR 8b: Pet assets (~15 authored, ~1,420 copied) base: PR 8a

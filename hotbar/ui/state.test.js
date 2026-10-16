@@ -2,6 +2,59 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AGENTS, agentOf, billingOf, ringOf, dockLabel, formatUsd } from './state.js';
 import { panelState, acceptUsage, costLabel, projectRows } from './state.js';
+import * as cards from './state.js';
+
+test('card limit names use Spanish ids, fallback labels and actual windows', () => {
+  for (const [id, expected] of [['session', 'Sesión · 5 h'], ['primary', 'Ventana · 5 h'],
+    ['weekly', 'Semana'], ['credits', 'Créditos del ciclo']]) {
+    assert.equal(cards.limitName({ id }), expected);
+  }
+  assert.equal(cards.limitName({ id: 'primary', window_min: 120 }), 'Ventana · 2 h');
+  assert.equal(cards.limitName({ id: 'weekly', window_min: 10080 }), 'Semana · 7 d');
+  assert.equal(cards.limitName({ id: 'custom', label: 'Especial', window_min: 45 }), 'Especial · 45 min');
+  assert.equal(cards.limitName({}), 'Límite');
+});
+
+test('reset labels use the timestamp and omit unavailable reset times', () => {
+  const time = Date.parse('2026-10-16T12:00:00Z');
+  assert.equal(cards.resetLabel('2026-10-16T14:14:00Z', time), 'Reinicio en 2 h 14 min');
+  assert.equal(cards.resetLabel('2026-10-19T16:00:00Z', time), 'Reinicio en 3 d 4 h');
+  assert.equal(cards.resetLabel('2026-10-16T12:38:00Z', time), 'Reinicio en 38 min');
+  assert.equal(cards.resetLabel('2026-10-15T12:00:00Z', time), 'Reinicio en 0 min');
+  for (const value of [null, undefined, 'invalid']) assert.equal(cards.resetLabel(value, time), '');
+});
+
+test('card billing, unavailable plans and numeric Codex reset credits', () => {
+  assert.equal(cards.cardState('claude', plan(62)).chip, 'Plan');
+  assert.equal(cards.cardState('pi', payg()).chip, 'Pago por uso');
+  assert.equal(cards.cardState('codex', payg('estimated')).chip, 'API · estimado');
+  for (const status of ['no_data', 'error', 'signed_out', 'not_installed']) {
+    const card = cards.cardState('claude', { ...plan(62), plan: { status, limits: [{ used_pct: 62 }] } });
+    assert.equal(card.note, 'Sin datos de límites');
+    assert.deepEqual(card.limits, []);
+    assert.equal(card.cost, '');
+  }
+  assert.equal(cards.cardState('claude', { billing: 'plan' }).note, 'Sin datos de límites');
+  for (const value of [null, undefined, '2', NaN, Infinity]) {
+    assert.equal(cards.cardState('codex', { ...plan(21), plan: { ...plan(21).plan, reset_credits: value } }).resets, '');
+  }
+  assert.equal(cards.cardState('codex', { ...plan(21), plan: { ...plan(21).plan, reset_credits: 0 } }).resets, '0 reinicios disponibles');
+  assert.equal(cards.cardState('codex', { ...plan(21), plan: { ...plan(21).plan, reset_credits: 2 } }).resets, '2 reinicios disponibles');
+});
+
+test('Kiro credits use es-CO grouping and tokens use compact K/M/B units', () => {
+  const agent = { ...plan(34), plan: { ...plan(34).plan, credits: { used: 340, limit: 1000 } } };
+  assert.deepEqual(cards.cardState('kiro', agent).credits, ['340', '1.000', '660']);
+  assert.deepEqual([0, 11500, 1430000, 1209000000].map(cards.formatTokens), ['0', '11.5 K', '1.4 M', '1.21 B']);
+});
+
+test('project share compares output tokens with the largest project in the selected range', () => {
+  const agent = { projects: [{ today: { out: 10 }, '7d': { out: 80 } },
+    { today: { out: 40 }, '7d': { out: 40 } }] };
+  assert.equal(cards.projectShare(agent.projects[0], agent), .25);
+  assert.equal(cards.projectShare(agent.projects[1], agent, '7d'), .5);
+  assert.equal(cards.projectShare({ today: { out: 0 } }, { projects: [] }), 0);
+});
 
 const plan = (...values) => ({ status: 'ok', billing: 'plan', plan: {
   status: 'ok', limits: values.map((used_pct, i) => ({ id: i ? 'weekly' : 'session', used_pct })),
@@ -113,4 +166,11 @@ test('payg labels use today, es-CO USD, estimated and read-error wording', () =>
   assert.equal(dockLabel('pi', payg('reported', null)), 'Gentle Shell: hoy Sin precio');
   assert.equal(dockLabel('kiro'), 'Kiro: No instalado');
   assert.match(dockLabel('pi', { ...payg(), totals: { today: { cost: 1, cost_partial: true } } }), /parcial/);
+});
+
+test('project rows are named by the label the usage file writes', () => {
+  assert.equal(cards.projectLabel({ key: String.raw`C:\work\clawdy`, label: 'clawdy' }), 'clawdy');
+  assert.equal(cards.projectLabel({ key: '/home/me/work/api-service' }), 'api-service');
+  assert.equal(cards.projectLabel({ key: 'C:\\work\\web-store\\' }), 'web-store');
+  assert.equal(cards.projectLabel({}), 'Proyecto');
 });

@@ -16,6 +16,9 @@ export function costLabel(agent, window = 'today') {
   return `${agent.cost_kind === 'estimated' ? '≈' : ''}${formatUsd(row.cost)}${
     agent.cost_kind === 'estimated' ? ' estimado' : ''}${row.cost_partial ? ' parcial' : ''}`;
 }
+// The usage file names projects with `label`; fall back to the last segment of the path key.
+export const projectLabel = (project) => project?.label
+  || String(project?.key ?? '').split(/[\\/]+/).filter(Boolean).pop() || 'Proyecto';
 export const projectRows = (agent, window = 'today') => [...(agent?.projects ?? [])]
   .sort((a, b) => (b[window]?.out ?? 0) - (a[window]?.out ?? 0));
 
@@ -51,6 +54,41 @@ export function panelState(data, window = 'today', now = Date.now(), stale_after
     freshness: !data ? 'Sin datos de uso' : `Actualizado hace ${age < 60 ? `${age} s` : `${Math.floor(age / 60)} min`}` };
 }
 const limitNames = { session: 'Sesión · 5 h', primary: 'Ventana · 5 h', weekly: 'Semana', credits: 'Créditos del ciclo' };
+
+export function limitName(limit) {
+  const name = limitNames[limit.id] ?? limit.label ?? 'Límite';
+  const minutes = limit.window_min;
+  if (!Number.isFinite(minutes) || minutes <= 0) return name;
+  const duration = minutes % 1440 === 0 ? `${minutes / 1440} d`
+    : minutes % 60 === 0 ? `${minutes / 60} h` : `${minutes} min`;
+  return `${name.replace(' · 5 h', '')} · ${duration}`;
+}
+export function resetLabel(timestamp, now = Date.now()) {
+  if (!timestamp || !Number.isFinite(Date.parse(timestamp))) return '';
+  const minutes = Math.max(0, Math.ceil((Date.parse(timestamp) - now) / 60000));
+  const hours = Math.floor(minutes / 60), days = Math.floor(hours / 24);
+  return `Reinicio en ${days ? `${days} d ${hours % 24} h`
+    : hours ? `${hours} h ${minutes % 60} min` : `${minutes} min`}`;
+}
+export const formatTokens = (value = 0) => value >= 1e9 ? `${(value / 1e9).toFixed(2)} B`
+  : value >= 1e6 ? `${(value / 1e6).toFixed(1)} M`
+    : value >= 1e3 ? `${(value / 1e3).toFixed(1)} K` : String(Math.round(value));
+export function projectShare(project, agent, window = 'today') {
+  const max = Math.max(0, ...(agent.projects ?? []).map(p => p[window]?.out ?? 0));
+  return max ? Math.max(0, Math.min(1, (project[window]?.out ?? 0) / max)) : 0;
+}
+export function cardState(id, agent, window = 'today') {
+  const isPlan = billingOf(agent) === 'plan', valid = isPlan && agent.plan?.status === 'ok';
+  const limits = ringOf(agent) ? agent.plan.limits : [];
+  const credits = valid ? agent.plan.credits : null;
+  return { isPlan, chip: isPlan ? 'Plan' : agent.cost_kind === 'estimated' ? 'API · estimado' : 'Pago por uso',
+    cost: costLabel(agent, window), limits,
+    note: isPlan && !valid ? 'Sin datos de límites' : '',
+    credits: credits && Number.isFinite(credits.used) && Number.isFinite(credits.limit)
+      ? [credits.used, credits.limit, Math.max(0, credits.limit - credits.used)].map(v => number.format(v)) : null,
+    resets: id === 'codex' && valid && Number.isFinite(agent.plan.reset_credits)
+      ? `${number.format(agent.plan.reset_credits)} reinicios disponibles` : '' };
+}
 
 export function ringOf(agent) {
   const plan = agent?.plan;
