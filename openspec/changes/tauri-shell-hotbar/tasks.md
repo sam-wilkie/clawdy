@@ -83,15 +83,15 @@ GitNexus impact first: `ClawdDaemon.__init__`, `_refresh_project_usage`, `_proje
 - [x] 5.2 RED `host/tests/test_project_usage_transport.py`: `set_project_usage` payload keeps same keys and window shape (values may differ per Q3). Spec: file Exclusion rule.
 - [x] 5.3 GREEN `host/clawd_tank_daemon/usage_export.py` (`build_document`, `write_json_atomic`). Dep 5.1.
 - [x] 5.4 GREEN `host/clawd_tank_daemon/daemon.py`: reader list, per-reader `try`, file written every pass, then unchanged Claude-only `set_project_usage`. Dep 5.2, 5.3.
-- [ ] 5.5 REFACTOR; `pytest tests/test_usage_export.py tests/test_project_usage_transport.py tests/test_daemon.py` (deselect known hang test); commit `feat(host): export project usage file`.
+- [x] 5.5 REFACTOR; `pytest tests/test_usage_export.py tests/test_project_usage_transport.py tests/test_daemon.py` (deselect known hang test); commit `feat(host): export project usage file`.
 
 ## PR 6: Tauri skeleton, watchdog, single instance (~250) base: PR 5
 
 GitNexus impact: none (new `hotbar/` dir).
 
-- [ ] 6.1 RED `hotbar/src-tauri/src/pidfile.rs` tests: pidfile `{pid, exe}` round-trip, corrupt file ignored. Spec: process Orphan from a crashed tray.
-- [ ] 6.2 RED `watchdog.rs` tests (pure parts): env unset -> no watchdog; invalid PID -> exit now. Spec: window Parent already gone, No parent PID.
-- [ ] 6.3 GREEN scaffold `hotbar/src-tauri/{Cargo.toml,build.rs,tauri.conf.json,capabilities/default.json}` (CSP from design, `core:default` + `allow-start-dragging` for `bar`,`panel`), `main.rs`, `pidfile.rs`, `watchdog.rs` (`OpenProcess(SYNCHRONIZE)` + `WaitForSingleObject`, `windows-sys`), single-instance plugin focuses the bar. Spec: window Exit with parent, Single instance. Dep 6.1, 6.2.
+- [x] 6.1 RED `hotbar/src-tauri/src/pidfile.rs` tests: pidfile `{pid, exe}` round-trip, corrupt file ignored. Spec: process Orphan from a crashed tray.
+- [x] 6.2 RED `watchdog.rs` tests (pure parts): env unset -> no watchdog; invalid PID -> exit now. Spec: window Parent already gone, No parent PID.
+- [x] 6.3 GREEN scaffold `hotbar/src-tauri/{Cargo.toml,build.rs,tauri.conf.json,capabilities/default.json}` (CSP from design, `core:default` + `allow-start-dragging` for `bar`,`panel`), `main.rs`, `pidfile.rs`, `watchdog.rs` (`OpenProcess(SYNCHRONIZE)` + `WaitForSingleObject`, `windows-sys`), single-instance plugin focuses the bar. Spec: window Exit with parent, Single instance. Dep 6.1, 6.2.
 - [ ] 6.4 REFACTOR; `cargo test`; `git diff --stat`; commit `feat(hotbar): add Tauri shell skeleton`.
 
 ## PR 7: Usage poll, placement, bar (~260) base: PR 6
