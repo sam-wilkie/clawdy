@@ -26,7 +26,7 @@ Test commands: host `cd host && .venv/Scripts/python.exe -m pytest <paths>`; Rus
 | Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
 |------|------|-----------|----------------------|-----------------|-------------------|
 | 1 | Shared reader layer + Claude exclusion | PR 1 (base tracker) | `pytest tests/test_usage_common.py tests/test_claude_usage.py` | Run Claude reader on real `~/.claude/projects`, print snapshot | `usage_common.py`, `claude_usage.py`, 2 test files |
-| 2 | Pi reader | PR 2 (base PR 1) | `pytest tests/test_pi_usage.py` | Run on real `~/.pi/agent/sessions` | `pi_usage.py` + test |
+| 2 | Pi reader | PR 2 (base PR 1) | `pytest tests/test_pi_usage.py` | Run on real `$PI_CODING_AGENT_DIR/sessions`, else `~/.gentle-shell/agent/sessions` | `pi_usage.py` + test |
 | 3 | Codex reader | PR 3 (base PR 2) | `pytest tests/test_codex_usage.py` | Run on a real rollout file; verify token inclusion | `codex_usage.py` + test |
 | 4 | OpenCode reader | PR 4 (base PR 3) | `pytest tests/test_opencode_usage.py` | Run on real `opencode.db`, confirm dir listing unchanged | `opencode_usage.py` + test |
 | 5 | Usage file export | PR 5 (base PR 4) | `pytest tests/test_usage_export.py tests/test_project_usage_transport.py` | Daemon 2 passes, inspect `~/.clawd-tank/project-usage.json` | `usage_export.py`, `daemon.py` hunks |
@@ -106,7 +106,7 @@ r3: the dock rewrite moved to PR 7a; PR 7 ships the Rust poll and placement with
 - [x] 7.1 RED `placement.rs` tests: `clamp` off-screen, negative coords, partially off-screen, monitor removed or no saved state -> primary right edge, centred, 8 px margin. Spec: window Partially off-screen, Monitor removed.
 - [x] 7.2 RED `usage.rs` test: 5 s mtime poll emits `usage` only on change; malformed file after a good read emits nothing new. Spec: panel Refresh, Missing file.
 - [x] 7.3 GREEN `placement.rs`, `usage.rs`, bar window with four agent cells: `hotbar/ui/bar.html`, `bar.js`, `style.css`. Dep 7.1, 7.2.
-- [ ] 7.4 RED `usage.rs` test (added): an r3 document with `billing`, `plan` and a `kiro` entry validates; a document missing `kiro` still validates. Spec: file Older consumer, panel Agent missing from file.
+- [x] 7.4 RED/GREEN `usage.rs` test: an r3 document with `billing`, `plan` and a `kiro` entry validates unchanged; a document missing `kiro` still validates. Spec: file Older consumer, panel Agent missing from file.
 - [ ] 7.5 REFACTOR; `cargo test`; leave `hotbar/ui/assets/` untracked for PR 7a; commit `feat(hotbar): add usage poll, placement and bar window`.
 
 ## PR 7a: Mochi dock (~350, split candidate) base: PR 7

@@ -7,6 +7,21 @@ mod watchdog;
 
 use tauri::Manager;
 
+fn place_bar(bar: &tauri::WebviewWindow) -> tauri::Result<()> {
+    // Saved placement and multi-monitor areas arrive with state.rs (PR 9).
+    if let Some(primary) = bar.primary_monitor()? {
+        let area = primary.work_area();
+        let primary_rect = placement::Rect {
+            x: area.position.x as f64, y: area.position.y as f64,
+            width: area.size.width as f64, height: area.size.height as f64,
+        };
+        let size = bar.outer_size()?;
+        let rect = placement::clamp(None, (size.width as f64, size.height as f64), &[], primary_rect);
+        bar.set_position(tauri::PhysicalPosition::new(rect.x as i32, rect.y as i32))?;
+    }
+    Ok(())
+}
+
 fn main() {
     let app = tauri::Builder::default()
         .manage(usage::UsageState::default())
@@ -19,15 +34,8 @@ fn main() {
         }))
         .setup(|app| {
             if let Some(bar) = app.get_webview_window("bar") {
-                if let Some(primary) = bar.primary_monitor()? {
-                    let area = primary.work_area();
-                    let primary_rect = placement::Rect {
-                        x: area.position.x as f64, y: area.position.y as f64,
-                        width: area.size.width as f64, height: area.size.height as f64,
-                    };
-                    let size = bar.outer_size()?;
-                    let rect = placement::clamp(None, (size.width as f64, size.height as f64), &[], primary_rect);
-                    bar.set_position(tauri::PhysicalPosition::new(rect.x as i32, rect.y as i32))?;
+                if let Err(err) = place_bar(&bar) {
+                    eprintln!("hotbar: cannot place bar: {err}");
                 }
                 usage::start(app.path().home_dir()?.join(".clawd-tank/project-usage.json"),
                     bar, app.state::<usage::UsageState>().0.clone());

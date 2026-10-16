@@ -19,11 +19,11 @@ impl Poller {
         if now < self.next { return None; }
         self.next = now + INTERVAL;
         if self.checked && modified == self.modified { return None; }
-        self.checked = true;
-        self.modified = modified;
         let document = modified.and_then(|_| read())
             .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
             .filter(valid_document);
+        self.checked = document.is_some() || modified.is_none();
+        if self.checked { self.modified = modified; }
         if let Some(document) = document {
             self.good = true;
             self.missing = false;
@@ -105,11 +105,56 @@ mod tests {
 
     #[test]
     fn missing_invalid_and_unreadable_first_reads_emit_no_data_once() {
-        for (modified, bytes) in [(None, None), (stamp(1), Some(b"bad".to_vec())), (stamp(1), None)] {
+        for (modified, bytes) in [(None, None), (stamp(1), Some(b"bad".to_vec())),
+            (stamp(1), Some(b"{}".to_vec())), (stamp(1), None)] {
             let mut poller = Poller::default();
-            assert_eq!(poller.poll(at(0), modified, || bytes), Some(Value::Null));
-            assert_eq!(poller.poll(at(5), modified, || None), None);
-            assert!(poller.poll(at(10), stamp(2), || Some(good())).unwrap().is_object());
+            assert_eq!(poller.poll(at(0), modified, || bytes.clone()), Some(Value::Null));
+            assert_eq!(poller.poll(at(5), modified, || bytes), None);
+            let recovered = poller.poll(at(10), modified.or(stamp(1)), || Some(good()));
+            assert_eq!(recovered, Some(serde_json::from_slice(&good()).unwrap()));
+        }
+    }
+
+    #[test]
+    fn unreadable_then_readable_at_the_same_mtime_emits_document() {
+        let mut poller = Poller::default();
+        assert_eq!(poller.poll(at(0), stamp(1), || None), Some(Value::Null));
+        assert_eq!(poller.poll(at(5), stamp(1), || Some(good())),
+            Some(serde_json::from_slice(&good()).unwrap()));
+    }
+
+    #[test]
+    fn failed_updates_retry_the_same_mtime_and_keep_last_good() {
+        for bytes in [None, Some(b"bad".to_vec()), Some(b"{}".to_vec())] {
+            let mut poller = Poller::default();
+            assert!(poller.poll(at(0), stamp(1), || Some(good())).is_some());
+            assert_eq!(poller.poll(at(5), stamp(2), || bytes), None);
+            assert_eq!(poller.poll(at(10), stamp(2), || Some(good())),
+                Some(serde_json::from_slice(&good()).unwrap()));
+        }
+    }
+
+    #[test]
+    fn r3_fields_and_optional_kiro_are_accepted_unchanged() {
+        let mut document: Value = serde_json::from_slice(&good()).unwrap();
+        document["billing"] = serde_json::json!({"future":true});
+        document["plan"] = serde_json::json!({"future":true});
+        for id in ["claude", "codex", "opencode", "pi", "kiro"] {
+            let billing = if matches!(id, "opencode" | "pi") { "payg" } else { "plan" };
+            document["agents"][id] = serde_json::json!({"status":"ok", "billing":billing,
+                "cost_kind":if id == "kiro" { "none" } else if billing == "payg" { "reported" } else { "estimated" }});
+            if billing == "plan" {
+                document["agents"][id]["plan"] = serde_json::json!({"status":"ok",
+                    "limits":[{"id":"session", "label":"Session", "used_pct":62, "resets_at":null}],
+                    "reset_credits":null, "credits":{"used":62,"limit":100}});
+            }
+        }
+        for with_kiro in [true, false] {
+            if !with_kiro { document["agents"].as_object_mut().unwrap().remove("kiro"); }
+            let original = document.clone();
+            assert!(valid_document(&document));
+            let mut poller = Poller::default();
+            assert_eq!(poller.poll(at(0), stamp(1), || Some(serde_json::to_vec(&document).unwrap())), Some(original));
         }
     }
 

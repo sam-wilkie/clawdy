@@ -1,5 +1,6 @@
 const agents = { claude: 'Claude', codex: 'Codex', opencode: 'OpenCode', pi: 'Pi' };
 const cells = new Map();
+const STALE_AFTER_S = 300; // hotbar.json stale_after_s arrives with config.rs (PR 10).
 let documentData = null;
 for (const [id, label] of Object.entries(agents)) {
   const cell = document.createElement('section');
@@ -31,7 +32,7 @@ function render(data) {
     cost.textContent = [price, agent?.status === 'error' ? 'Error' : ''].filter(Boolean).join(' · ');
   }
   const age = Math.max(0, Math.floor((Date.now() - Date.parse(data?.generated_at)) / 1000));
-  const stale = age > 300; // Configurable threshold belongs to PR 9.
+  const stale = age > STALE_AFTER_S;
   const freshness = document.getElementById('freshness');
   freshness.classList.toggle('stale', stale);
   freshness.textContent = !data ? 'No usage data' : !Number.isFinite(age) ? 'Unknown update time'

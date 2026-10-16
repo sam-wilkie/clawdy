@@ -2,7 +2,7 @@
 
 ## Intent
 
-Token use and cost per project are not visible for any agent. Change 1 computes them for Claude only, and nothing displays them. Add a small information bar in Tauri, modelled on orbitbar, that covers Claude, Codex, OpenCode and Pi (gentle-shell) from day one. Pets stay in Electron, unchanged; both runtimes coexist.
+Token use and cost per project are not visible for any agent. Change 1 computes them for Claude only, and nothing displays them. Add a small information bar in Tauri, modelled on orbitbar, that covers five agents: Claude, Codex, OpenCode, Kiro and Gentle Shell from day one. Pets stay in Electron, unchanged; both runtimes coexist.
 
 ## Scope
 
@@ -10,16 +10,16 @@ Token use and cost per project are not visible for any agent. Change 1 computes 
 1. **Python readers** next to `claude_usage.py`, all read-only:
    - Codex: `~/.codex/sessions/**/*.jsonl`
    - OpenCode: `~/.local/share/opencode/opencode.db`, opened through a SQLite `mode=ro` URI so the running app is never blocked
-   - Pi: `~/.pi/agent/sessions/*/*.jsonl`, using the `cwd` from the `session` record and `usage` from assistant messages
+   - Pi/Gentle Shell: `$PI_CODING_AGENT_DIR/sessions`, else `~/.gentle-shell/agent/sessions` (`*/*.jsonl`), using the `cwd` from the `session` record and `usage` from assistant messages
 
    All readers use the same windows and project key as the Claude reader.
 2. **Usage file**: the daemon writes `~/.clawd-tank/project-usage.json` atomically, keyed by agent, with `generated_at`. It writes on every 60 s refresh, even when nothing changed, so the file age shows whether the daemon is running. Sessions in temp dirs or outside a git repo are excluded.
 3. **`hotbar/` Tauri app** (Windows verified): a docked, always-on-top bar with a right-edge default. It can be dragged across monitors, its position is saved and clamped to the usable area, and it collapses to a tab.
-4. **Agent cells** (Claude, Codex, OpenCode, Pi): clicking a cell opens a side panel (left, else right; the bar never moves).
-   - The panel shows output tokens and cost overall and per project for Today/7d/30d/month. It opens on Today.
-   - Cost display depends on the source:
-     - Agent-reported cost (Pi, OpenCode): `$X`.
-     - Cost estimated from the price table (Claude, Codex): `~$X (API-equiv.)`.
+4. **Agent cells** (Claude, Codex, OpenCode, Kiro, Gentle Shell): clicking a cell opens a side panel (left, else right; the bar never moves).
+   - The panel is plan-first: plan agents show plan limits and no money; token data, when available, shows overall and per-project Today/7d/30d/month windows. It opens on Today.
+   - Only pay-as-you-go agents show cost:
+     - Agent-reported cost (Gentle Shell, OpenCode): `$X`.
+     - Cost estimated from the price table (Codex on an API key): Spanish copy `≈ … estimado`.
      - No price available: `no price data`.
    - Stale and missing data have their own states.
 5. **Custom cells** from one JSON config:
@@ -35,7 +35,7 @@ Token use and cost per project are not visible for any agent. Change 1 computes 
    - Startup with Windows remains the tray's existing login item (`autostart.py`).
 
 ### Out of Scope (deferred)
-- Kiro and Antigravity usage. The file is keyed by agent, so adding them later does not change its format.
+- Kiro token usage and Antigravity usage; Kiro plan limits are in scope. The file is keyed by agent, so adding agents later does not change its format.
 - Pets, permission cards, Electron changes, tray changes beyond item 7, launching the hotbar from the headless daemon.
 - Packaging and installer, CI matrix, Linux, macOS verification (Change 3).
 
@@ -46,7 +46,7 @@ Token use and cost per project are not visible for any agent. Change 1 computes 
 - `project-usage-file`: atomic, agent-keyed JSON export; schema, write cadence, exclusion rule
 - `hotbar-window`: placement, persistence, clamping, collapse, single instance, menu, exit when the parent process dies
 - `hotbar-process`: the tray spawns and stops the hotbar, finds its exe, and exposes the `hotbar_enabled` toggle
-- `hotbar-usage-panel`: agent cells, time windows, cost display (reported vs estimated), stale state
+- `hotbar-usage-panel`: five agent cells, plan limits, time windows, pay-as-you-go cost display (reported vs estimated), stale state
 - `hotbar-custom-cells`: config file, `open:`/`run:`/`panel:` actions and limits
 
 ### Modified Capabilities
@@ -102,11 +102,11 @@ Delete `hotbar/` and revert the reader and export PRs; the daemon then behaves a
 - [ ] The file matches its schema, and temp and non-git sessions are excluded
 - [ ] Clamping, config parsing and action validation have unit tests (`cargo test`)
 - [ ] Tray tests (pytest, fake process factory): the hotbar starts with the daemon, stops on quit, the toggle persists `hotbar_enabled`, and a missing exe is skipped
-- [ ] Manual check on Windows: bar, four agent panels, menu, focus on second launch, hotbar exits when the tray is killed
+- [ ] Manual check on Windows: bar, five agent panels, menu, focus on second launch, hotbar exits when the tray is killed
 
 ## Proposal question round (assumptions for user review)
 
-1. ~~Only Claude at launch?~~ **Answered (user, 2026-10-15)**: Claude, Codex, OpenCode and Pi from day one; Kiro and Antigravity are deferred.
+1. ~~Only Claude at launch?~~ **Updated (r3)**: Claude, Codex, OpenCode, Kiro and Gentle Shell from day one; Kiro has plan limits only, and Antigravity is deferred.
 2. ~~Independent autostart?~~ **Answered (user, 2026-10-15)**: the tray launches and stops the hotbar, and the hotbar has no autostart of its own.
 3. ~~Exclude non-git sessions?~~ **Answered (user, 2026-10-15)**: excluded, as in orbitbar (sessions in temp dirs or outside any git repo are not counted). Applied once in the shared readers, not only in the file: `set_project_usage` has no consumer today (Electron ignores it), so one rule avoids two diverging totals.
 4. Is 5 minutes the right point to mark the data as stale? Kept as the default assumption (5 refresh cycles of 60 s); not confirmed by the user.
