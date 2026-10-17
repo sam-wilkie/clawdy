@@ -163,9 +163,10 @@ GitNexus unavailable during implementation; `rg` checked placement, usage event/
 
 ## PR 8b: Pet assets (~15 authored, ~1,420 copied) base: PR 8a
 
-- [ ] 8b.1 Copy `desktop/renderer/assets/clawd-idle-living-v2.svg`, `codex/cloud-idle-v2.svg`, `monster/monster-idle-v2.svg` into `hotbar/ui/assets/pets/` (`claude-idle.svg`, `codex-idle.svg`, `monster-idle.svg`) and crop only the `viewBox` to the sprite bounds; record in the PR body that `git diff --no-index` against the source shows only the `viewBox` line.
-- [ ] 8b.2 RED `state.test.js`: pet per agent (Claude crab, Codex cloud, Kiro/OpenCode/Gentle Shell monster). GREEN card `<img alt="">` using it; CSP unchanged (`img-src 'self'`). Spec: panel Agent cards.
+- [x] 8b.1 Copy `desktop/renderer/assets/clawd-idle-living-v2.svg`, `codex/cloud-idle-v2.svg`, `monster/monster-idle-v2.svg` into `hotbar/ui/assets/pets/` (`claude-idle.svg`, `codex-idle.svg`, `monster-idle.svg`) and crop only the `viewBox` to the sprite bounds; record in the PR body that `git diff --no-index` against the source shows only the `viewBox` line.
+- [x] 8b.2 RED `state.test.js`: pet per agent (Claude crab, Codex cloud, Kiro/OpenCode/Gentle Shell monster). GREEN card `<img alt="">` using it; CSP unchanged (`img-src 'self'`). Spec: panel Agent cards.
 - [ ] 8b.3 Manual: pets animate in WebView2 and stay within the card; commit `feat(hotbar): add agent pets to panel cards`.
+  - Progress: committed (bf49caa). Checked in a real Electron (Chromium) render, not WebView2: pets display inside the card and animate. `render()` now skips replacing identical cards so the 5 s refresh no longer restarts the animation.
 
 ## PR 9: State, collapsed pill, menu, edit config (~280) base: PR 8b
 

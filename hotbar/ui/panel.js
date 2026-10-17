@@ -27,9 +27,9 @@ function fill(parent, className, ratio) {
   track.setAttribute('aria-hidden', 'true');
   element('i', '', '', track).style.setProperty('transform', `scaleX(${Math.max(0, Math.min(1, ratio))})`);
 }
-function card(row, state) {
+function card(row, state, parent) {
   const { id, name, agent } = row, model = cardState(id, agent, range);
-  const article = element('article', `agent agent-${id}`, '', body);
+  const article = element('article', `agent agent-${id}`, '', parent);
   const head = element('div', 'ahead', '', article);
   const pet = element('span', 'pet', '', head);
   const image = element('img', '', '', pet);
@@ -96,11 +96,11 @@ function render() {
   const fresh = document.getElementById('fresh');
   fresh.textContent = connectionError ? 'Falló la conexión de uso' : state.freshness;
   fresh.classList.toggle('stale', state.stale);
-  body.replaceChildren();
-  if (!data) { element('p', '', 'Sin datos de uso', body); return; }
-  for (const row of state.agents.filter(a => selected === 'all' || a.id === selected)) {
-    card(row, state);
-  }
+  const next = document.createElement('div');
+  if (!data) element('p', '', 'Sin datos de uso', next);
+  else for (const row of state.agents.filter(a => selected === 'all' || a.id === selected)) card(row, state, next);
+  // Replacing identical cards would restart the pets' SVG animations every 5 s.
+  if (next.innerHTML !== body.innerHTML) body.replaceChildren(...next.childNodes);
 }
 function select(agent) {
   selected = agent; range = 'today'; render(); body.scrollTop = 0;
