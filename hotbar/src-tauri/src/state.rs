@@ -21,6 +21,18 @@ fn save(path: &Path, value: &HotbarState) -> io::Result<()> {
     fs::write(&tmp, serde_json::to_vec(value)?)?;
     fs::rename(&tmp, path)
 }
+/// The OS move loop keeps the button down while the user pauses, so a pause alone is not a drop.
+#[cfg(windows)]
+fn mouse_down() -> bool {
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
+    // SAFETY: GetAsyncKeyState has no preconditions; the high bit is set while the key is down.
+    unsafe { GetAsyncKeyState(VK_LBUTTON as i32) < 0 }
+}
+#[cfg(not(windows))]
+fn mouse_down() -> bool { false }
+fn drag_ended(quiet: Option<Duration>, button_down: bool) -> bool {
+    !button_down && should_save(quiet, false)
+}
 fn should_save(quiet: Option<Duration>, toggle: bool) -> bool {
     toggle || quiet.is_some_and(|d| d >= Duration::from_millis(250))
 }
@@ -117,7 +129,7 @@ pub fn start(app: &tauri::AppHandle) -> tauri::Result<()> {
         let store = handle.state::<Store>();
         let ready = {
             let mut inner = store.inner.lock().unwrap_or_else(|p| p.into_inner());
-            let ready = should_save(inner.1.map(|t| t.elapsed()), false);
+            let ready = drag_ended(inner.1.map(|t| t.elapsed()), mouse_down());
             if ready { inner.1 = None; }
             ready
         };
@@ -227,6 +239,14 @@ mod tests {
         store.flush(&mut inner);
         assert!(inner.1.is_none());
         std::fs::remove_file(blocker).unwrap();
+    }
+    #[test]
+    fn a_pause_with_the_button_still_down_is_not_a_drop() {
+        let quiet = Some(Duration::from_millis(500));
+        assert!(drag_ended(quiet, false));
+        assert!(!drag_ended(quiet, true));
+        assert!(!drag_ended(Some(Duration::from_millis(100)), false));
+        assert!(!drag_ended(None, false));
     }
     #[test]
     fn moves_wait_for_quiet_but_toggles_save_immediately() {
