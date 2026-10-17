@@ -1,5 +1,6 @@
 import { WINDOWS, acceptUsage, panelState, cardState, limitName, resetLabel,
   formatTokens, projectRows, projectShare, costLabel, projectLabel, formatPct, petOf } from './state.js';
+import { connectState } from './theme.js';
 
 const api = window.__TAURI__, body = document.getElementById('agents');
 let data = null, selected = 'all', range = 'today', connectionError = false;
@@ -121,3 +122,4 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
 render();
 connect().catch(() => { connectionError = true; render(); });
 setInterval(render, 5000);
+connectState().catch(console.error);

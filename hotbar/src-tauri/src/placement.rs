@@ -6,6 +6,14 @@ pub struct Rect {
     pub height: f64,
 }
 
+pub fn resize_anchored(bar: Rect, size: (f64, f64), area: Rect) -> Rect {
+    let (width, height) = (size.0.min(area.width), size.1.min(area.height));
+    let near_left = bar.x - area.x <= area.x + area.width - bar.x - bar.width;
+    let x = if near_left { bar.x } else { bar.x + bar.width - width };
+    Rect { x: x.clamp(area.x, area.x + area.width - width),
+        y: bar.y.clamp(area.y, area.y + area.height - height), width, height }
+}
+
 pub fn panel_side(bar: Rect, size: (f64, f64), area: Rect) -> Rect {
     let (width, height) = (size.0.min(area.width), size.1.min(area.height));
     let left = bar.x - width - 8.;
@@ -35,6 +43,14 @@ mod tests {
     const PRIMARY: Rect = Rect { x: 0., y: 0., width: 1920., height: 1040. };
     const LEFT: Rect = Rect { x: -1280., y: -200., width: 1280., height: 1024. };
     const SIZE: (f64, f64) = (180., 300.);
+    #[test]
+    fn resizing_keeps_nearer_edge_and_clamps_including_negative_monitors() {
+        assert_eq!(resize_anchored(bar(1732., 900.), (82., 140.), PRIMARY),
+            Rect { x: 1830., y: 900., width: 82., height: 140. });
+        assert_eq!(resize_anchored(bar(-1272., -190.), (82., 140.), LEFT),
+            Rect { x: -1272., y: -190., width: 82., height: 140. });
+        assert_eq!(resize_anchored(bar(1900., 1000.), (2000., 1200.), PRIMARY), PRIMARY);
+    }
     #[test]
     fn panel_prefers_left_else_right_and_clamps_tight_areas() {
         assert_eq!(panel_side(bar(1700., 100.), (400., 650.), PRIMARY),

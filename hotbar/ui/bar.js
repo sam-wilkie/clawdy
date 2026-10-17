@@ -1,4 +1,5 @@
-import { AGENTS, agentOf, billingOf, ringOf, dockLabel } from './state.js';
+import { AGENTS, agentOf, billingOf, ringOf, dockLabel, collapsedDot, attentionLabel } from './state.js';
+import { connectState } from './theme.js';
 
 const dock = document.getElementById('dock'), cells = new Map();
 dock.addEventListener('panel-request', ({ detail }) => {
@@ -36,7 +37,18 @@ function button(text, icon, agent) {
   }
   return node;
 }
-button('Contraer hotbar', 'M9 6l6 6-6 6');
+const chevron = button('Contraer hotbar', 'M9 6l6 6-6 6');
+chevron.classList.add('chevron');
+chevron.addEventListener('click', () => window.__TAURI__.core.invoke('toggle_collapsed').catch(console.error));
+const dots = element('span', 'dots', dock), dotCells = new Map();
+dots.setAttribute('aria-hidden', 'true');
+for (const { id } of AGENTS) dotCells.set(id, element('i', `dot agent-${id}`, dots));
+connectState(state => {
+  dock.classList.toggle('collapsed', state.collapsed);
+  chevron.setAttribute('aria-expanded', String(!state.collapsed));
+  label(chevron, state.collapsed ? 'Expandir hotbar' : 'Contraer hotbar');
+  render(documentData);
+}).catch(console.error);
 element('hr', '', dock);
 for (const { id } of AGENTS) {
   const node = button(dockLabel(id), null, id);
@@ -56,8 +68,18 @@ const staleBadge = element('span', 'badge stale', all);
 staleBadge.setAttribute('aria-hidden', 'true');
 button('Ajustes', 'M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0');
 
+const showMenu = () => window.__TAURI__.core.invoke('show_menu').catch(console.error);
+dock.lastElementChild.addEventListener('click', showMenu);
+document.addEventListener('contextmenu', event => { event.preventDefault(); showMenu(); });
+dock.addEventListener('pointerdown', event => {
+  if (event.button === 0 && !event.target.closest('button'))
+    window.__TAURI__.window.getCurrentWindow().startDragging().catch(console.error);
+});
 function render(data) {
   documentData = data;
+  if (dock.classList.contains('collapsed')) label(dock, attentionLabel(data));
+  else { dock.removeAttribute('title'); dock.setAttribute('aria-label', 'Agentes de Clawdy'); }
+  for (const [id, dot] of dotCells) dot.className = `dot agent-${id} ${collapsedDot(agentOf(data, id))}`;
   for (const [id, { node, ring, fill, badge }] of cells) {
     const agent = agentOf(data, id), value = ringOf(agent);
     label(node, dockLabel(id, agent));
