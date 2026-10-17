@@ -1,6 +1,6 @@
 use std::{sync::{atomic::{AtomicU64, Ordering}, Mutex}, time::{Duration, Instant}};
 use tauri::{Emitter, Manager};
-use crate::placement::{panel_side, Rect};
+use crate::placement::{panel_side, Edge, Rect};
 
 pub struct Selection(pub Mutex<String>);
 impl Default for Selection {
@@ -49,6 +49,13 @@ pub fn panel_selection(state: tauri::State<'_, Selection>) -> Result<String, Str
     state.0.lock().map(|s| s.clone()).map_err(|e| e.to_string())
 }
 
+// Account for both transparent margins while retaining panel_side's physical 8px gap.
+fn panel_anchor(bar: Rect, edge: Edge, scale: f64) -> Rect {
+    let inset = 8. * scale + 8.;
+    let (ix, iy) = if edge.vertical() { (inset, 0.) } else { (0., inset) };
+    Rect { x: bar.x + ix, y: bar.y + iy, width: bar.width - 2. * ix, height: bar.height - 2. * iy }
+}
+
 #[tauri::command]
 pub fn open_panel(app: tauri::AppHandle, agent: String, state: tauri::State<'_, Selection>,
                   generation: tauri::State<'_, Generation>) -> Result<(), String> {
@@ -71,13 +78,12 @@ pub fn open_panel(app: tauri::AppHandle, agent: String, state: tauri::State<'_, 
             let size = bar.outer_size()?;
             // The bar's monitor, not wherever the hidden panel last was (mixed-DPI setups).
             let scale = monitor.scale_factor();
-            // The dock sits in 12 px of transparent window margin and the panel has 8 px of
-            // padding, both scaled; panel_side adds an unscaled 8 px. This leaves a 12 px gap.
-            let inset = 8. * scale + 8.;
-            let rect = panel_side(Rect { x: pos.x as f64 + inset, y: pos.y as f64,
-                width: size.width as f64 - 2. * inset, height: size.height as f64 }, (408. * scale, 666. * scale),
+            let edge = crate::state::hotbar_state(app.state()).edge.unwrap_or(Edge::Right);
+            let anchor = panel_anchor(Rect { x: pos.x as f64, y: pos.y as f64,
+                width: size.width as f64, height: size.height as f64 }, edge, scale);
+            let rect = panel_side(anchor, (408. * scale, 666. * scale),
                 Rect { x: work.position.x as f64, y: work.position.y as f64,
-                    width: work.size.width as f64, height: work.size.height as f64 });
+                    width: work.size.width as f64, height: work.size.height as f64 }, edge);
             panel.set_size(tauri::PhysicalSize::new(rect.width as u32, rect.height as u32))?;
             panel.set_position(tauri::PhysicalPosition::new(rect.x as i32, rect.y as i32))?;
         }
@@ -92,6 +98,24 @@ pub fn open_panel(app: tauri::AppHandle, agent: String, state: tauri::State<'_, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn visible_panel_gap_is_twelve_css_pixels_on_every_edge_and_scale() {
+        let area = Rect { x: 0., y: 0., width: 4000., height: 3000. };
+        for edge in [Edge::Left, Edge::Right, Edge::Top, Edge::Bottom] {
+            for scale in [1., 1.25, 2.] {
+                let bar = crate::placement::dock(Rect { x: 1000., y: 1000., ..area }, edge, false, area, scale);
+                let panel = panel_side(panel_anchor(bar, edge, scale), (408. * scale, 666. * scale), area, edge);
+                let gap = match edge {
+                    Edge::Left => panel.x + 8. * scale - (bar.x + bar.width - 12. * scale),
+                    Edge::Right => bar.x + 12. * scale - (panel.x + panel.width - 8. * scale),
+                    Edge::Top => panel.y + 8. * scale - (bar.y + bar.height - 12. * scale),
+                    Edge::Bottom => bar.y + 12. * scale - (panel.y + panel.height - 8. * scale),
+                };
+                assert_eq!(gap, 12. * scale);
+            }
+        }
+    }
 
     #[test]
     fn same_icon_closes_while_visible_or_right_after_a_blur_hide() {

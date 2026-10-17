@@ -115,8 +115,22 @@ img.orig { width: 16px; height: 16px; border-radius: 4px; mask: none; background
 .dots { display: none; }
 .dock.collapsed > :not(.chevron):not(.dots) { display: none; }
 .dock.collapsed .dots { display: flex; flex-direction: column; gap: 8px; }
-.collapsed .chevron > svg { transform: rotate(180deg); }
+
 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--acc); }
 .dot.dim { opacity: .35; }
 .dot.track { background: var(--track); }
 .dot.alert { background: var(--err); box-shadow: 0 0 0 3px color-mix(in srgb, var(--err) 20%, transparent); }
+
+/* Fixed 12px transparent margin keeps the pill flush with the docked work-area edge. */
+body:not(.panel-window) { padding: 12px; }
+.dock { flex: none; }
+.dbtn { flex: none; }
+:root:not([data-edge]) .dock, [data-edge=right] .dock { border-radius: 29px 0 0 29px; }
+[data-edge=left] .dock { border-radius: 0 29px 29px 0; }
+[data-edge=top] .dock { border-radius: 0 0 29px 29px; }
+[data-edge=bottom] .dock { border-radius: 29px 29px 0 0; }
+:is([data-edge=top], [data-edge=bottom]) .dock {
+  width: auto; height: 58px; flex-direction: row; padding: 0 10px;
+}
+:is([data-edge=top], [data-edge=bottom]) .dock hr { width: 1px; height: 24px; margin: 0 4px; flex: none; }
+:is([data-edge=top], [data-edge=bottom]) .dock.collapsed .dots { flex-direction: row; }

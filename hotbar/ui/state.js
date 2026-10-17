@@ -132,3 +132,7 @@ export function dockLabel(id, agent) {
   }
   return `${name}: ${detail}${agent.status === 'error' ? ', falló la lectura' : ''}`;
 }
+
+export function chevronRotation(edge = 'right', collapsed = false) {
+  return (({ right: 0, bottom: 90, left: 180, top: 270 }[edge] ?? 0) + (collapsed ? 180 : 0)) % 360;
+}

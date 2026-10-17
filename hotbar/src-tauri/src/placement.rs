@@ -6,82 +6,140 @@ pub struct Rect {
     pub height: f64,
 }
 
-pub fn resize_anchored(bar: Rect, size: (f64, f64), area: Rect) -> Rect {
-    let (width, height) = (size.0.min(area.width), size.1.min(area.height));
-    let near_left = bar.x - area.x <= area.x + area.width - bar.x - bar.width;
-    let x = if near_left { bar.x } else { bar.x + bar.width - width };
-    Rect { x: x.clamp(area.x, area.x + area.width - width),
-        y: bar.y.clamp(area.y, area.y + area.height - height), width, height }
+/// Transparent CSS margin: only the docked side may overhang the work area.
+pub const EDGE_MARGIN: f64 = 12.;
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Edge { Left, Right, Top, Bottom }
+impl Edge {
+    pub fn vertical(self) -> bool { matches!(self, Self::Left | Self::Right) }
 }
-
-pub fn panel_side(bar: Rect, size: (f64, f64), area: Rect) -> Rect {
-    let (width, height) = (size.0.min(area.width), size.1.min(area.height));
-    let left = bar.x - width - 8.;
-    let x = if left >= area.x { left } else { bar.x + bar.width + 8. };
-    Rect { x: x.clamp(area.x, area.x + area.width - width),
-        y: bar.y.clamp(area.y, area.y + area.height - height), width, height }
+pub fn bar_size(edge: Edge, collapsed: bool, scale: f64) -> (f64, f64) {
+    let span = if collapsed { 156. } else { 466. } * scale;
+    if edge.vertical() { (82. * scale, span) } else { (span, 82. * scale) }
 }
-
-pub fn clamp(saved: Option<Rect>, size: (f64, f64), areas: &[Rect], primary: Rect) -> Rect {
-    let area = saved.and_then(|r| areas.iter().find(|a| {
-        let (cx, cy) = (r.x + r.width / 2., r.y + r.height / 2.);
-        cx >= a.x && cx < a.x + a.width && cy >= a.y && cy < a.y + a.height
-    })).copied();
-    let a = area.unwrap_or(primary);
-    let (width, height) = (size.0.min(a.width), size.1.min(a.height));
-    let r = match (area, saved) {
-        (Some(_), Some(r)) => r,
-        _ => Rect { x: a.x + a.width - width - 8., y: a.y + (a.height - height) / 2., width, height },
+pub fn monitor_index(bar: Rect, areas: &[Rect]) -> Option<usize> {
+    let (x, y) = (bar.x + bar.width / 2., bar.y + bar.height / 2.);
+    areas.iter().position(|a| x >= a.x && x < a.x + a.width && y >= a.y && y < a.y + a.height)
+}
+pub fn nearest_edge(bar: Rect, area: Rect) -> Edge {
+    let (x, y) = (bar.x + bar.width / 2., bar.y + bar.height / 2.);
+    [(Edge::Left, (x - area.x).abs()), (Edge::Right, (area.x + area.width - x).abs()),
+        (Edge::Top, (y - area.y).abs()), (Edge::Bottom, (area.y + area.height - y).abs())]
+        .into_iter().min_by(|a, b| a.1.total_cmp(&b.1)).unwrap().0
+}
+/// Preserve the along-edge origin, clamping it when the requested span no longer fits.
+pub fn dock(bar: Rect, edge: Edge, collapsed: bool, area: Rect, scale: f64) -> Rect {
+    let (width, height) = bar_size(edge, collapsed, scale);
+    let (width, height) = (width.min(area.width), height.min(area.height));
+    let over = EDGE_MARGIN * scale;
+    let mut r = Rect { x: bar.x.clamp(area.x, area.x + area.width - width),
+        y: bar.y.clamp(area.y, area.y + area.height - height), width, height };
+    match edge {
+        Edge::Left => r.x = area.x - over,
+        Edge::Right => r.x = area.x + area.width - width + over,
+        Edge::Top => r.y = area.y - over,
+        Edge::Bottom => r.y = area.y + area.height - height + over,
+    }
+    r
+}
+pub fn restore(saved: Option<(f64, f64)>, edge: Option<Edge>, collapsed: bool,
+               monitors: &[(Rect, Rect, f64)], primary: (Rect, f64)) -> (Rect, Edge) {
+    if let Some((x, y)) = saved {
+        for &(bounds, a, scale) in monitors {
+            let (width, height) = bar_size(edge.unwrap_or(Edge::Right), collapsed, scale);
+            let r = Rect { x, y, width: width.min(a.width), height: height.min(a.height) };
+            if monitor_index(r, &[bounds]).is_some() {
+                let edge = edge.unwrap_or_else(|| nearest_edge(r, a));
+                return (dock(r, edge, collapsed, a, scale), edge);
+            }
+        }
+    }
+    let (a, scale) = primary;
+    let (_, height) = bar_size(Edge::Right, collapsed, scale);
+    (dock(Rect { y: a.y + (a.height - height.min(a.height)) / 2., ..a },
+        Edge::Right, collapsed, a, scale), Edge::Right)
+}
+pub fn panel_side(bar: Rect, size: (f64, f64), area: Rect, edge: Edge) -> Rect {
+    let (width, height) = (size.0.min(area.width), size.1.min(area.height));
+    let (x, y) = match edge {
+        Edge::Left => (bar.x + bar.width + 8., bar.y),
+        Edge::Right => (bar.x - width - 8., bar.y),
+        Edge::Top => (bar.x, bar.y + bar.height + 8.),
+        Edge::Bottom => (bar.x, bar.y - height - 8.),
     };
-    Rect { x: r.x.clamp(a.x, a.x + a.width - width),
-        y: r.y.clamp(a.y, a.y + a.height - height), width, height }
+    Rect { x: x.clamp(area.x, area.x + area.width - width),
+        y: y.clamp(area.y, area.y + area.height - height), width, height }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    const PRIMARY: Rect = Rect { x: 0., y: 0., width: 1920., height: 1040. };
+    const AREA: Rect = Rect { x: 0., y: 0., width: 1920., height: 1040. };
     const LEFT: Rect = Rect { x: -1280., y: -200., width: 1280., height: 1024. };
-    const SIZE: (f64, f64) = (180., 300.);
+    fn bar(x: f64, y: f64) -> Rect { Rect { x, y, width: 82., height: 466. } }
     #[test]
-    fn resizing_keeps_nearer_edge_and_clamps_including_negative_monitors() {
-        assert_eq!(resize_anchored(bar(1732., 900.), (82., 140.), PRIMARY),
-            Rect { x: 1830., y: 900., width: 82., height: 140. });
-        assert_eq!(resize_anchored(bar(-1272., -190.), (82., 140.), LEFT),
-            Rect { x: -1272., y: -190., width: 82., height: 140. });
-        assert_eq!(resize_anchored(bar(1900., 1000.), (2000., 1200.), PRIMARY), PRIMARY);
+    fn nearest_edges_include_negative_and_secondary_monitors() {
+        for (x, y, edge) in [(0., 200., Edge::Left), (1800., 200., Edge::Right),
+            (900., -200., Edge::Top), (900., 800., Edge::Bottom)] {
+            assert_eq!(nearest_edge(bar(x, y), AREA), edge);
+        }
+        assert_eq!(monitor_index(bar(-1200., -100.), &[AREA, LEFT]), Some(1));
+        assert_eq!(nearest_edge(bar(-1200., -100.), LEFT), Edge::Left);
+        assert_eq!(monitor_index(bar(3000., 0.), &[AREA, LEFT]), None);
     }
     #[test]
-    fn panel_prefers_left_else_right_and_clamps_tight_areas() {
-        assert_eq!(panel_side(bar(1700., 100.), (400., 650.), PRIMARY),
-            Rect { x: 1292., y: 100., width: 400., height: 650. });
-        assert_eq!(panel_side(bar(0., 900.), (400., 650.), PRIMARY),
-            Rect { x: 188., y: 390., width: 400., height: 650. });
+    fn dock_is_flush_and_collapse_keeps_the_along_edge_origin() {
+        for edge in [Edge::Left, Edge::Right, Edge::Top, Edge::Bottom] {
+            for scale in [1., 1.25, 2.] {
+                let expanded = dock(bar(200., 100.), edge, false, AREA, scale);
+                let collapsed = dock(expanded, edge, true, AREA, scale);
+                assert_eq!((expanded.width, expanded.height), bar_size(edge, false, scale));
+                assert_eq!(dock(collapsed, edge, false, AREA, scale), expanded);
+                let over = EDGE_MARGIN * scale;
+                match edge {
+                    Edge::Left => assert_eq!(expanded.x + over, AREA.x),
+                    Edge::Right => assert_eq!(expanded.x + expanded.width - over, AREA.width),
+                    Edge::Top => assert_eq!(expanded.y + over, AREA.y),
+                    Edge::Bottom => assert_eq!(expanded.y + expanded.height - over, AREA.height),
+                }
+                if edge.vertical() { assert_eq!(expanded.y, collapsed.y); }
+                else { assert_eq!(expanded.x, collapsed.x); }
+                assert_eq!(bar_size(edge, true, scale), if edge.vertical() {
+                    (82. * scale, 156. * scale)
+                } else { (156. * scale, 82. * scale) });
+            }
+        }
+        assert_eq!(dock(bar(-1300., 700.), Edge::Left, false, LEFT, 1.), bar(-1292., 358.));
+        assert_eq!(dock(bar(1800., 900.), Edge::Top, false, AREA, 1.).x, 1454.);
+    }
+    #[test]
+    fn restore_defaults_removed_monitor_legacy_and_saved_edge() {
+        let monitors = [(AREA, AREA, 1.), (LEFT, LEFT, 2.)];
+        for saved in [None, Some((3000., 0.))] {
+            assert_eq!(restore(saved, Some(Edge::Top), false, &monitors, (AREA, 1.)),
+                (bar(1850., 287.), Edge::Right));
+        }
+        assert_eq!(restore(Some((-1200., -100.)), None, false, &monitors, (AREA, 1.)).1, Edge::Left);
+        for edge in [Edge::Left, Edge::Right, Edge::Top, Edge::Bottom] {
+            let rect = dock(bar(-1000., -100.), edge, true, LEFT, 2.);
+            assert_eq!(restore(Some((rect.x, rect.y)), Some(edge), true, &monitors, (AREA, 1.)), (rect, edge));
+        }
+        let full = Rect { height: 1200., ..AREA };
+        assert_eq!(restore(Some((700., 1060.)), None, true, &[(full, AREA, 1.)], (AREA, 1.)).1, Edge::Bottom);
+        let (rect, edge) = restore(Some((700., 0.)), Some(Edge::Bottom), true, &monitors, (AREA, 1.));
+        assert_eq!(edge, Edge::Bottom);
+        assert_eq!(rect, Rect { x: 700., y: 970., width: 156., height: 82. });
+    }
+    #[test]
+    fn panels_face_inward_and_clamp_in_tight_areas() {
+        let bar = Rect { x: 800., y: 800., width: 82., height: 466. };
+        let area = Rect { width: 3000., height: 2500., ..AREA };
+        for (edge, x, y) in [(Edge::Left, 890., 800.), (Edge::Right, 384., 800.),
+            (Edge::Top, 800., 1274.), (Edge::Bottom, 800., 126.)] {
+            assert_eq!(panel_side(bar, (408., 666.), area, edge), Rect { x, y, width: 408., height: 666. });
+        }
         let tight = Rect { x: -500., y: -200., width: 500., height: 400. };
-        assert_eq!(panel_side(bar(-400., -150.), (400., 650.), tight),
-            Rect { x: -400., y: -200., width: 400., height: 400. });
-    }
-    fn bar(x: f64, y: f64) -> Rect { Rect { x, y, width: SIZE.0, height: SIZE.1 } }
-
-    #[test]
-    fn missing_removed_and_fully_offscreen_use_primary_default() {
-        for saved in [None, Some(bar(2500., 50.)), Some(bar(-3000., -900.))] {
-            assert_eq!(clamp(saved, SIZE, &[PRIMARY], PRIMARY), bar(1732., 370.));
-        }
-        let offset = Rect { x: 100., y: -500., ..PRIMARY };
-        assert_eq!(clamp(None, SIZE, &[offset], offset), bar(1832., -130.));
-    }
-
-    #[test]
-    fn negative_monitor_and_partial_rects_are_clamped_by_their_centres() {
-        let areas = [PRIMARY, LEFT];
-        for (saved, expected) in [
-            (bar(-1200., -100.), bar(-1200., -100.)),
-            (bar(-1320., -250.), bar(-1280., -200.)),
-            (bar(1800., 800.), bar(1740., 740.)),
-            (bar(-50., -50.), bar(0., 0.)),
-        ] {
-            assert_eq!(clamp(Some(saved), SIZE, &areas, PRIMARY), expected);
-        }
+        assert_eq!(panel_side(bar, (600., 666.), tight, Edge::Bottom), tight);
     }
 }

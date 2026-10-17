@@ -210,3 +210,13 @@ test('pets map each agent to its relative idle asset', () => {
     assert.equal(cards.petOf(id), `assets/pets/${pet}-idle.svg`);
   }
 });
+
+
+test('chevron points into its edge when expanded and away when collapsed', async () => {
+  const { chevronRotation } = await import('./state.js');
+  for (const [edge, angle] of [['right', 0], ['bottom', 90], ['left', 180], ['top', 270]]) {
+    assert.equal(chevronRotation(edge, false), angle);
+    assert.equal(chevronRotation(edge, true), (angle + 180) % 360);
+  }
+  assert.equal(chevronRotation(undefined, false), 0);
+});

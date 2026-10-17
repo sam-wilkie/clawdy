@@ -175,6 +175,13 @@ GitNexus unavailable during implementation; `rg` checked placement, usage event/
 - [ ] 9.3 GREEN `state.rs`; collapsed pill (chevron + dots, tooltip and `aria-label` with attention names) with the window resized to the pill and anchored to the nearer edge; chevron toggles; context menu (Collapse, Theme, Edit config, Reload config) also opened by the gear button; Edit config via opener `open_path` on fixed `hotbar.json` (created if missing). Spec: window Collapse, Menu items. Dep 9.1, 9.2.
 - [ ] 9.4 REFACTOR; `cargo test`, `node --test`; commit `feat(hotbar): persist position, collapse and add context menu`.
 
+## PR 9b: Edge-docked widget (user request after PR 9) base: PR 9
+
+- [ ] 9b.1 RED Rust tests: pure `dock` (nearest edge incl. negative monitors and a second monitor, flush with the margin overhang), restore with and without `edge`, `panel_side` for the four edges, horizontal sizes. Spec: window Placement and persistence (Drag snaps, Secondary monitor).  
+- [ ] 9b.2 GREEN `state.rs`/`placement.rs`: `edge` in state, snap after a drag ends (ignore the move events caused by the snap itself), orientation resize, `hotbar-state` event carries `edge`.  
+- [ ] 9b.3 GREEN UI: `edge-*` classes, horizontal layout, square corners on the edge side and rounded inward, dots and dividers per orientation; `node --test` for the pure edge helpers.  
+- [ ] 9b.4 Manual: dock on each edge and on a second monitor, collapse on each, panel opens inward; commit `feat(hotbar): dock the bar flush to a screen edge`.
+
 ## PR 10: Custom cells (~330, split candidate) base: PR 9
 
 - [ ] 10.1 RED `config.rs` tests: missing config -> default created; invalid cell disabled with error; malformed JSON on reload keeps last good + error badge; unknown prefix, `open:file://`, `javascript:`, empty program rejected at load. Spec: cells Missing config, Invalid cell, Malformed JSON on reload, Rejected scheme.

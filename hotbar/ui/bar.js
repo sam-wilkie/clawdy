@@ -1,4 +1,4 @@
-import { AGENTS, agentOf, billingOf, ringOf, dockLabel, collapsedDot, attentionLabel } from './state.js';
+import { AGENTS, agentOf, billingOf, ringOf, dockLabel, collapsedDot, attentionLabel, chevronRotation } from './state.js';
 import { connectState } from './theme.js';
 
 const dock = document.getElementById('dock'), cells = new Map();
@@ -45,6 +45,7 @@ dots.setAttribute('aria-hidden', 'true');
 for (const { id } of AGENTS) dotCells.set(id, element('i', `dot agent-${id}`, dots));
 connectState(state => {
   dock.classList.toggle('collapsed', state.collapsed);
+  chevron.firstElementChild.style.transform = `rotate(${chevronRotation(state.edge, state.collapsed)}deg)`;
   chevron.setAttribute('aria-expanded', String(!state.collapsed));
   label(chevron, state.collapsed ? 'Expandir hotbar' : 'Contraer hotbar');
   render(documentData);
