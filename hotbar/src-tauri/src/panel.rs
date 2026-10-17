@@ -30,7 +30,11 @@ pub fn on_blur(panel: tauri::Window) {
         std::thread::sleep(std::time::Duration::from_millis(150));
         let current = panel.state::<Generation>().0.load(Ordering::SeqCst);
         if should_hide(started, current, panel.is_focused().unwrap_or(false)) {
-            *panel.state::<Generation>().1.lock().unwrap_or_else(|p| p.into_inner()) = Some(Instant::now());
+            // Only a blur that hid a visible panel can precede a toggle click; the blur a
+            // click-to-close itself causes finds the panel already hidden.
+            if panel.is_visible().unwrap_or(false) {
+                *panel.state::<Generation>().1.lock().unwrap_or_else(|p| p.into_inner()) = Some(Instant::now());
+            }
             let _ = panel.hide();
         }
     });
@@ -67,8 +71,9 @@ pub fn open_panel(app: tauri::AppHandle, agent: String, state: tauri::State<'_, 
             let size = bar.outer_size()?;
             // The bar's monitor, not wherever the hidden panel last was (mixed-DPI setups).
             let scale = monitor.scale_factor();
-            // The dock sits in 12 px of transparent window margin; close the panel in on it.
-            let inset = 16. * scale;
+            // The dock sits in 12 px of transparent window margin and the panel has 8 px of
+            // padding, both scaled; panel_side adds an unscaled 8 px. This leaves a 12 px gap.
+            let inset = 8. * scale + 8.;
             let rect = panel_side(Rect { x: pos.x as f64 + inset, y: pos.y as f64,
                 width: size.width as f64 - 2. * inset, height: size.height as f64 }, (408. * scale, 666. * scale),
                 Rect { x: work.position.x as f64, y: work.position.y as f64,
