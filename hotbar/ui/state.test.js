@@ -181,3 +181,10 @@ test('plan percentages are rounded the same way in the dock and the cards', () =
   assert.match(dockLabel('kiro', { status: 'ok', billing: 'plan', plan: { status: 'ok',
     limits: [{ id: 'credits', used_pct: 100 / 3 }] } }), /33,33 %/);
 });
+
+test('pets map each agent to its relative idle asset', () => {
+  for (const [id, pet] of [['claude', 'claude'], ['codex', 'codex'],
+    ['kiro', 'monster'], ['opencode', 'monster'], ['pi', 'monster']]) {
+    assert.equal(cards.petOf(id), `assets/pets/${pet}-idle.svg`);
+  }
+});

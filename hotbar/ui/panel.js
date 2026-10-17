@@ -1,5 +1,5 @@
 import { WINDOWS, acceptUsage, panelState, cardState, limitName, resetLabel,
-  formatTokens, projectRows, projectShare, costLabel, projectLabel, formatPct } from './state.js';
+  formatTokens, projectRows, projectShare, costLabel, projectLabel, formatPct, petOf } from './state.js';
 
 const api = window.__TAURI__, body = document.getElementById('agents');
 let data = null, selected = 'all', range = 'today', connectionError = false;
@@ -31,7 +31,9 @@ function card(row, state) {
   const { id, name, agent } = row, model = cardState(id, agent, range);
   const article = element('article', `agent agent-${id}`, '', body);
   const head = element('div', 'ahead', '', article);
-  const pet = element('span', 'pet', '', head); pet.hidden = true;
+  const pet = element('span', 'pet', '', head);
+  const image = element('img', '', '', pet);
+  image.alt = ''; image.src = petOf(id);
   const who = element('span', 'who', '', head), title = element('span', 'aname-row', '', who);
   const logo = element(id === 'pi' ? 'img' : 'span', 'orig', '', title);
   logo.setAttribute('aria-hidden', 'true');

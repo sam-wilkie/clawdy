@@ -3,6 +3,9 @@ export const AGENTS = Object.freeze([
   { id: 'opencode', name: 'OpenCode' }, { id: 'kiro', name: 'Kiro' },
   { id: 'pi', name: 'Gentle Shell' },
 ].map(Object.freeze));
+export function petOf(id) {
+  return `assets/pets/${id === 'claude' || id === 'codex' ? id : 'monster'}-idle.svg`;
+}
 export const agentOf = (data, id) => data?.agents?.[id] ?? { status: 'absent' };
 export const billingOf = (agent) => agent?.billing === 'plan' ? 'plan' : 'payg';
 const usd = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'USD' });
