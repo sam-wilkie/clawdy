@@ -139,9 +139,10 @@ img.crab-layer[hidden] { display: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  flex-wrap: wrap; /* a long tool name drops below the title instead of splitting it */
+  gap: 3px 8px;
 }
-#perm-title { font-weight: 600; font-size: 13px; color: var(--perm-ink); }
+#perm-title { white-space: nowrap; font-weight: 600; font-size: 13px; color: var(--perm-ink); }
 #perm-tool {
   padding: 1px 7px;
   border-radius: 999px;
@@ -152,6 +153,9 @@ img.crab-layer[hidden] { display: none; }
   letter-spacing: .04em;
   text-transform: uppercase;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 #perm-tool:empty { display: none; }
 #perm-meta {
