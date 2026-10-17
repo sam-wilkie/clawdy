@@ -1,4 +1,4 @@
-use std::sync::{atomic::{AtomicU64, Ordering}, Mutex};
+use std::{sync::{atomic::{AtomicU64, Ordering}, Mutex}, time::{Duration, Instant}};
 use tauri::{Emitter, Manager};
 use crate::placement::{panel_side, Rect};
 
@@ -8,8 +8,14 @@ impl Default for Selection {
 }
 
 /// Bumped on every open and every blur, so a deferred blur can tell it went stale.
+/// The second field is when a blur last hid the panel (see `closes_on_same_icon`).
 #[derive(Default)]
-pub struct Generation(pub AtomicU64);
+pub struct Generation(pub AtomicU64, pub Mutex<Option<Instant>>);
+
+/// Clicking the dock blurs the panel first, so the click often lands just after the blur hid it.
+fn closes_on_same_icon(visible: bool, same_agent: bool, since_blur_hide: Option<Duration>) -> bool {
+    same_agent && (visible || since_blur_hide.is_some_and(|d| d < Duration::from_millis(400)))
+}
 
 fn should_hide(started: u64, current: u64, focused: bool) -> bool {
     started == current && !focused
@@ -24,6 +30,7 @@ pub fn on_blur(panel: tauri::Window) {
         std::thread::sleep(std::time::Duration::from_millis(150));
         let current = panel.state::<Generation>().0.load(Ordering::SeqCst);
         if should_hide(started, current, panel.is_focused().unwrap_or(false)) {
+            *panel.state::<Generation>().1.lock().unwrap_or_else(|p| p.into_inner()) = Some(Instant::now());
             let _ = panel.hide();
         }
     });
@@ -45,6 +52,12 @@ pub fn open_panel(app: tauri::AppHandle, agent: String, state: tauri::State<'_, 
         return Err("Unknown agent".into());
     }
     generation.0.fetch_add(1, Ordering::SeqCst);
+    let since_blur_hide = generation.1.lock().unwrap_or_else(|p| p.into_inner()).take().map(|t| t.elapsed());
+    let same_agent = *state.0.lock().unwrap_or_else(|p| p.into_inner()) == agent;
+    let visible = window(&app, "panel").and_then(|p| p.is_visible()).unwrap_or(false);
+    if closes_on_same_icon(visible, same_agent, since_blur_hide) {
+        return window(&app, "panel").and_then(|panel| panel.hide()).map_err(|e| e.to_string());
+    }
     let place = || -> tauri::Result<()> {
         let bar = window(&app, "bar")?;
         let panel = window(&app, "panel")?;
@@ -54,8 +67,10 @@ pub fn open_panel(app: tauri::AppHandle, agent: String, state: tauri::State<'_, 
             let size = bar.outer_size()?;
             // The bar's monitor, not wherever the hidden panel last was (mixed-DPI setups).
             let scale = monitor.scale_factor();
-            let rect = panel_side(Rect { x: pos.x as f64, y: pos.y as f64,
-                width: size.width as f64, height: size.height as f64 }, (408. * scale, 666. * scale),
+            // The dock sits in 12 px of transparent window margin; close the panel in on it.
+            let inset = 16. * scale;
+            let rect = panel_side(Rect { x: pos.x as f64 + inset, y: pos.y as f64,
+                width: size.width as f64 - 2. * inset, height: size.height as f64 }, (408. * scale, 666. * scale),
                 Rect { x: work.position.x as f64, y: work.position.y as f64,
                     width: work.size.width as f64, height: work.size.height as f64 });
             panel.set_size(tauri::PhysicalSize::new(rect.width as u32, rect.height as u32))?;
@@ -72,6 +87,16 @@ pub fn open_panel(app: tauri::AppHandle, agent: String, state: tauri::State<'_, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn same_icon_closes_while_visible_or_right_after_a_blur_hide() {
+        let ms = |n| Some(Duration::from_millis(n));
+        assert!(closes_on_same_icon(true, true, None));
+        assert!(closes_on_same_icon(false, true, ms(100)));
+        assert!(!closes_on_same_icon(false, true, ms(900)));
+        assert!(!closes_on_same_icon(false, true, None));
+        assert!(!closes_on_same_icon(true, false, ms(100)), "another icon switches the panel");
+    }
 
     #[test]
     fn deferred_blur_hides_only_when_nothing_changed() {
