@@ -14,7 +14,10 @@ pub fn load(path: &Path) -> HotbarState {
 }
 fn save(path: &Path, value: &HotbarState) -> io::Result<()> {
     if let Some(parent) = path.parent() { fs::create_dir_all(parent)?; }
-    fs::write(path, serde_json::to_vec(value)?)
+    // Write then rename, so a kill mid-write never leaves a truncated file that loads as defaults.
+    let tmp = path.with_extension("json.tmp");
+    fs::write(&tmp, serde_json::to_vec(value)?)?;
+    fs::rename(&tmp, path)
 }
 fn should_save(quiet: Option<Duration>, toggle: bool) -> bool {
     toggle || quiet.is_some_and(|d| d >= Duration::from_millis(400))
@@ -30,8 +33,16 @@ impl Store {
     fn flush(&self, inner: &mut (HotbarState, Option<Instant>)) {
         match save(&self.path, &inner.0) {
             Ok(()) => inner.1 = None,
-            Err(err) => eprintln!("hotbar: cannot save state: {err}"),
+            // Drop the pending mark: the next change retries, instead of the poller every 50 ms.
+            Err(err) => { inner.1 = None; eprintln!("hotbar: cannot save state: {err}"); }
         }
+    }
+}
+/// Saves a move still waiting out its debounce; called when the app exits.
+pub fn flush_pending(app: &tauri::AppHandle) {
+    if let Some(store) = app.try_state::<Store>() {
+        let mut inner = store.inner.lock().unwrap_or_else(|p| p.into_inner());
+        if inner.1.is_some() { store.flush(&mut inner); }
     }
 }
 #[tauri::command]
@@ -151,6 +162,7 @@ mod tests {
         let state = HotbarState { x: Some(-900.), y: Some(120.), collapsed: true, theme: Some(Theme::Dark) };
         save(&path, &state).unwrap();
         assert_eq!(load(&path), state);
+        assert!(!path.with_extension("json.tmp").exists());
         assert!(!dir.join("hotbar.json").exists());
         let config = dir.join("hotbar.json");
         std::fs::write(&config, "user config").unwrap();
@@ -166,6 +178,17 @@ mod tests {
         std::fs::remove_file(config).unwrap();
         std::fs::remove_file(path).unwrap();
         std::fs::remove_dir(dir).unwrap();
+    }
+    #[test]
+    fn failed_save_clears_the_pending_mark_instead_of_retrying() {
+        let blocker = std::env::temp_dir().join(format!("clawdy-blocker-{}", std::process::id()));
+        std::fs::write(&blocker, "a file, so its child path cannot be created").unwrap();
+        let store = Store { path: blocker.join("hotbar-state.json"),
+            inner: Mutex::new((HotbarState::default(), Some(Instant::now()))) };
+        let mut inner = store.inner.lock().unwrap();
+        store.flush(&mut inner);
+        assert!(inner.1.is_none());
+        std::fs::remove_file(blocker).unwrap();
     }
     #[test]
     fn moves_wait_for_quiet_but_toggles_save_immediately() {

@@ -62,6 +62,7 @@ fn main() {
         .expect("failed to build hotbar");
     app.run(|app, event| {
         if matches!(event, tauri::RunEvent::Exit) {
+            state::flush_pending(app);
             if let Some(owned) = app.try_state::<pidfile::OwnedPidFile>() {
                 owned.remove();
             }
