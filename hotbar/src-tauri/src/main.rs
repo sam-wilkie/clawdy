@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod config;
 mod pidfile;
 mod placement;
 mod panel;
@@ -16,7 +17,7 @@ fn main() {
         .manage(panel::Generation::default())
         .invoke_handler(tauri::generate_handler![usage::usage_snapshot, panel::open_panel,
             panel::hide_panel, panel::panel_selection, state::hotbar_state,
-            state::toggle_collapsed, state::show_menu])
+            state::toggle_collapsed, state::show_menu, config::hotbar_config])
         .on_menu_event(|app, event| {
             if let Err(err) = state::menu_action(app, event.id().as_ref()) {
                 eprintln!("hotbar: menu action failed: {err}");
@@ -38,6 +39,7 @@ fn main() {
         }))
         .setup(|app| {
             state::start(app.handle())?;
+            config::start(app.handle())?;
             if let Some(bar) = app.get_webview_window("bar") {
                 usage::start(app.path().home_dir()?.join(".clawd-tank/project-usage.json"),
                     bar, app.state::<usage::UsageState>().0.clone());

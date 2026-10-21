@@ -170,7 +170,6 @@ pub fn show_menu(app: tauri::AppHandle) -> Result<(), String> {
     show().map_err(|e| e.to_string())
 }
 pub fn menu_action(app: &tauri::AppHandle, id: &str) -> Result<(), String> {
-    let path = app.state::<Store>().path.with_file_name("hotbar.json");
     match id {
         "collapse" => toggle_collapsed(app.clone()),
         "theme" => {
@@ -179,19 +178,11 @@ pub fn menu_action(app: &tauri::AppHandle, id: &str) -> Result<(), String> {
             app.emit("hotbar-state", hotbar_state(app.state())).map_err(|e| e.to_string())
         }
         "edit" => {
-            fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
-            use std::io::Write;
-            match fs::OpenOptions::new().write(true).create_new(true).open(&path) {
-                Ok(mut file) => file.write_all(b"{}").map_err(|e| e.to_string())?,
-                Err(e) if e.kind() == io::ErrorKind::AlreadyExists => (),
-                Err(e) => return Err(e.to_string()),
-            }
+            let path = app.state::<crate::config::ConfigState>().path.clone();
+            crate::config::ensure_default(&path).map_err(|e| e.to_string())?;
             tauri_plugin_opener::open_path(&path, None::<&str>).map_err(|e| e.to_string())
         }
-        "reload" => {
-            let _config = fs::read(&path).ok().and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok());
-            app.emit("config-reload", ()).map_err(|e| e.to_string())
-        }
+        "reload" => crate::config::reload(app),
         _ => Ok(()),
     }
 }

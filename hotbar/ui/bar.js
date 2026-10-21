@@ -1,12 +1,11 @@
-import { AGENTS, agentOf, billingOf, ringOf, dockLabel, collapsedDot, attentionLabel, chevronRotation } from './state.js';
+import { AGENTS, agentOf, billingOf, ringOf, dockLabel, collapsedDot, attentionLabel, chevronRotation, configView } from './state.js';
 import { connectState } from './theme.js';
 
 const dock = document.getElementById('dock'), cells = new Map();
 dock.addEventListener('panel-request', ({ detail }) => {
   window.__TAURI__.core.invoke('open_panel', { agent: detail.agent }).catch(console.error);
 });
-const STALE_AFTER_S = 300; // Configuration arrives in PR 10.
-let documentData = null, connectionError = false;
+let documentData = null, connectionError = false, config = configView(null);
 function element(tag, className, parent) {
   const node = document.createElement(tag);
   node.className = className;
@@ -67,10 +66,12 @@ element('hr', '', dock);
 const all = button('Todos los agentes', 'M4 19V9M10 19V5M16 19v-7M22 19H2', 'all');
 const staleBadge = element('span', 'badge stale', all);
 staleBadge.setAttribute('aria-hidden', 'true');
-button('Ajustes', 'M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0');
+const gear = button('Ajustes', 'M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0');
 
+const configBadge = element('span', 'badge err', gear);
+configBadge.setAttribute('aria-hidden', 'true');
 const showMenu = () => window.__TAURI__.core.invoke('show_menu').catch(console.error);
-dock.lastElementChild.addEventListener('click', showMenu);
+gear.addEventListener('click', showMenu);
 document.addEventListener('contextmenu', event => { event.preventDefault(); showMenu(); });
 dock.addEventListener('pointerdown', event => {
   if (event.button === 0 && !event.target.closest('button'))
@@ -80,8 +81,10 @@ function render(data) {
   documentData = data;
   if (dock.classList.contains('collapsed')) label(dock, attentionLabel(data));
   else { dock.removeAttribute('title'); dock.setAttribute('aria-label', 'Agentes de Clawdy'); }
+  for (const [id, dot] of dotCells) dot.hidden = !config.shown.has(id);
   for (const [id, dot] of dotCells) dot.className = `dot agent-${id} ${collapsedDot(agentOf(data, id))}`;
   for (const [id, { node, ring, fill, badge }] of cells) {
+    node.hidden = !config.shown.has(id);
     const agent = agentOf(data, id), value = ringOf(agent);
     label(node, dockLabel(id, agent));
     node.classList.toggle('absent', agent.status === 'absent');
@@ -93,14 +96,22 @@ function render(data) {
     badge.hidden = agent.status === 'absent' || (agent.status !== 'error' && billingOf(agent) === 'plan');
   }
   const age = (Date.now() - Date.parse(data?.generated_at)) / 1000;
-  staleBadge.hidden = !(age > STALE_AFTER_S);
+  staleBadge.hidden = !(age > config.staleAfter);
   label(all, `Todos los agentes${connectionError ? ': Falló la conexión de uso' : !data ? ': Sin datos de uso'
-    : age > STALE_AFTER_S ? `: Actualizado hace ${Math.floor(age / 60)} min` : ''}`);
+    : age > config.staleAfter ? `: Actualizado hace ${Math.floor(age / 60)} min` : ''}`);
+}
+function applyConfig(value) {
+  config = configView(value);
+  configBadge.hidden = !config.error;
+  label(gear, config.error ? `Ajustes: configuración con errores (${config.error})` : 'Ajustes');
+  render(documentData);
 }
 async function connect() {
   let received = false;
   // A later event proves the link works, even if the initial snapshot call failed.
   await window.__TAURI__.event.listen('usage', ({ payload }) => { received = true; connectionError = false; render(payload); });
+  await window.__TAURI__.event.listen('config-reload', ({ payload }) => applyConfig(payload));
+  applyConfig(await window.__TAURI__.core.invoke('hotbar_config'));
   const initial = await window.__TAURI__.core.invoke('usage_snapshot');
   if (!received) render(initial);
 }
