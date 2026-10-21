@@ -177,7 +177,7 @@ No migration. New files only appear under `~/.clawd-tank`. Behaviour change: Cla
 
 - [ ] Codex token inclusion (`input_tokens` ⊇ cached/cache-write?) to verify on a real rollout file at PR 3.
 - [ ] OpenCode: when it stops writing the legacy `message` table, add a `session_message` path (detect with an empty legacy result alongside non-empty v2 tables).
-- [ ] Q4: the 5-minute stale default is still unconfirmed by the user.
+- [x] Q4: the 5-minute stale default (`stale_after_s: 300`) is confirmed by the user.
 - [ ] SQLite `mode=ro` behaviour on a WAL DB without `-shm` varies by SQLite version (Python's bundled 3.4x). The PR 4 RED tests decide whether the `immutable` retry is ever reached.
 - [ ] r3: Claude is always `billing:"plan"`. A Claude Code user on an API key has no `rate_limits`, so they get `plan.status:"no_data"` and no money shown. Confirm, or define a payg signal for Claude.
 - [ ] r3: Codex `billing` before the first successful `account/read` (and when Codex is signed out) defaults to `plan`. Confirm.

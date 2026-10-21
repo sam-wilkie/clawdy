@@ -205,7 +205,7 @@ GitNexus impact first: `ClawdTankController` (`__init__`, `start`, `quit`, `_ren
 
 ## Final: Docs and manual Windows checklist (after PR 11, on the tracker)
 
-- [ ] F.1 Docs: `CLAUDE.md` (host usage readers, plan sources, `project-usage.json` with `billing`/`plan`, hotbar), `TODO.md` entry, r3 open questions on Claude and Codex billing defaults, resolve open questions 1 and 4 (Q4 stale default still needs user confirmation). Progress: `CLAUDE.md` hotbar sections and `TODO.md` entries done; r3 billing-default questions and Q4 (stale default) still need the user.
+- [ ] F.1 Docs: `CLAUDE.md` (host usage readers, plan sources, `project-usage.json` with `billing`/`plan`, hotbar), `TODO.md` entry, r3 open questions on Claude and Codex billing defaults, resolve open questions 1 and 4 (Q4 stale default still needs user confirmation). Progress: `CLAUDE.md` hotbar sections and `TODO.md` entries done; Q4 (stale default 300 s) confirmed by the user; r3 billing-default questions for Claude and Codex still open.
 - [ ] F.2 Manual Windows checklist (record pass/fail in the tracker PR):
   - [ ] Bar appears at default placement; drag, restart, position restored.
   - [ ] Five agent buttons (Claude, Codex, OpenCode, Kiro, Gentle Shell) open their cards on the left, or right when no room; "all agents" shows every card; blur hides.
