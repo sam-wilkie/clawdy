@@ -20,13 +20,18 @@ def find_hotbar_exe(
     exe_dir: Optional[str] = None,
     repo_root: Path = _REPO_ROOT,
 ) -> Optional[str]:
-    """CLAWDY_HOTBAR_EXE, then next to sys.executable, then the repo release build."""
+    """CLAWDY_HOTBAR_EXE, then next to sys.executable, then a cargo release build
+    (CARGO_TARGET_DIR, else the repo's own target dir)."""
     override = environ.get("CLAWDY_HOTBAR_EXE")
     if override and os.path.isabs(override) and os.path.isfile(override):
         return override
     if exe_dir is None:
         exe_dir = os.path.dirname(sys.executable)
-    for folder in (Path(exe_dir), repo_root / "hotbar" / "src-tauri" / "target" / "release"):
+    folders = [Path(exe_dir)]
+    if environ.get("CARGO_TARGET_DIR"):
+        folders.append(Path(environ["CARGO_TARGET_DIR"]) / "release")
+    folders.append(repo_root / "hotbar" / "src-tauri" / "target" / "release")
+    for folder in folders:
         candidate = folder / HOTBAR_EXE
         if candidate.is_file():
             return str(candidate)

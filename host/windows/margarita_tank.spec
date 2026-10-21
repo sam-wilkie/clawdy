@@ -45,6 +45,22 @@ SIM_EXE = next(
     None,
 )
 
+# The Tauri hotbar ships next to Clawdy.exe, where hotbar_process.find_hotbar_exe() looks.
+# Same candidates as that lookup (override, cargo target dir, repo build). Missing is only
+# a warning here so a dev build without Rust still works; CI checks for it explicitly.
+_CARGO_TARGET = os.environ.get("CARGO_TARGET_DIR", "")
+HOTBAR_EXE = next(
+    (p for p in (
+        os.environ.get("CLAWDY_HOTBAR_EXE", ""),
+        os.path.join(_CARGO_TARGET, "release", "clawdy-hotbar.exe") if _CARGO_TARGET else "",
+        os.path.join(REPO_ROOT, "hotbar", "src-tauri", "target", "release", "clawdy-hotbar.exe"),
+    ) if p and os.path.isfile(p)),
+    None,
+)
+if HOTBAR_EXE is None:
+    print("WARNING: clawdy-hotbar.exe not found; the build will have no hotbar "
+          "(cargo build --release in hotbar/src-tauri)")
+
 os.makedirs(workpath, exist_ok=True)
 
 # Exe/installer icon, generated from the committed macOS iconset so the repo
@@ -94,7 +110,7 @@ tray = Analysis(
         # Pi (gentle-shell) extension, copied by hooks.install_pi_hooks().
         (os.path.join(HOST_DIR, "pi-extension", "clawd-tank.js"), "pi-extension"),
         (ICON_PATH, "."),
-    ],
+    ] + ([(HOTBAR_EXE, ".")] if HOTBAR_EXE else []),
     hiddenimports=[
         "pystray._win32",
         "PIL._tkinter_finder",

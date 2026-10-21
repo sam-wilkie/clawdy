@@ -193,6 +193,20 @@ def test_lookup_order_next_to_python_then_repo_release(tmp_path):
     assert find_hotbar_exe({}, str(beside), tmp_path) == str(beside / EXE_NAME)
 
 
+def test_cargo_target_dir_release_build_is_found_before_the_repo_default(tmp_path):
+    target = tmp_path / "target" / "release"
+    target.mkdir(parents=True)
+    (target / EXE_NAME).write_bytes(b"")
+    repo = tmp_path / "repo" / "hotbar" / "src-tauri" / "target" / "release"
+    repo.mkdir(parents=True)
+    (repo / EXE_NAME).write_bytes(b"")
+    environ = {"CARGO_TARGET_DIR": str(tmp_path / "target")}
+    found = find_hotbar_exe(environ, str(tmp_path), tmp_path / "repo")
+    assert found == str(target / EXE_NAME)
+    # Next to python still wins, and a missing target dir falls through to the repo build.
+    assert find_hotbar_exe({"CARGO_TARGET_DIR": str(tmp_path / "gone")}, str(tmp_path), tmp_path / "repo")         == str(repo / EXE_NAME)
+
+
 def test_env_override_ignored_when_not_an_absolute_existing_file(tmp_path):
     assert find_hotbar_exe({"CLAWDY_HOTBAR_EXE": "relative.exe"}, str(tmp_path), tmp_path) is None
     missing = str(tmp_path / "gone.exe")

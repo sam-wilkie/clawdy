@@ -112,14 +112,15 @@ Uninstalling runs `MargaritaTank.exe --uninstall-hooks` (after killing the tray,
 ### Hotbar (Tauri, Windows)
 
 ```bash
-# Toolchain env (sets CARGO_TARGET_DIR=O:\dev\target, so the exe is O:\dev\target\release\clawdy-hotbar.exe)
-. /o/dev/env.sh && cd hotbar/src-tauri && cargo build --release
+# env.sh puts the toolchain on PATH and sets CARGO_TARGET_DIR=O:\dev\target. Build into the
+# repo's own target dir instead, so the tray finds the exe with no environment variable.
+. /o/dev/env.sh && cd hotbar/src-tauri && CARGO_TARGET_DIR="$PWD/target" cargo build --release
 cargo test                       # Rust (config, actions, placement, state, panel)
 cd hotbar/ui && node --test      # UI helpers
 cd host && .venv/Scripts/python.exe -m pytest tests/test_hotbar_process.py
 ```
 
-The tray starts and stops the hotbar (`hotbar_process.py`); "Show hotbar" in the tray menu toggles `hotbar_enabled` in `preferences.json`. The exe is found via `CLAWDY_HOTBAR_EXE` (absolute path), then next to `sys.executable`, then `hotbar/src-tauri/target/release/`. With a different `CARGO_TARGET_DIR` set `CLAWDY_HOTBAR_EXE`, or the tray logs a warning and runs without the bar. The headless daemon never launches it.
+The tray starts and stops the hotbar (`hotbar_process.py`); "Show hotbar" in the tray menu toggles `hotbar_enabled` in `preferences.json`. The exe is found via `CLAWDY_HOTBAR_EXE` (absolute path), then next to `sys.executable`, then `$CARGO_TARGET_DIR/release/`, then `hotbar/src-tauri/target/release/`; if none exists the tray logs a warning and runs without the bar. The headless daemon never launches it. Packaging: `margarita_tank.spec` copies the exe next to `Clawdy.exe` (same candidates; warns when missing), the release workflow builds it before PyInstaller and fails the build check without it, and `installer.iss` kills it before an upgrade and on uninstall.
 
 ### Releases
 
