@@ -207,6 +207,7 @@ GitNexus impact first: `ClawdTankController` (`__init__`, `start`, `quit`, `_ren
 
 - [ ] F.1 Docs: `CLAUDE.md` (host usage readers, plan sources, `project-usage.json` with `billing`/`plan`, hotbar), `TODO.md` entry, r3 open questions on Claude and Codex billing defaults, resolve open questions 1 and 4 (Q4 stale default still needs user confirmation). Progress: `CLAUDE.md` hotbar sections and `TODO.md` entries done; Q4 (stale default 300 s) confirmed by the user; r3 billing-default questions for Claude and Codex still open.
 - [ ] F.2 Manual Windows checklist (record pass/fail in the tracker PR):
+  - Result (user, 2026-10-21): ran the checklist and reported that everything looked fine. Individual items were not recorded, so the boxes below stay unchecked. Agent-verified earlier: hotbar exits when the tray is killed (`Stop-Process -Force`), `panel:` output and its 10 s timeout. Still unconfirmed: `msedgewebview2` after the kill, `run:` surviving the hotbar, `open:`.
   - [ ] Bar appears at default placement; drag, restart, position restored.
   - [ ] Five agent buttons (Claude, Codex, OpenCode, Kiro, Gentle Shell) open their cards on the left, or right when no room; "all agents" shows every card; blur hides.
   - [ ] Plan agents show limits and no money; rings match the highest limit; OpenCode and Gentle Shell show "$" and reported cost; Codex on an API key shows estimated cost.
