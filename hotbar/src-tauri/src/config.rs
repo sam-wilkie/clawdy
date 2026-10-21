@@ -110,6 +110,22 @@ pub fn parse(bytes: &[u8]) -> Result<Config, String> {
     Ok(config)
 }
 
+const AGENT_IDS: [&str; 5] = ["claude", "codex", "opencode", "kiro", "pi"];
+
+/// Logical px the expanded dock grows by: each custom cell plus its divider, minus each hidden agent.
+/// 46px button + 4px flex gap per slot; the divider is 1px plus 4px margins either side and a gap.
+pub fn extra_height(config: &Config) -> f64 {
+    let hidden = AGENT_IDS.iter().filter(|id| !config.agents.iter().any(|a| a == *id)).count();
+    let cells = config.cells.len();
+    let divider = if cells > 0 { 13. } else { 0. };
+    (divider + 50. * cells as f64 - 50. * hidden as f64).max(-310.)
+}
+
+pub fn app_extra(app: &tauri::AppHandle) -> f64 {
+    app.try_state::<ConfigState>()
+        .map_or(0., |s| extra_height(&s.inner.lock().unwrap_or_else(|p| p.into_inner())))
+}
+
 /// A file that cannot be read or parsed keeps the last good config and carries the error.
 pub fn load(path: &Path, last_good: Option<&Config>) -> Config {
     match fs::read(path).map_err(|e| e.to_string()).and_then(|bytes| parse(&bytes)) {
@@ -130,10 +146,13 @@ pub fn ensure_default(path: &Path) -> io::Result<()> {
 }
 
 pub struct ConfigState { pub path: PathBuf, inner: Mutex<Config> }
+impl ConfigState {
+    pub fn snapshot(&self) -> Config { self.inner.lock().unwrap_or_else(|p| p.into_inner()).clone() }
+}
 
 #[tauri::command]
 pub fn hotbar_config(state: tauri::State<'_, ConfigState>) -> Config {
-    state.inner.lock().unwrap_or_else(|p| p.into_inner()).clone()
+    state.snapshot()
 }
 
 pub fn start(app: &tauri::AppHandle) -> tauri::Result<()> {
@@ -151,7 +170,8 @@ pub fn reload(app: &tauri::AppHandle) -> Result<(), String> {
         *inner = load(&state.path, Some(&inner));
         inner.clone()
     };
-    app.emit("config-reload", config).map_err(|e| e.to_string())
+    app.emit("config-reload", config).map_err(|e| e.to_string())?;
+    crate::state::redock(app)
 }
 
 #[cfg(test)]
@@ -290,6 +310,18 @@ mod tests {
         assert_eq!(config.agents, ["claude"]);
         assert_eq!(cell(&config, "w").args, ["--short"]);
         assert_eq!(cell(&config, "w").error, None);
+    }
+
+    #[test]
+    fn extra_height_counts_cells_and_hidden_agents() {
+        assert_eq!(extra_height(&Config::default()), 0.);
+        let config = parse(br#"{"agents":["claude","codex","opencode"],"cells":[
+            {"id":"a","label":"A","action":"open:https://a.dev"},
+            {"id":"b","label":"B","action":"nope"}]}"#).unwrap();
+        // Two cells (disabled ones still take a slot) and two hidden agents.
+        assert_eq!(extra_height(&config), 13. + 100. - 100.);
+        let none = parse(br#"{"agents":[]}"#).unwrap();
+        assert_eq!(extra_height(&none), -250.);
     }
 
     #[test]
