@@ -159,12 +159,14 @@ GitNexus unavailable during implementation; `rg` checked placement, usage event/
 - [x] 8a.1 RED `state.test.js`: limit names by `id` in Spanish with `label` fallback, `window_min` shown when present; reset time text from `resets_at` (and none when `null`); Kiro credits used/plan/remaining (es-CO grouping); Codex `reset_credits` note only when numeric; billing chip text ("Plan", "Pago por uso", "API · estimado"); plan agent without `ok` plan -> no-limits note; project share = tokens / max. Spec: panel Claude on a plan, Kiro credits, Plan without data, Codex card.
 - [x] 8a.2 GREEN `panel.js` cards and `style.css` panel hunks: coloured logo beside the name, chips (10 px 700 uppercase), plan bars in brand colour (cherry at >= 90), token grid, project rows with brand share bars and "ver todos" toggle, payg cost per project, error and stale notes. Dep 8a.1.
 - [ ] 8a.3 REFACTOR; `node --test`; manual check of plan, payg, error and absent cards in both themes; commit `feat(hotbar): add plan-first agent cards`.
+  - Progress: committed (133cd25, 1ed7f8e); dark theme checked on the real bar; light theme still unchecked. Follow-up fixes 00485eb, b071aed: second click on the same icon closes the panel, gap to the dock tightened.
 
 ## PR 8b: Pet assets (~15 authored, ~1,420 copied) base: PR 8a
 
-- [ ] 8b.1 Copy `desktop/renderer/assets/clawd-idle-living-v2.svg`, `codex/cloud-idle-v2.svg`, `monster/monster-idle-v2.svg` into `hotbar/ui/assets/pets/` (`claude-idle.svg`, `codex-idle.svg`, `monster-idle.svg`) and crop only the `viewBox` to the sprite bounds; record in the PR body that `git diff --no-index` against the source shows only the `viewBox` line.
-- [ ] 8b.2 RED `state.test.js`: pet per agent (Claude crab, Codex cloud, Kiro/OpenCode/Gentle Shell monster). GREEN card `<img alt="">` using it; CSP unchanged (`img-src 'self'`). Spec: panel Agent cards.
+- [x] 8b.1 Copy `desktop/renderer/assets/clawd-idle-living-v2.svg`, `codex/cloud-idle-v2.svg`, `monster/monster-idle-v2.svg` into `hotbar/ui/assets/pets/` (`claude-idle.svg`, `codex-idle.svg`, `monster-idle.svg`) and crop only the `viewBox` to the sprite bounds; record in the PR body that `git diff --no-index` against the source shows only the `viewBox` line.
+- [x] 8b.2 RED `state.test.js`: pet per agent (Claude crab, Codex cloud, Kiro/OpenCode/Gentle Shell monster). GREEN card `<img alt="">` using it; CSP unchanged (`img-src 'self'`). Spec: panel Agent cards.
 - [ ] 8b.3 Manual: pets animate in WebView2 and stay within the card; commit `feat(hotbar): add agent pets to panel cards`.
+  - Progress: committed (bf49caa). Checked in a real Electron (Chromium) render, not WebView2: pets display inside the card and animate. `render()` now skips replacing identical cards so the 5 s refresh no longer restarts the animation.
 
 ## PR 9: State, collapsed pill, menu, edit config (~280) base: PR 8b
 
