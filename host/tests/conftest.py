@@ -33,6 +33,7 @@ def sandbox_home(tmp_path_factory, monkeypatch):
     monkeypatch.setenv("APPDATA", str(home / "AppData" / "Roaming"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(home / ".config"))
     monkeypatch.delenv("CLAWDY_KIRO_STATE_DB", raising=False)
+    monkeypatch.setenv("CLAWDY_CODEX_BIN", str(home / "missing-codex.exe"))
     monkeypatch.delenv("PI_CODING_AGENT_DIR", raising=False)
     monkeypatch.delenv("CLAWD_TANK_SOCKET", raising=False)
     monkeypatch.delenv("CLAWD_TANK_HOOK_EXE_DIR", raising=False)

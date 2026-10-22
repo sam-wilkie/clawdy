@@ -2,11 +2,160 @@
 import json
 import math
 import os
+import re
 import sqlite3
+import subprocess
 import sys
+import threading
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
+
+
+def find_codex_exe(env=None, home=None, platform=None):
+    env, home, platform = os.environ if env is None else env, Path(home or Path.home()), platform or sys.platform
+    def native(path):
+        return path.is_absolute() and path.suffix.lower() not in (".cmd", ".bat", ".ps1") and path.is_file()
+    def directories(root):
+        try:
+            return sorted((p for p in root.iterdir() if p.is_dir()), reverse=True,
+                          key=lambda p: [(s.isdigit(), int(s) if s.isdigit() else s.casefold())
+                                         for s in re.split(r"(\d+)", p.name)])
+        except OSError:
+            return []
+    if env.get("CLAWDY_CODEX_BIN"):
+        path = Path(env["CLAWDY_CODEX_BIN"])
+        return str(path) if native(path) else None
+    binary = "codex.exe" if platform == "win32" else "codex"
+    paths = [Path(p) for p in (env.get("PATH") or env.get("Path", "")).split(";" if platform == "win32" else ":") if p]
+    candidates = [p / binary for p in paths]
+    releases = Path(env.get("CODEX_HOME") or home / ".codex") / "packages/app-server-daemon/releases"
+    for directory in directories(releases):
+        candidates.extend((directory / "bin" / binary, directory / binary))
+    if platform == "win32":
+        local = Path(env.get("LOCALAPPDATA") or home / "AppData/Local")
+        candidates.extend(p / binary for p in directories(local / "OpenAI/Codex/bin"))
+        roots = ([Path(env["APPDATA"]) / "npm"] if env.get("APPDATA") else []) + paths
+        for root in roots:
+            package = root / "node_modules/@openai/codex"
+            for pkg in [package, *directories(package / "node_modules/@openai")]:
+                candidates.extend(p / "codex" / binary for p in directories(pkg / "vendor"))
+    else:
+        candidates.extend((home / ".local/bin/codex", Path("/opt/homebrew/bin/codex"), Path("/usr/local/bin/codex")))
+        if platform == "darwin":
+            candidates.append(Path("/Applications/Codex.app/Contents/Resources/codex"))
+    return next((str(p) for p in candidates if native(p)), None)
+
+
+CODEX_CACHE_S = 300        # the app-server is a heavy spawn; quotas move slowly
+CODEX_TIMEOUT_S = 15       # hard kill so a hung server cannot stall the refresh loop
+CODEX_MAX_LINE = 65536     # one JSON-RPC message per line; we read one byte more to detect longer ones
+CODEX_EXIT_GRACE_S = 0.5   # time to exit after stdin closes before we kill it
+JSONRPC_METHOD_NOT_FOUND = -32601
+
+
+class CodexPlanSource:
+    """Read account quotas with bounded process lifetime and a five-minute cache."""
+    def __init__(self, exe_finder=find_codex_exe, popen=subprocess.Popen, timeout_s=CODEX_TIMEOUT_S):
+        self._find, self._popen, self._timeout = exe_finder, popen, timeout_s
+        self._last, self._result, self._failed = None, None, False
+
+    def refresh(self, now):
+        if self._last is None or (now - self._last).total_seconds() >= CODEX_CACHE_S:
+            self._last = now
+            try:
+                self._result = self._read()
+                self._failed = False
+            except Exception:
+                self._failed = True
+        if self._failed:
+            # Never expose protocol payloads in the daemon's failure signature.
+            raise RuntimeError("Codex plan read failed") from None
+        return self._result
+
+    def _read(self):
+        billing = (self._result or {}).get("billing", "plan")
+        exe = self._find()
+        if not exe:
+            return {"status": "ok", "billing": billing, "plan": {"status": "not_installed"}}
+        child = self._popen([exe, "app-server", "--listen", "stdio://"], shell=False,
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
+        expired = threading.Event()
+        def expire():
+            expired.set()
+            try:
+                child.kill()
+            except OSError:
+                pass  # The child may already have exited.
+        timer = threading.Timer(self._timeout, expire)
+        timer.daemon = True
+        def send(message):
+            child.stdin.write((json.dumps({"jsonrpc": "2.0", **message}) + "\n").encode())
+            child.stdin.flush()
+        def request(identifier, method, params=None):
+            send({"id": identifier, "method": method, "params": params or {}})
+            while not expired.is_set():
+                line = child.stdout.readline(CODEX_MAX_LINE + 1)
+                if expired.is_set() or not line or len(line) > CODEX_MAX_LINE or not line.endswith(b"\n"):
+                    raise ValueError("Invalid Codex line")
+                message = json.loads(line)
+                if not isinstance(message, dict):
+                    raise ValueError("Invalid Codex message")
+                if "method" in message:
+                    if "id" in message:
+                        # The server may ask us things (approvals, input); this read-only client answers none.
+                        send({"id": message["id"], "error": {"code": JSONRPC_METHOD_NOT_FOUND, "message": "Unsupported client request"}})
+                    continue
+                if message.get("id") == identifier:
+                    if "error" in message or not isinstance(message.get("result"), dict):
+                        raise ValueError("Invalid Codex result")
+                    return message["result"]
+            raise TimeoutError("Codex plan timeout")
+        timer.start()
+        try:
+            request(0, "initialize", {"clientInfo": {"name": "clawdy", "version": "0.0.1"}})
+            send({"method": "initialized", "params": {}})
+            account = request(1, "account/read", {"refreshToken": False}).get("account")
+            if account is None:
+                return {"status": "ok", "billing": "plan", "plan": {"status": "signed_out"}}
+            if not isinstance(account, dict) or account.get("type") not in ("apiKey", "chatgpt"):
+                raise ValueError("Invalid Codex account")
+            if account["type"] == "apiKey":
+                return {"status": "ok", "billing": "payg"}
+            rates = request(2, "account/rateLimits/read")
+            bucket = _object(rates.get("rateLimitsByLimitId")).get("codex")
+            legacy = _object(rates.get("rateLimits"))
+            bucket = _object(bucket or (legacy if legacy.get("limitId") in (None, "codex") else {}))
+            limits = []
+            for key, name in (("primary", "primary"), ("secondary", "weekly")):
+                row = _object(bucket.get(key))
+                if not _number(row.get("usedPercent")):
+                    continue
+                window = row.get("windowDurationMins")
+                label = f"{window / 60:g}h window" if name == "primary" and _number(window) else "Weekly" if name == "weekly" else "Primary"
+                limit = dict(id=name, label=label, used_pct=row["usedPercent"], resets_at=_reset(row.get("resetsAt")))
+                if _number(window):
+                    limit["window_min"] = window
+                limits.append(limit)
+            credits = _object(rates.get("rateLimitResetCredits")).get("availableCount")
+            return {"status": "ok", "billing": "plan", "plan": {
+                "status": "ok" if limits else "no_data", "limits": limits,
+                "reset_credits": credits if type(credits) is int and credits >= 0 else None}}
+        finally:
+            try:
+                child.stdin.close()
+            except OSError:
+                pass
+            try:
+                child.wait(timeout=CODEX_EXIT_GRACE_S)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait()
+            finally:
+                timer.cancel()
+                timer.join()
+                child.stdout.close()
 
 
 def _object(value):
