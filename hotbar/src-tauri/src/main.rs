@@ -2,6 +2,7 @@
 
 mod pidfile;
 mod placement;
+mod panel;
 mod usage;
 mod watchdog;
 
@@ -25,7 +26,15 @@ fn place_bar(bar: &tauri::WebviewWindow) -> tauri::Result<()> {
 fn main() {
     let app = tauri::Builder::default()
         .manage(usage::UsageState::default())
-        .invoke_handler(tauri::generate_handler![usage::usage_snapshot])
+        .manage(panel::Selection::default())
+        .manage(panel::Generation::default())
+        .invoke_handler(tauri::generate_handler![usage::usage_snapshot, panel::open_panel,
+            panel::hide_panel, panel::panel_selection])
+        .on_window_event(|window, event| {
+            if window.label() == "panel" && matches!(event, tauri::WindowEvent::Focused(false)) {
+                panel::on_blur(window.clone());
+            }
+        })
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(bar) = app.get_webview_window("bar") {
                 let _ = bar.show();

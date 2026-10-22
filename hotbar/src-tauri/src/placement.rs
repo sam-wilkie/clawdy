@@ -6,6 +6,14 @@ pub struct Rect {
     pub height: f64,
 }
 
+pub fn panel_side(bar: Rect, size: (f64, f64), area: Rect) -> Rect {
+    let (width, height) = (size.0.min(area.width), size.1.min(area.height));
+    let left = bar.x - width - 8.;
+    let x = if left >= area.x { left } else { bar.x + bar.width + 8. };
+    Rect { x: x.clamp(area.x, area.x + area.width - width),
+        y: bar.y.clamp(area.y, area.y + area.height - height), width, height }
+}
+
 pub fn clamp(saved: Option<Rect>, size: (f64, f64), areas: &[Rect], primary: Rect) -> Rect {
     let area = saved.and_then(|r| areas.iter().find(|a| {
         let (cx, cy) = (r.x + r.width / 2., r.y + r.height / 2.);
@@ -27,6 +35,16 @@ mod tests {
     const PRIMARY: Rect = Rect { x: 0., y: 0., width: 1920., height: 1040. };
     const LEFT: Rect = Rect { x: -1280., y: -200., width: 1280., height: 1024. };
     const SIZE: (f64, f64) = (180., 300.);
+    #[test]
+    fn panel_prefers_left_else_right_and_clamps_tight_areas() {
+        assert_eq!(panel_side(bar(1700., 100.), (400., 650.), PRIMARY),
+            Rect { x: 1292., y: 100., width: 400., height: 650. });
+        assert_eq!(panel_side(bar(0., 900.), (400., 650.), PRIMARY),
+            Rect { x: 188., y: 390., width: 400., height: 650. });
+        let tight = Rect { x: -500., y: -200., width: 500., height: 400. };
+        assert_eq!(panel_side(bar(-400., -150.), (400., 650.), tight),
+            Rect { x: -400., y: -200., width: 400., height: 400. });
+    }
     fn bar(x: f64, y: f64) -> Rect { Rect { x, y, width: SIZE.0, height: SIZE.1 } }
 
     #[test]

@@ -1,6 +1,9 @@
 import { AGENTS, agentOf, billingOf, ringOf, dockLabel } from './state.js';
 
 const dock = document.getElementById('dock'), cells = new Map();
+dock.addEventListener('panel-request', ({ detail }) => {
+  window.__TAURI__.core.invoke('open_panel', { agent: detail.agent }).catch(console.error);
+});
 const STALE_AFTER_S = 300; // Configuration arrives in PR 10.
 let documentData = null, connectionError = false;
 function element(tag, className, parent) {

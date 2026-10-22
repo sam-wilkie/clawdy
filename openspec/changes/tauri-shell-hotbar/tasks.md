@@ -145,11 +145,13 @@ GitNexus impact first: `_refresh_project_usage`, `build_document` (plans input o
 
 ## PR 8: Panel window and UI state (~320) base: PR 7c
 
-- [ ] 8.1 RED `hotbar/ui/state.test.js` (panel helpers): money only for `payg` (plan agent with a cost shows none and is excluded from the header spend); reported es-CO USD, estimated `≈` + "estimado", `null` -> "Sin precio" (tokens still shown); header spend summed over payg agents with `≈` when any is estimated; today default window; rows sorted by output tokens. Spec: panel Reported, Estimated, Unpriced model, Plan agent cost hidden.
-- [ ] 8.2 RED same file: stale (6 min, default 300 s) shows age; `stale_after_s` 600 not stale; missing file; absent -> "No instalado"; error shows kept totals with marker. Spec: panel Stale, Custom threshold, Missing file, Absent agent, Error agent.
-- [ ] 8.3 RED same file: a malformed or invalid usage payload after a good read keeps the last good data and does not flip to `missing`. Spec: panel requirement "A malformed file after a good read MUST keep the last good data".
-- [ ] 8.4 RED Rust `panel_side` tests (left fits, else right, both tight clamp). Spec: panel No room on left, Open panel.
-- [ ] 8.5 GREEN `state.js` panel helpers, `panel.html`, `panel.js` shell (window segment Hoy/7 días/30 días/Mes, header spend and freshness, close), `panel_side` in `placement.rs`, hide on blur, focus by agent button or "all agents". Spec: panel Open panel, All agents, Blur, Switch window, Refresh. Dep 8.1-8.4.
+GitNexus unavailable during implementation; `rg` checked placement, usage event/snapshot and dock request callers instead. No HIGH/CRITICAL impact result available.
+
+- [x] 8.1 RED `hotbar/ui/state.test.js` (panel helpers): money only for `payg` (plan agent with a cost shows none and is excluded from the header spend); reported es-CO USD, estimated `≈` + "estimado", `null` -> "Sin precio" (tokens still shown); header spend summed over payg agents with `≈` when any is estimated; today default window; rows sorted by output tokens. Spec: panel Reported, Estimated, Unpriced model, Plan agent cost hidden.
+- [x] 8.2 RED same file: stale (6 min, default 300 s) shows age; `stale_after_s` 600 not stale; missing file; absent -> "No instalado"; error shows kept totals with marker. Spec: panel Stale, Custom threshold, Missing file, Absent agent, Error agent.
+- [x] 8.3 RED same file: a malformed or invalid usage payload after a good read keeps the last good data and does not flip to `missing`. Spec: panel requirement "A malformed file after a good read MUST keep the last good data".
+- [x] 8.4 RED Rust `panel_side` tests (left fits, else right, both tight clamp). Spec: panel No room on left, Open panel.
+- [x] 8.5 GREEN `state.js` panel helpers, `panel.html`, `panel.js` shell (window segment Hoy/7 días/30 días/Mes, header spend and freshness, close), `panel_side` in `placement.rs`, hide on blur, focus by agent button or "all agents". Spec: panel Open panel, All agents, Blur, Switch window, Refresh. Dep 8.1-8.4.
 - [ ] 8.6 REFACTOR; `node --test` and `cargo test`; commit `feat(hotbar): add usage panel`.
 
 ## PR 8a: Panel agent cards (~300) base: PR 8

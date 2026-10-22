@@ -13,8 +13,8 @@
         "alwaysOnTop": true, "resizable": false, "skipTaskbar": true
       },
       {
-        "label": "panel", "title": "Clawdy Usage", "url": "index.html",
-        "width": 400, "height": 480, "decorations": false, "visible": false,
+        "label": "panel", "title": "Clawdy · Uso", "url": "panel.html",
+        "width": 408, "height": 666, "decorations": false, "visible": false, "transparent": true, "shadow": false,
         "alwaysOnTop": true, "resizable": false, "skipTaskbar": true
       }
     ],
