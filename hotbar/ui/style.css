@@ -1,19 +1,47 @@
 :root {
-  color-scheme: dark;
-  font: 12px/1.4 "Segoe UI", system-ui, sans-serif;
-  color: #f1f3ee;
-  background: #111512;
-  font-variant-numeric: tabular-nums;
+  color-scheme: light; --surface: #FFFFFF; --surface-2: #F6F1F0; --fg: #2A1A22; --muted: #6E6470;
+  --line: #EAE2E1; --track: #EDE6E5; --hover: #F6F1F0; --ring: #5E4B5A; --plum: #5E4B5A;
+  --ok: #28964A; --warn: #C9772A; --err: #DE4553; --chip: #F6F1F0;
+  --shadow: 0 2px 8px rgba(42, 26, 34, .35);
+  --b-claude: #D97757; --b-codex: #10A37F; --b-opencode: #2A1A22; --b-kiro: #9046FF; --b-gentle: #EB1889;
+  --ui: system-ui, "Segoe UI", Roboto, sans-serif; --num: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
+@media (prefers-color-scheme: dark) { :root {
+  color-scheme: dark; --surface: #241A20; --surface-2: #2E222A; --fg: #F6F1F0; --muted: #B9AAB5;
+  --line: #3B2D37; --track: #3B2D37; --hover: #2E222A; --ring: #F6F1F0; --plum: #D9C9D4;
+  --ok: #4CC071; --warn: #E9A25A; --err: #F06B77; --chip: #2E222A;
+  --shadow: 0 2px 10px rgba(0, 0, 0, .55);
+  --b-claude: #E8906C; --b-codex: #2DC79A; --b-opencode: #F6F1F0; --b-kiro: #AB7BFF; --b-gentle: #F2509F;
+} }
 * { box-sizing: border-box; }
-body { margin: 0; height: 100vh; display: flex; flex-direction: column; }
-header, footer { padding: 9px 12px; color: #aab4aa; }
-header { display: flex; justify-content: space-between; border-bottom: 1px solid #354239; }
-header strong { color: #f1f3ee; }
-main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-section { flex: 1; padding: 7px 12px; border-bottom: 1px solid #354239; }
-h2 { margin: 0 0 2px; font-size: 13px; font-weight: 600; }
-.tokens { color: #aab4aa; }
-.cost { font-size: 11px; overflow-wrap: anywhere; }
-.error .cost, .stale { color: #f0c36a; }
-footer { font-size: 11px; }
+html, body { margin: 0; background: transparent; color: var(--fg); font: 13px/1.35 var(--ui); }
+body { min-height: 100vh; display: grid; place-items: center; overflow: hidden; }
+.dock { width: 58px; border-radius: 29px; padding: 10px 0; display: flex; flex-direction: column;
+  align-items: center; gap: 4px; background: var(--surface); box-shadow: var(--shadow); }
+.dock hr { width: 24px; border: 0; height: 1px; background: var(--line); margin: 4px 0; }
+.dbtn { all: unset; box-sizing: border-box; width: 46px; height: 46px; border-radius: 14px; display: grid;
+  place-items: center; color: var(--fg); cursor: pointer; position: relative; transition: background-color 150ms ease-out; }
+.dbtn:hover { background: var(--hover); }
+.dbtn:active { background: var(--surface-2); }
+.dbtn.absent { opacity: .38; }
+.dbtn:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.dbtn > svg { width: 20px; height: 20px; }
+.ringwrap { position: relative; width: 36px; height: 36px; display: grid; place-items: center; }
+.logo { width: 18px; height: 18px; background: currentColor; mask: var(--logo) center / contain no-repeat; }
+.agent-claude { --acc: var(--b-claude); --logo: url("assets/agents/claude.svg"); }
+.agent-codex { --acc: var(--b-codex); --logo: url("assets/agents/codex.svg"); }
+.agent-opencode { --acc: var(--b-opencode); --logo: url("assets/agents/opencode.svg"); }
+.agent-kiro { --acc: var(--b-kiro); --logo: url("assets/agents/kiro.svg"); }
+.agent-pi { --acc: var(--b-gentle); --logo: url("assets/agents/gentle-shell-mask.png"); }
+.agent-pi .logo { width: 22px; height: 22px; }
+.ring { position: absolute; inset: 0; width: 36px; height: 36px; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 2.5; }
+.ring .bg { stroke: var(--track); }
+.ring .fg { stroke: var(--acc); stroke-linecap: round; stroke-dasharray: 100; transition: stroke-dashoffset 250ms ease-out; }
+.ring.hi .fg { stroke: var(--err); }
+.badge { position: absolute; top: 5px; right: 5px; min-width: 8px; height: 8px; border-radius: 4px; box-shadow: 0 0 0 2px var(--surface); }
+.badge.err { background: var(--err); } .badge.stale { background: var(--warn); }
+.badge.usd { height: 14px; min-width: 14px; border-radius: 7px; background: var(--chip); color: var(--muted);
+  font: 700 9px/14px var(--ui); text-align: center; top: 3px; right: 3px; }
+[hidden], .hidden { display: none !important; }
+@media (prefers-reduced-motion: reduce) { .dbtn, .ring .fg { transition: none; } }
