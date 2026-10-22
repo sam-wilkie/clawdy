@@ -17,6 +17,7 @@
 #define AppExeName "Clawdy.exe"
 #define BuildDir "..\dist\Clawdy"
 #define SimProcessName "clawd-tank-sim"
+#define HotbarExeName "clawdy-hotbar.exe"
 #define PowerShell "{sys}\WindowsPowerShell\v1.0\powershell.exe"
 
 [Setup]
@@ -79,6 +80,9 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; F
 Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM {#AppExeName}"; Flags: runhidden waituntilterminated; RunOnceId: "KillTray"
 Filename: "{app}\{#AppExeName}"; Parameters: "--uninstall-hooks"; Flags: runhidden waituntilterminated; RunOnceId: "UninstallHooks"
 Filename: "{#PowerShell}"; Parameters: "{code:KillSimParams}"; Flags: runhidden waituntilterminated; RunOnceId: "KillSim"
+; The hotbar exits by itself when the tray dies (watchdog); this only covers the
+; race with the file deletion that follows.
+Filename: "{sys}	askkill.exe"; Parameters: "/F /IM {#HotbarExeName}"; Flags: runhidden waituntilterminated; RunOnceId: "KillHotbar"
 
 [Code]
 var
@@ -123,6 +127,7 @@ begin
   // A running tray (or its simulator) locks files in {app}; stop both so an
   // upgrade can overwrite them. The user relaunches from the last wizard page.
   KillImage('{#AppExeName}');
+  KillImage('{#HotbarExeName}');
   KillSimUnderApp;
   Result := '';
 end;

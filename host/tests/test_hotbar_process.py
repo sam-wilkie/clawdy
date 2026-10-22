@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 import sys
 
 import pytest
@@ -119,6 +120,47 @@ def test_no_exe_logs_a_warning_and_spawns_nothing(rec, tmp_path, caplog):
     assert "not found" in caplog.text
 
 
+# --- WebView2 runtime ---------------------------------------------------------
+
+def make_wv(rec, exe, tmp_path, version):
+    return HotbarProcess(
+        exe, popen=rec.popen, run=rec.run, image_path_of=lambda pid: None,
+        pidfile=tmp_path / "hotbar.pid", log_path=tmp_path / "hotbar.log",
+        webview2_version=lambda: version,
+    )
+
+
+def test_missing_webview2_warns_but_still_starts(rec, exe, tmp_path, monkeypatch, caplog):
+    monkeypatch.setattr(sys, "platform", "win32")
+    with caplog.at_level(logging.WARNING, logger="clawd-tank.hotbar"):
+        assert make_wv(rec, exe, tmp_path, None).start() is True
+    assert "WebView2" in caplog.text
+    assert len(rec.spawned) == 1
+
+
+def test_present_webview2_does_not_warn(rec, exe, tmp_path, monkeypatch, caplog):
+    monkeypatch.setattr(sys, "platform", "win32")
+    with caplog.at_level(logging.WARNING, logger="clawd-tank.hotbar"):
+        make_wv(rec, exe, tmp_path, "155.0.4283.62").start()
+    assert "WebView2" not in caplog.text
+
+
+def test_webview2_is_not_checked_off_windows(rec, exe, tmp_path, monkeypatch, caplog):
+    monkeypatch.setattr(sys, "platform", "linux")
+    def boom():
+        raise AssertionError("must not look for WebView2 off Windows")
+    with caplog.at_level(logging.WARNING, logger="clawd-tank.hotbar"):
+        HotbarProcess(exe, popen=rec.popen, run=rec.run, pidfile=tmp_path / "p", log_path=tmp_path / "l",
+                      webview2_version=boom).start()
+    assert "WebView2" not in caplog.text
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows registry")
+def test_real_webview2_lookup_returns_a_version_string_or_none():
+    version = hotbar_process.webview2_version()
+    assert version is None or re.fullmatch(r"\d+(\.\d+)+", version)
+
+
 # --- stale cleanup -----------------------------------------------------------
 
 def write_pidfile(tmp_path, pid, exe):
@@ -191,6 +233,20 @@ def test_lookup_order_next_to_python_then_repo_release(tmp_path):
     assert find_hotbar_exe({}, str(beside), tmp_path) == str(release / EXE_NAME)
     (beside / EXE_NAME).write_bytes(b"")
     assert find_hotbar_exe({}, str(beside), tmp_path) == str(beside / EXE_NAME)
+
+
+def test_cargo_target_dir_release_build_is_found_before_the_repo_default(tmp_path):
+    target = tmp_path / "target" / "release"
+    target.mkdir(parents=True)
+    (target / EXE_NAME).write_bytes(b"")
+    repo = tmp_path / "repo" / "hotbar" / "src-tauri" / "target" / "release"
+    repo.mkdir(parents=True)
+    (repo / EXE_NAME).write_bytes(b"")
+    environ = {"CARGO_TARGET_DIR": str(tmp_path / "target")}
+    found = find_hotbar_exe(environ, str(tmp_path), tmp_path / "repo")
+    assert found == str(target / EXE_NAME)
+    # Next to python still wins, and a missing target dir falls through to the repo build.
+    assert find_hotbar_exe({"CARGO_TARGET_DIR": str(tmp_path / "gone")}, str(tmp_path), tmp_path / "repo")         == str(repo / EXE_NAME)
 
 
 def test_env_override_ignored_when_not_an_absolute_existing_file(tmp_path):
