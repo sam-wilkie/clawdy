@@ -68,6 +68,7 @@ def test_permission_request_waits_for_the_pet_decision():
     )
     assert msg["event"] == "permission"
     assert msg["wait"] is True
+    assert msg["tool_name"] == "bash"  # shown on the pet's badge, not "passthrough"
     assert "rm -rf build" in msg["tool_summary"]
 
 

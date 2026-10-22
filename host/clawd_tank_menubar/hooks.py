@@ -745,7 +745,7 @@ NOTIFY_SCRIPT = textwrap.dedent('''\
             summary_name = "Bash" if raw_tool == "bash" else raw_tool
             return {
                 "event": "permission", "session_id": session_id,
-                "tool_name": _pi_tool(raw_tool), "project": project, "pid": pid,
+                "tool_name": raw_tool, "project": project, "pid": pid,
                 "wait": True,
                 "tool_summary": _tool_summary(summary_name, hook.get("args")),
             }

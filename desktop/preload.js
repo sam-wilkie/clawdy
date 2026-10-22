@@ -29,5 +29,7 @@ contextBridge.exposeInMainWorld("pet", {
   // Send a permission allow/deny decision back to the daemon. Pass the full
   // {event:"permission_decision", id, nonce, decision} object.
   sendPermissionDecision: (decision) => ipcRenderer.send("permission-decision", decision),
+  // Grow THIS window upward while a permission bubble is up (true), or shrink it back.
+  setExpanded: (expanded) => ipcRenderer.send("set-expanded", !!expanded),
   openPanel: () => ipcRenderer.send("open-panel", readAgent()),
 });
