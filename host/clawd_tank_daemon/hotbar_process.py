@@ -58,6 +58,30 @@ def _image_path_of(pid: int) -> Optional[str]:
         kernel32.CloseHandle(handle)
 
 
+_WEBVIEW2_CLIENT = r"Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+
+
+def webview2_version() -> Optional[str]:
+    """Installed WebView2 Runtime version from the registry, or None when not found.
+
+    The hotbar's windows need it; a fixed-version runtime shipped with another app is not
+    registered here, so None means "not found", not "cannot work".
+    """
+    import winreg
+
+    for hive, root in ((winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node"),
+                       (winreg.HKEY_LOCAL_MACHINE, "SOFTWARE"),
+                       (winreg.HKEY_CURRENT_USER, "SOFTWARE")):
+        try:
+            with winreg.OpenKey(hive, root + "\\" + _WEBVIEW2_CLIENT) as key:
+                version = winreg.QueryValueEx(key, "pv")[0]
+        except OSError:
+            continue
+        if isinstance(version, str) and version not in ("", "0.0.0.0"):
+            return version
+    return None
+
+
 def _same_path(a: str, b: str) -> bool:
     return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
 
@@ -72,6 +96,7 @@ class HotbarProcess:
         image_path_of: Callable[[int], Optional[str]] = _image_path_of,
         pidfile: Path = PIDFILE,
         log_path: Path = LOG_PATH,
+        webview2_version: Callable[[], Optional[str]] = webview2_version,
     ):
         self._exe = exe
         self._popen = popen
@@ -79,6 +104,7 @@ class HotbarProcess:
         self._image_path_of = image_path_of
         self._pidfile = pidfile
         self._log_path = log_path
+        self._webview2_version = webview2_version
         self._process = None
 
     def _taskkill(self, pid: int) -> None:
@@ -113,6 +139,9 @@ class HotbarProcess:
             logger.warning("Hotbar executable not found; skipping the hotbar")
             return False
         self._kill_stale()
+        if sys.platform == "win32" and self._webview2_version() is None:
+            logger.warning("WebView2 Runtime not found in the registry; the hotbar may exit at once "
+                           "(install it from https://developer.microsoft.com/microsoft-edge/webview2/)")
         try:
             self._log_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self._log_path, "ab") as log:

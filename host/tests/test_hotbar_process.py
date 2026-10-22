@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 import sys
 
 import pytest
@@ -117,6 +118,47 @@ def test_no_exe_logs_a_warning_and_spawns_nothing(rec, tmp_path, caplog):
         assert hotbar.start() is False
     assert rec.spawned == []
     assert "not found" in caplog.text
+
+
+# --- WebView2 runtime ---------------------------------------------------------
+
+def make_wv(rec, exe, tmp_path, version):
+    return HotbarProcess(
+        exe, popen=rec.popen, run=rec.run, image_path_of=lambda pid: None,
+        pidfile=tmp_path / "hotbar.pid", log_path=tmp_path / "hotbar.log",
+        webview2_version=lambda: version,
+    )
+
+
+def test_missing_webview2_warns_but_still_starts(rec, exe, tmp_path, monkeypatch, caplog):
+    monkeypatch.setattr(sys, "platform", "win32")
+    with caplog.at_level(logging.WARNING, logger="clawd-tank.hotbar"):
+        assert make_wv(rec, exe, tmp_path, None).start() is True
+    assert "WebView2" in caplog.text
+    assert len(rec.spawned) == 1
+
+
+def test_present_webview2_does_not_warn(rec, exe, tmp_path, monkeypatch, caplog):
+    monkeypatch.setattr(sys, "platform", "win32")
+    with caplog.at_level(logging.WARNING, logger="clawd-tank.hotbar"):
+        make_wv(rec, exe, tmp_path, "155.0.4283.62").start()
+    assert "WebView2" not in caplog.text
+
+
+def test_webview2_is_not_checked_off_windows(rec, exe, tmp_path, monkeypatch, caplog):
+    monkeypatch.setattr(sys, "platform", "linux")
+    def boom():
+        raise AssertionError("must not look for WebView2 off Windows")
+    with caplog.at_level(logging.WARNING, logger="clawd-tank.hotbar"):
+        HotbarProcess(exe, popen=rec.popen, run=rec.run, pidfile=tmp_path / "p", log_path=tmp_path / "l",
+                      webview2_version=boom).start()
+    assert "WebView2" not in caplog.text
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows registry")
+def test_real_webview2_lookup_returns_a_version_string_or_none():
+    version = hotbar_process.webview2_version()
+    assert version is None or re.fullmatch(r"\d+(\.\d+)+", version)
 
 
 # --- stale cleanup -----------------------------------------------------------
