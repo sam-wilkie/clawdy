@@ -2715,32 +2715,49 @@ def _pi_extensions_dir(agent_dir=None) -> Path:
     return Path(agent_dir) / "extensions"
 
 
+def _pi_extension_dirs(agent_dir=None) -> list:
+    """Every extensions/ folder that gets our files. An explicit agent_dir means only that one.
+    Otherwise Gentle Shell's agent dir (or PI_CODING_AGENT_DIR) always, plus a plain Pi's
+    ~/.pi/agent when it exists: `pi` run on its own reads that one, not Gentle Shell's."""
+    primary = _pi_extensions_dir(agent_dir)
+    if agent_dir is not None:
+        return [primary]
+    plain = Path.home() / ".pi" / "agent"
+    dirs = [primary]
+    if plain.is_dir() and plain / "extensions" != primary:
+        dirs.append(plain / "extensions")
+    return dirs
+
+
 def install_pi_hooks(agent_dir=None) -> bool:
-    """Copy the Pi extension and write its notify command. False if the bundled
-    source is missing; nothing is written in that case."""
+    """Copy the Pi extension and write its notify command into every target. False if
+    the bundled source is missing; nothing is written in that case."""
     if not PI_EXTENSION_SOURCE.is_file():
         logger.warning("Not installing Pi extension: bundled source %s not found", PI_EXTENSION_SOURCE)
         return False
-    ext_dir = _pi_extensions_dir(agent_dir)
-    ext_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(PI_EXTENSION_SOURCE, ext_dir / PI_EXTENSION_NAME)
-    (ext_dir / PI_COMMAND_NAME).write_text(HOOK_COMMAND, encoding="utf-8")
-    logger.info("Installed Pi extension in %s", ext_dir)
+    for ext_dir in _pi_extension_dirs(agent_dir):
+        ext_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(PI_EXTENSION_SOURCE, ext_dir / PI_EXTENSION_NAME)
+        (ext_dir / PI_COMMAND_NAME).write_text(HOOK_COMMAND, encoding="utf-8")
+        logger.info("Installed Pi extension in %s", ext_dir)
     return True
 
 
 def uninstall_pi_hooks(agent_dir=None) -> bool:
-    """Remove only the two files we own. Idempotent; always True."""
-    ext_dir = _pi_extensions_dir(agent_dir)
-    for name in (PI_EXTENSION_NAME, PI_COMMAND_NAME):
-        (ext_dir / name).unlink(missing_ok=True)
+    """Remove only the two files we own, from every target. Idempotent; always True."""
+    for ext_dir in _pi_extension_dirs(agent_dir):
+        for name in (PI_EXTENSION_NAME, PI_COMMAND_NAME):
+            (ext_dir / name).unlink(missing_ok=True)
     return True
 
 
 def are_pi_hooks_installed(agent_dir=None) -> bool:
-    ext_dir = _pi_extensions_dir(agent_dir)
-    ext = ext_dir / PI_EXTENSION_NAME
-    cmd = ext_dir / PI_COMMAND_NAME
-    if not (ext.is_file() and cmd.is_file()) or not PI_EXTENSION_SOURCE.is_file():
+    """True only when every target holds the current extension and its command."""
+    if not PI_EXTENSION_SOURCE.is_file():
         return False
-    return ext.read_bytes() == PI_EXTENSION_SOURCE.read_bytes()
+    for ext_dir in _pi_extension_dirs(agent_dir):
+        ext = ext_dir / PI_EXTENSION_NAME
+        if not ((ext_dir / PI_COMMAND_NAME).is_file() and ext.is_file()
+                and ext.read_bytes() == PI_EXTENSION_SOURCE.read_bytes()):
+            return False
+    return True
