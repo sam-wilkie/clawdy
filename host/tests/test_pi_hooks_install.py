@@ -28,4 +28,5 @@ def test_install_is_detected_then_uninstall_removes_only_ours(tmp_path):
 def test_extension_source_ships_in_repo_and_calls_notify_as_pi():
     src = (Path(__file__).resolve().parents[1] / "pi-extension" / "clawd-tank.js").read_text(encoding="utf-8")
     assert "tool_call" in src and "agent_start" in src and "session_shutdown" in src
+    assert '"permission"' not in src  # Pi runs tools freely; no bubble per bash/write/edit
     assert '"pi"' in src

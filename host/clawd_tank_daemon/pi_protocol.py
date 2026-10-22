@@ -2,8 +2,8 @@
 
 Pi's extension API emits lifecycle events (``session_start``, ``agent_start``,
 ``turn_end``, ``agent_end``, ``session_shutdown``) and tool events
-(``tool_call``, ``tool_result``). Permission prompts come from the extension
-itself, which asks the pet before a tool runs and blocks the call on deny.
+(``tool_call``, ``tool_result``). The bundled extension no longer sends
+``permission`` events; the branch below stays for older installed copies.
 
 This module reuses the daemon's normalized vocabulary (see
 ``protocol.hook_payload_to_daemon_message``) so a Pi session reacts exactly
@@ -86,7 +86,8 @@ def pi_hook_payload_to_daemon_message(hook: dict) -> Optional[dict]:
         # permission_tool_summary matches Claude's capitalized names ("Bash"), so map Pi's bash to it.
         summary_name = "Bash" if raw_tool == "bash" else raw_tool
         return {"event": "permission", "session_id": session_id,
-                "tool_name": _tool_name(raw_tool), "project": project, "pid": pid,
+                # The real name: the pet shows it on the bubble's badge.
+                "tool_name": raw_tool, "project": project, "pid": pid,
                 "wait": True,
                 "tool_summary": permission_tool_summary(summary_name, hook.get("args"))}
 
