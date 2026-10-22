@@ -14,6 +14,8 @@ DEFAULTS = {
     "sim_always_on_top": True,
     # Floating desk pet: the simulator runs with --desk (see controller.toggle_sim_desk).
     "sim_desk_mode": False,
+    # Tauri info hotbar started and stopped by the tray (hotbar_process.py).
+    "hotbar_enabled": True,
 }
 PREFS_PATH = Path.home() / ".clawd-tank" / "preferences.json"
 

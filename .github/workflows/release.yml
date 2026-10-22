@@ -197,6 +197,12 @@ jobs:
             exit 1
           fi
 
+      - name: Build the Tauri hotbar
+        # The spec bundles hotbar/src-tauri/target/release/clawdy-hotbar.exe next to
+        # Clawdy.exe, so the tray starts the bar by itself.
+        working-directory: hotbar/src-tauri
+        run: cargo build --release --locked
+
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
@@ -208,7 +214,7 @@ jobs:
           pip install "pyinstaller>=6.0,<7"
 
       - name: Build tray app with PyInstaller
-        # The spec bundles simulator/build-static/clawd-tank-sim.exe.
+        # The spec bundles simulator/build-static/clawd-tank-sim.exe and the hotbar exe.
         working-directory: host
         run: python -m PyInstaller windows/margarita_tank.spec --noconfirm
 
@@ -231,7 +237,7 @@ jobs:
       - name: Check the build
         working-directory: host/dist/Clawdy
         run: |
-          for f in Clawdy.exe margarita-notify.exe margarita-statusline.exe clawd-tank-sim.exe Clawdy.ico; do
+          for f in Clawdy.exe margarita-notify.exe margarita-statusline.exe clawd-tank-sim.exe clawdy-hotbar.exe Clawdy.ico; do
             test -f "$f" || { echo "ERROR: missing $f"; exit 1; }
           done
           # The Electron pet ships next to the exe; without it the tray app

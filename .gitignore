@@ -127,3 +127,7 @@ desktop/node_modules/
 
 # Captured pytest output kept around while debugging a run.
 /host/tests/_*.txt
+
+# Tauri build output and generated schemas
+/hotbar/src-tauri/target/
+/hotbar/src-tauri/gen/

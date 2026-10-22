@@ -51,31 +51,37 @@ def by_label(snap):
 
 
 def reader(root, tz=UTC):
-    r = ClaudeUsageReader(root, tz=tz)
+    # pytest's tmp_path sits under the OS temp dir, which would exclude every fixture repo
+    r = ClaudeUsageReader(root, tz=tz, temp_root=str(Path(root).parent / "fake-tmp"))
     r.refresh()
     return r
 
 
 # --- project_key -----------------------------------------------------------
 
-def test_project_key_subfolder_resolves_to_git_root(repo):
-    assert project_key(str(repo / "a")) == str(repo)
+@pytest.fixture
+def fake_tmp(tmp_path):
+    return str(tmp_path / "fake-tmp")
 
 
-def test_project_key_git_file_counts_as_root(tmp_path):
+def test_project_key_subfolder_resolves_to_git_root(repo, fake_tmp):
+    assert project_key(str(repo / "a"), fake_tmp) == str(repo)
+
+
+def test_project_key_git_file_counts_as_root(tmp_path, fake_tmp):
     wt = tmp_path / "wt"
     wt.mkdir()
     (wt / ".git").write_text("gitdir: elsewhere")
-    assert project_key(str(wt)) == str(wt)
+    assert project_key(str(wt), fake_tmp) == str(wt)
 
 
-def test_project_key_non_git_falls_back_to_cwd(tmp_path):
-    assert project_key(str(tmp_path)) == str(tmp_path)
+def test_project_key_non_git_has_no_key(tmp_path, fake_tmp):
+    assert project_key(str(tmp_path), fake_tmp) is None
 
 
-def test_project_key_nonexistent_and_relative_used_verbatim():
-    assert project_key("Z:/no/such/dir") == "Z:/no/such/dir"
-    assert project_key("rel/dir") == "rel/dir"
+def test_project_key_nonexistent_and_relative_have_no_key(fake_tmp):
+    assert project_key("Z:/no/such/dir", fake_tmp) is None
+    assert project_key("rel/dir", fake_tmp) is None
 
 
 # --- aggregation -----------------------------------------------------------
@@ -95,7 +101,7 @@ def test_fixture_totals_per_window(tmp_path, repo):
     assert p["month"]["in"] == 11  # September entry is outside October
 
 
-def test_monorepo_merges_and_temp_dir_is_own_project(tmp_path, repo):
+def test_monorepo_merges_and_non_git_sessions_are_excluded(tmp_path, repo):
     other = tmp_path / "scratch"
     other.mkdir()
     root = tmp_path / "proj"
@@ -106,8 +112,15 @@ def test_monorepo_merges_and_temp_dir_is_own_project(tmp_path, repo):
     ])
     snap = by_label(reader(root).snapshot(NOW))
     assert snap["repo"]["today"]["in"] == 3
-    assert snap["scratch"]["key"] == str(other)
-    assert snap["scratch"]["today"]["in"] == 5
+    assert set(snap) == {"repo"}
+
+
+def test_git_repo_under_temp_root_is_excluded(tmp_path, repo):
+    root = tmp_path / "proj"
+    write(root / "s.jsonl", [entry(repo, "2026-10-13T01:00:00Z", "m1", 4)])
+    r = ClaudeUsageReader(root, tz=UTC, temp_root=str(tmp_path / "work"))
+    r.refresh()
+    assert r.snapshot(NOW) == []
 
 
 def test_dedup_message_id_and_request_id(tmp_path, repo):

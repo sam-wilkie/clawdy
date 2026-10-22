@@ -4,7 +4,7 @@
 macOS delegates to launchd.py unchanged (a launchd user agent plist).
 Windows writes/reads HKCU Software\\Microsoft\\Windows\\CurrentVersion\\Run,
 pointing at the installed exe when running packaged (PyInstaller sets
-sys.frozen), or at `pythonw.exe -m clawd_tank_menubar` in a dev checkout.
+sys.frozen), or at `pythonw.exe` bootstrapping this checkout in a dev checkout.
 """
 import sys
 from pathlib import Path
@@ -29,6 +29,7 @@ elif sys.platform == "win32":
 
     _RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
     _VALUE_NAME = "ClawdTank"
+    _HOST_DIR = Path(__file__).resolve().parents[1]
 
     def _expected_command() -> str:
         """The command that should be registered to relaunch the tray app.
@@ -37,13 +38,17 @@ elif sys.platform == "win32":
         register it directly. Unpackaged (dev): run the package with
         pythonw.exe so no console window flashes at login; fall back to the
         plain interpreter if pythonw.exe isn't next to it (e.g. some venvs).
+        Windows starts Run entries from System32, so `-m clawd_tank_menubar`
+        would not find an uninstalled checkout; put its folder on sys.path.
         """
         if getattr(sys, "frozen", False):
             return f'"{sys.executable}"'
         exe = Path(sys.executable)
         pythonw = exe.with_name("pythonw.exe")
         interpreter = pythonw if pythonw.exists() else exe
-        return f'"{interpreter}" -m clawd_tank_menubar'
+        code = (f"import sys; sys.path.insert(0, {str(_HOST_DIR)!r}); "
+                "from clawd_tank_menubar.__main__ import main; main()")
+        return f'"{interpreter}" -c "{code}"'
 
     def is_enabled() -> bool:
         try:

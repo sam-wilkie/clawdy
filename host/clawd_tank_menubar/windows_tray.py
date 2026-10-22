@@ -137,6 +137,11 @@ class WindowsTrayView:
                 lambda item: controller.toggle_sim_desk(),
                 checked=has_state(lambda s: s.sim_desk),
             ),
+            pystray.MenuItem(
+                "Show hotbar",
+                lambda item: controller.toggle_hotbar_enabled(),
+                checked=has_state(lambda s: s.hotbar_enabled),
+            ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Brightness", brightness_menu),
             pystray.MenuItem("Session Timeout", timeout_menu),
