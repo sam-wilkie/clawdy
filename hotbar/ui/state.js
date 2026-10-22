@@ -3,6 +3,17 @@ export const AGENTS = Object.freeze([
   { id: 'opencode', name: 'OpenCode' }, { id: 'kiro', name: 'Kiro' },
   { id: 'pi', name: 'Gentle Shell' },
 ].map(Object.freeze));
+export const DEFAULT_STALE_AFTER_S = 300;
+/** What the bar reads from hotbar.json; anything missing or malformed falls back to the defaults. */
+export function configView(config) {
+  const stale = config?.stale_after_s;
+  const listed = Array.isArray(config?.agents) ? config.agents : null;
+  return {
+    staleAfter: Number.isFinite(stale) && stale > 0 ? stale : DEFAULT_STALE_AFTER_S,
+    shown: new Set(AGENTS.map(a => a.id).filter(id => !listed || listed.includes(id))),
+    error: config?.error ?? null,
+  };
+}
 export function petOf(id) {
   return `assets/pets/${id === 'claude' || id === 'codex' ? id : 'monster'}-idle.svg`;
 }

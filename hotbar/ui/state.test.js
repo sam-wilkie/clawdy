@@ -220,3 +220,18 @@ test('chevron points into its edge when expanded and away when collapsed', async
   }
   assert.equal(chevronRotation(undefined, false), 0);
 });
+
+import { configView, DEFAULT_STALE_AFTER_S } from './state.js';
+test('config view falls back to defaults and filters agents by id', () => {
+  const all = AGENTS.map(a => a.id);
+  for (const config of [null, undefined, {}, { stale_after_s: 0, agents: 'x' }]) {
+    const view = configView(config);
+    assert.equal(view.staleAfter, DEFAULT_STALE_AFTER_S);
+    assert.deepEqual([...view.shown], all);
+    assert.equal(view.error, null);
+  }
+  const view = configView({ stale_after_s: 60, agents: ['kiro', 'claude', 'nope'], error: 'invalid JSON' });
+  assert.equal(view.staleAfter, 60);
+  assert.deepEqual([...view.shown], ['claude', 'kiro']);
+  assert.equal(view.error, 'invalid JSON');
+});
