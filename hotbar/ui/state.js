@@ -3,6 +3,15 @@ export const AGENTS = Object.freeze([
   { id: 'opencode', name: 'OpenCode' }, { id: 'kiro', name: 'Kiro' },
   { id: 'pi', name: 'Gentle Shell' },
 ].map(Object.freeze));
+/** Up to three characters (code points) of a custom cell label fit the 46px button. */
+export const cellText = label => [...String(label ?? '').trim()].slice(0, 3).join('') || '?';
+export const cellTip = cell => cell.error ? `${cell.label}: ${cell.error}` : cell.label;
+export function cellRunLabel(run) {
+  if (!run) return 'Ejecutando…';
+  if (run.state === 'timeout') return 'Tiempo agotado (10 s)';
+  if (run.state === 'error') return run.exit == null ? 'No se pudo ejecutar' : `Terminó con error (código ${run.exit})`;
+  return run.truncated ? 'Salida truncada (64 KiB)' : 'Listo';
+}
 export const DEFAULT_STALE_AFTER_S = 300;
 /** What the bar reads from hotbar.json; anything missing or malformed falls back to the defaults. */
 export function configView(config) {

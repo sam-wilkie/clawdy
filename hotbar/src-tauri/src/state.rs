@@ -97,6 +97,7 @@ fn snap(app: &tauri::AppHandle, toggle: bool) -> tauri::Result<()> {
         return Ok(()); // Resize/position notifications from our own snap have settled.
     }
     let state = hotbar_state(app.state());
+    let extra = crate::config::app_extra(app);
     let collapsed = if toggle { !state.collapsed } else { state.collapsed };
     let monitors = bar.available_monitors()?;
     let primary = bar.primary_monitor()?.ok_or(tauri::Error::WindowNotFound)?;
@@ -105,9 +106,9 @@ fn snap(app: &tauri::AppHandle, toggle: bool) -> tauri::Result<()> {
         let monitor = &monitors[index];
         let work = area(monitor);
         let edge = if toggle { state.edge.unwrap_or(Edge::Right) } else { placement::nearest_edge(rect, work) };
-        (placement::dock(rect, edge, collapsed, work, monitor.scale_factor()), edge)
+        (placement::dock(rect, edge, collapsed, work, monitor.scale_factor(), extra), edge)
     } else {
-        placement::restore(None, None, collapsed, &[], (area(&primary), primary.scale_factor()))
+        placement::restore(None, None, collapsed, &[], (area(&primary), primary.scale_factor()), extra)
     };
     place(app, &bar, rect, edge, collapsed)
 }
@@ -119,7 +120,7 @@ pub fn start(app: &tauri::AppHandle) -> tauri::Result<()> {
         if let Some(primary) = bar.primary_monitor()? {
             let monitors: Vec<_> = bar.available_monitors()?.iter().map(|m| (bounds(m), area(m), m.scale_factor())).collect();
             let (rect, edge) = placement::restore(value.x.zip(value.y), value.edge, value.collapsed,
-                &monitors, (area(&primary), primary.scale_factor()));
+                &monitors, (area(&primary), primary.scale_factor()), crate::config::app_extra(app));
             place(app, &bar, rect, edge, value.collapsed)?;
         }
     }
@@ -168,6 +169,12 @@ pub fn show_menu(app: tauri::AppHandle) -> Result<(), String> {
         app.get_webview_window("bar").ok_or(tauri::Error::WindowNotFound)?.popup_menu(&menu)
     };
     show().map_err(|e| e.to_string())
+}
+/// Re-applies the dock when a config reload changed how tall the bar must be.
+pub fn redock(app: &tauri::AppHandle) -> Result<(), String> {
+    // The settled-snap check would otherwise see the current rect equal the last placed one.
+    *app.state::<Store>().expected.lock().unwrap_or_else(|p| p.into_inner()) = None;
+    snap(app, false).map_err(|e| e.to_string())
 }
 pub fn menu_action(app: &tauri::AppHandle, id: &str) -> Result<(), String> {
     match id {

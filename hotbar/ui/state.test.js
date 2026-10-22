@@ -235,3 +235,36 @@ test('config view falls back to defaults and filters agents by id', () => {
   assert.deepEqual([...view.shown], ['claude', 'kiro']);
   assert.equal(view.error, 'invalid JSON');
 });
+
+import { cellText, cellTip, cellRunLabel } from './state.js';
+test('custom cell text, tooltip and run status', () => {
+  assert.equal(cellText('GitHub'), 'Git');
+  assert.equal(cellText('  w '), 'w');
+  assert.equal(cellText('\u{1F600}\u{1F600}\u{1F600}\u{1F600}'), '\u{1F600}\u{1F600}\u{1F600}');
+  for (const empty of ['', '   ', null, undefined]) assert.equal(cellText(empty), '?');
+  assert.equal(cellTip({ label: 'GH', error: null }), 'GH');
+  assert.equal(cellTip({ label: 'X', error: 'unknown action prefix' }), 'X: unknown action prefix');
+  assert.equal(cellRunLabel(null), 'Ejecutando…');
+  assert.equal(cellRunLabel({ state: 'ok', truncated: false }), 'Listo');
+  assert.equal(cellRunLabel({ state: 'ok', truncated: true }), 'Salida truncada (64 KiB)');
+  assert.equal(cellRunLabel({ state: 'timeout' }), 'Tiempo agotado (10 s)');
+  assert.equal(cellRunLabel({ state: 'error', exit: 3 }), 'Terminó con error (código 3)');
+  assert.equal(cellRunLabel({ state: 'error', exit: null }), 'No se pudo ejecutar');
+});
+
+import { invokeReady } from './theme.js';
+test('invokeReady retries only while the command state is not managed yet', async () => {
+  let calls = 0;
+  globalThis.window = { __TAURI__: { core: { invoke: async (command, args) => {
+    calls++;
+    if (command === 'late' && calls < 3) throw new Error('state not managed for field `store` on command `late`');
+    if (command === 'broken') throw new Error('boom');
+    return { command, args };
+  } } } };
+  assert.deepEqual(await invokeReady('late', { a: 1 }), { command: 'late', args: { a: 1 } });
+  assert.equal(calls, 3);
+  calls = 0;
+  await assert.rejects(invokeReady('broken'), /boom/);
+  assert.equal(calls, 1);
+  delete globalThis.window;
+});

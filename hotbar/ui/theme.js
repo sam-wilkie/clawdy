@@ -1,3 +1,13 @@
+/** Windows load their pages while setup() is still registering state; retry until it has. */
+export async function invokeReady(command, args) {
+  for (let attempt = 0; ; attempt++) {
+    try { return await window.__TAURI__.core.invoke(command, args); }
+    catch (error) {
+      if (attempt >= 40 || !String(error).includes('not managed')) throw error;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+}
 export async function connectState(onState = () => {}) {
   const api = window.__TAURI__;
   let received = false;
@@ -8,6 +18,6 @@ export async function connectState(onState = () => {}) {
     onState(state);
   };
   await api.event.listen('hotbar-state', ({ payload }) => { received = true; apply(payload); });
-  const initial = await api.core.invoke('hotbar_state');
+  const initial = await invokeReady('hotbar_state');
   if (!received) apply(initial);
 }

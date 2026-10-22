@@ -1,9 +1,9 @@
 import { WINDOWS, acceptUsage, panelState, cardState, limitName, resetLabel,
-  formatTokens, projectRows, projectShare, costLabel, projectLabel, formatPct, petOf } from './state.js';
+  formatTokens, projectRows, projectShare, costLabel, projectLabel, formatPct, petOf, cellRunLabel } from './state.js';
 import { connectState } from './theme.js';
 
 const api = window.__TAURI__, body = document.getElementById('agents');
-let data = null, selected = 'all', range = 'today', connectionError = false;
+let data = null, selected = 'all', range = 'today', connectionError = false, cellRun = null;
 const expanded = new Set();
 function element(tag, className, text, parent) {
   const node = document.createElement(tag);
@@ -89,7 +89,21 @@ function card(row, state, parent) {
     element('p', 'note err', 'Falló la lectura. Se muestran los últimos datos buenos.', article);
   if (state.stale) element('p', 'note', `${state.freshness}. Los datos pueden estar desactualizados.`, article);
 }
+function renderCell(next) {
+  const box = element('section', 'cellrun', '', next);
+  element('h2', '', cellRun.label, box);
+  element('p', `note${cellRun.run?.state && cellRun.run.state !== 'ok' ? ' err' : ''}`, cellRunLabel(cellRun.run), box);
+  if (cellRun.run?.text) element('pre', '', cellRun.run.text, box);
+}
 function render() {
+  const isCell = selected.startsWith('cell:') && cellRun;
+  document.querySelector('.panel').classList.toggle('cell-view', Boolean(isCell));
+  if (isCell) {
+    const next = document.createElement('div');
+    renderCell(next);
+    if (next.innerHTML !== body.innerHTML) body.replaceChildren(...next.childNodes);
+    return;
+  }
   const state = panelState(data, range);
   for (const [id, button] of segments) button.setAttribute('aria-pressed', String(range === id));
   document.getElementById('range').textContent = `Pago por uso · ${WINDOWS.find(w => w[0] === range)[1]}`;
@@ -103,13 +117,22 @@ function render() {
   // Replacing identical cards would restart the pets' SVG animations every 5 s.
   if (next.innerHTML !== body.innerHTML) body.replaceChildren(...next.childNodes);
 }
+async function labelCell(id) {
+  const cell = (await api.core.invoke('hotbar_config')).cells.find(c => c.id === id);
+  if (cell && cellRun?.id === id) { cellRun.label = cell.label; render(); }
+}
 function select(agent) {
+  cellRun = agent.startsWith('cell:') ? { id: agent.slice(5), label: agent.slice(5), run: null } : null;
+  if (cellRun) labelCell(cellRun.id).catch(console.error);
   selected = agent; range = 'today'; render(); body.scrollTop = 0;
   segments[0][1].focus();
 }
 async function connect() {
   let received = false, opened = false;
   await api.event.listen('panel-open', ({ payload }) => { opened = true; select(payload); });
+  await api.event.listen('cell-output', ({ payload }) => {
+    if (cellRun?.id === payload.id) { cellRun.run = payload.run; render(); }
+  });
   await api.event.listen('usage', ({ payload }) => { received = true; connectionError = false; data = acceptUsage(data, payload); render(); });
   const selection = await api.core.invoke('panel_selection');
   if (!opened) select(selection);

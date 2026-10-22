@@ -185,10 +185,10 @@ GitNexus unavailable during implementation; `rg` checked placement, usage event/
 ## PR 10: Custom cells (~330, split candidate) base: PR 9
 
 - [x] 10.1 RED `config.rs` tests: missing config -> default created; invalid cell disabled with error; malformed JSON on reload keeps last good + error badge; unknown prefix, `open:file://`, `javascript:`, empty program rejected at load. Spec: cells Missing config, Invalid cell, Malformed JSON on reload, Rejected scheme.
-- [ ] 10.2 RED `actions.rs` tests: invoking an unknown cell id runs nothing and returns an error (spec:117). Invoking a cell whose `open:` is non-http(s) is rejected at invoke time without opening, even if config was bypassed (spec:123). Spec: cells Unknown id, Rejected scheme; Threat matrix.
-- [ ] 10.3 RED `actions.rs` tests: `run:` argv asserted, metacharacters literal, null stdio, detached; `panel:` timeout kills child at 10 s, output capped 64 KiB, non-zero exit reported. Spec: cells Allowed, No shell, Detached, Empty program, Timeout, Output cap, Non-zero exit.
-- [ ] 10.4 GREEN `config.rs`, `actions.rs` (`run_cell(id)`, id lookup in loaded config, opener `open_url` http/https only), UI custom cells in `bar.js`. Dep 10.1-10.3.
-- [ ] 10.5 REFACTOR; `cargo test`, `node --test`; commit `feat(hotbar): add custom cells`.
+- [x] 10.2 RED `actions.rs` tests: invoking an unknown cell id runs nothing and returns an error (spec:117). Invoking a cell whose `open:` is non-http(s) is rejected at invoke time without opening, even if config was bypassed (spec:123). Spec: cells Unknown id, Rejected scheme; Threat matrix.
+- [x] 10.3 RED `actions.rs` tests: `run:` argv asserted, metacharacters literal, null stdio, detached; `panel:` timeout kills child at 10 s, output capped 64 KiB, non-zero exit reported. Spec: cells Allowed, No shell, Detached, Empty program, Timeout, Output cap, Non-zero exit.
+- [x] 10.4 GREEN `config.rs`, `actions.rs` (`run_cell(id)`, id lookup in loaded config, opener `open_url` http/https only), UI custom cells in `bar.js`. Dep 10.1-10.3.
+- [x] 10.5 REFACTOR; `cargo test`, `node --test`; commit `feat(hotbar): add custom cells`.
 - Split point if over 400: PR 10a = 10.1 + `config.rs` (parsing, rejection at load); PR 10b = 10.2-10.4 `actions.rs` + UI cells, based on 10a. PR 11 then bases on 10b.
 
 ## PR 11: Tray integration (~340, split candidate) base: PR 10

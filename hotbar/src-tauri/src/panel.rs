@@ -2,6 +2,14 @@ use std::{sync::{atomic::{AtomicU64, Ordering}, Mutex}, time::{Duration, Instant
 use tauri::{Emitter, Manager};
 use crate::placement::{panel_side, Edge, Rect};
 
+/// An agent tab, or `cell:<id>` for the output of a loaded, enabled `panel:` cell.
+fn is_selection(agent: &str, config: &crate::config::Config) -> bool {
+    use crate::config::{parse_action, Action};
+    ["all", "claude", "codex", "opencode", "kiro", "pi"].contains(&agent)
+        || agent.strip_prefix("cell:").is_some_and(|id| config.cells.iter().any(|c|
+            c.id == id && c.error.is_none() && matches!(parse_action(&c.action), Ok(Action::Panel(_)))))
+}
+
 pub struct Selection(pub Mutex<String>);
 impl Default for Selection {
     fn default() -> Self { Self(Mutex::new("all".into())) }
@@ -59,7 +67,7 @@ fn panel_anchor(bar: Rect, edge: Edge, scale: f64) -> Rect {
 #[tauri::command]
 pub fn open_panel(app: tauri::AppHandle, agent: String, state: tauri::State<'_, Selection>,
                   generation: tauri::State<'_, Generation>) -> Result<(), String> {
-    if !["all", "claude", "codex", "opencode", "kiro", "pi"].contains(&agent.as_str()) {
+    if !is_selection(&agent, &app.state::<crate::config::ConfigState>().snapshot()) {
         return Err("Unknown agent".into());
     }
     generation.0.fetch_add(1, Ordering::SeqCst);
@@ -100,11 +108,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn panel_selections_are_agents_or_enabled_panel_cells() {
+        let config = crate::config::parse(br#"{"cells":[
+            {"id":"w","label":"W","action":"panel:w.exe"},
+            {"id":"o","label":"O","action":"open:https://a.dev"},
+            {"id":"bad","label":"B","action":"panel:"}]}"#).unwrap();
+        for ok in ["all", "claude", "pi", "cell:w"] { assert!(is_selection(ok, &config), "{ok}"); }
+        for bad in ["", "cell:", "cell:o", "cell:bad", "cell:nope", "Claude", "cell:w "] {
+            assert!(!is_selection(bad, &config), "{bad:?}");
+        }
+    }
+
+    #[test]
     fn visible_panel_gap_is_twelve_css_pixels_on_every_edge_and_scale() {
         let area = Rect { x: 0., y: 0., width: 4000., height: 3000. };
         for edge in [Edge::Left, Edge::Right, Edge::Top, Edge::Bottom] {
             for scale in [1., 1.25, 2.] {
-                let bar = crate::placement::dock(Rect { x: 1000., y: 1000., ..area }, edge, false, area, scale);
+                let bar = crate::placement::dock(Rect { x: 1000., y: 1000., ..area }, edge, false, area, scale, 0.);
                 let panel = panel_side(panel_anchor(bar, edge, scale), (408. * scale, 666. * scale), area, edge);
                 let gap = match edge {
                     Edge::Left => panel.x + 8. * scale - (bar.x + bar.width - 12. * scale),

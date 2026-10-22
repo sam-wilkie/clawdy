@@ -1,5 +1,5 @@
-import { AGENTS, agentOf, billingOf, ringOf, dockLabel, collapsedDot, attentionLabel, chevronRotation, configView } from './state.js';
-import { connectState } from './theme.js';
+import { AGENTS, agentOf, billingOf, ringOf, dockLabel, collapsedDot, attentionLabel, chevronRotation, configView, cellText, cellTip } from './state.js';
+import { connectState, invokeReady } from './theme.js';
 
 const dock = document.getElementById('dock'), cells = new Map();
 dock.addEventListener('panel-request', ({ detail }) => {
@@ -66,6 +66,25 @@ element('hr', '', dock);
 const all = button('Todos los agentes', 'M4 19V9M10 19V5M16 19v-7M22 19H2', 'all');
 const staleBadge = element('span', 'badge stale', all);
 staleBadge.setAttribute('aria-hidden', 'true');
+const cellsRule = element('hr', '', dock), cellsBox = element('div', 'cells', dock);
+cellsRule.hidden = true;
+let cellsKey = '';
+function renderCells(list) {
+  const key = JSON.stringify(list);
+  if (key === cellsKey) return;
+  cellsKey = key;
+  cellsRule.hidden = !list.length;
+  cellsBox.replaceChildren(...list.map(cell => {
+    const node = document.createElement('button');
+    node.className = 'dbtn cell'; node.type = 'button'; node.textContent = cellText(cell.label);
+    node.disabled = Boolean(cell.error);
+    label(node, cellTip(cell));
+    node.addEventListener('click', () => window.__TAURI__.core.invoke('run_cell', { id: cell.id }).then(
+      () => { node.classList.remove('failed'); label(node, cellTip(cell)); },
+      err => { node.classList.add('failed'); label(node, `${cell.label}: ${err}`); }));
+    return node;
+  }));
+}
 const gear = button('Ajustes', 'M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0');
 
 const configBadge = element('span', 'badge err', gear);
@@ -102,6 +121,7 @@ function render(data) {
 }
 function applyConfig(value) {
   config = configView(value);
+  renderCells(Array.isArray(value?.cells) ? value.cells : []);
   configBadge.hidden = !config.error;
   label(gear, config.error ? `Ajustes: configuración con errores (${config.error})` : 'Ajustes');
   render(documentData);
@@ -111,7 +131,7 @@ async function connect() {
   // A later event proves the link works, even if the initial snapshot call failed.
   await window.__TAURI__.event.listen('usage', ({ payload }) => { received = true; connectionError = false; render(payload); });
   await window.__TAURI__.event.listen('config-reload', ({ payload }) => applyConfig(payload));
-  applyConfig(await window.__TAURI__.core.invoke('hotbar_config'));
+  applyConfig(await invokeReady('hotbar_config'));
   const initial = await window.__TAURI__.core.invoke('usage_snapshot');
   if (!received) render(initial);
 }
