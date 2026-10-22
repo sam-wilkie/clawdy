@@ -2752,12 +2752,14 @@ def uninstall_pi_hooks(agent_dir=None) -> bool:
 
 
 def are_pi_hooks_installed(agent_dir=None) -> bool:
-    """True only when every target holds the current extension and its command."""
+    """True only when every target holds the current extension and its command.
+
+    Line endings are ignored: a Windows checkout has CRLF and an older install has LF."""
     if not PI_EXTENSION_SOURCE.is_file():
         return False
     for ext_dir in _pi_extension_dirs(agent_dir):
         ext = ext_dir / PI_EXTENSION_NAME
         if not ((ext_dir / PI_COMMAND_NAME).is_file() and ext.is_file()
-                and ext.read_bytes() == PI_EXTENSION_SOURCE.read_bytes()):
+                and ext.read_bytes().splitlines() == PI_EXTENSION_SOURCE.read_bytes().splitlines()):
             return False
     return True

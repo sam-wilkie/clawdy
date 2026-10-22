@@ -74,3 +74,31 @@ def test_explicit_agent_dir_still_means_only_that_dir(home, tmp_path):
     hooks.install_pi_hooks(agent_dir=target)
     assert installed(target)
     assert not installed(home / ".pi" / "agent") and not installed(home / ".gentle-shell" / "agent")
+
+
+CRLF, LF = bytes([13, 10]), bytes([10])
+
+
+def _source(tmp_path, monkeypatch, text):
+    source = tmp_path / "source.js"
+    source.write_bytes(text)
+    monkeypatch.setattr(hooks, "PI_EXTENSION_SOURCE", source)
+
+
+def test_detection_ignores_line_endings(home, tmp_path, monkeypatch):
+    """A Windows checkout has CRLF, an older install has LF: same extension, still installed."""
+    _source(tmp_path, monkeypatch, b"export default () => {}" + CRLF + b"// two" + CRLF)
+    target = home / "agent"
+    hooks.install_pi_hooks(agent_dir=target)
+    installed_js = target / "extensions" / hooks.PI_EXTENSION_NAME
+    for eol in (LF, CRLF):
+        installed_js.write_bytes(b"export default () => {}" + eol + b"// two" + eol)
+        assert hooks.are_pi_hooks_installed(agent_dir=target) is True
+
+
+def test_detection_still_notices_different_content(home, tmp_path, monkeypatch):
+    _source(tmp_path, monkeypatch, b"export default () => {}" + LF)
+    target = home / "agent"
+    hooks.install_pi_hooks(agent_dir=target)
+    (target / "extensions" / hooks.PI_EXTENSION_NAME).write_bytes(b"export default () => { /* old */ }" + LF)
+    assert hooks.are_pi_hooks_installed(agent_dir=target) is False
