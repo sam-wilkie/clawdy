@@ -195,12 +195,12 @@ GitNexus unavailable during implementation; `rg` checked placement, usage event/
 
 GitNexus impact first: `ClawdTankController` (`__init__`, `start`, `quit`, `_render`, `_shutdown_sequence`, `_kill_sim_now`), `TrayState`, `WindowsTrayView` menu build, `RumpsTrayView.build/render`, `preferences.DEFAULTS`.
 
-- [ ] 11.1 RED `host/tests/test_hotbar_process.py` (fake popen): exe lookup order (`CLAWDY_HOTBAR_EXE`, next to `sys.executable`, repo release); missing exe logs warning, no crash; stale kill only on image-path match, mismatch or dead pid never kills; `CLAWDY_PARENT_PID` passed; `stop()` twice safe; `taskkill /F /PID` without `/T`. Spec: process Normal lifecycle, Stop twice, Orphan, Reused pid, Env override, No exe.
-- [ ] 11.2 GREEN `host/clawd_tank_daemon/hotbar_process.py` (`HotbarProcess`, pidfile, `QueryFullProcessImageNameW`, log to `hotbar.log`). Dep 11.1.
-- [ ] 11.3 RED controller tests (fake factory): starts with `controller.start` when enabled; `quit` stops it incl. force-exit path; toggle persists `hotbar_enabled` and starts/stops; disabled at startup does not spawn. Spec: process Toggle off, Disabled at startup.
-- [ ] 11.4 RED headless test: `daemon._build_daemon`/`main` with prefs `hotbar_enabled:true` never constructs/starts `HotbarProcess` (patched to raise). Spec: process Headless start.
-- [ ] 11.5 GREEN `controller.py` (factory, start/quit/toggle), `preferences.py` (`hotbar_enabled: True`), `TrayState.hotbar_enabled`, `windows_tray.py`, `rumps_view.py` menu item. Dep 11.2-11.4.
-- [ ] 11.6 REFACTOR; run `pytest tests/test_hotbar_process.py` plus controller and tray tests; commit `feat(host): start hotbar from the tray`.
+- [x] 11.1 RED `host/tests/test_hotbar_process.py` (fake popen): exe lookup order (`CLAWDY_HOTBAR_EXE`, next to `sys.executable`, repo release); missing exe logs warning, no crash; stale kill only on image-path match, mismatch or dead pid never kills; `CLAWDY_PARENT_PID` passed; `stop()` twice safe; `taskkill /F /PID` without `/T`. Spec: process Normal lifecycle, Stop twice, Orphan, Reused pid, Env override, No exe.
+- [x] 11.2 GREEN `host/clawd_tank_daemon/hotbar_process.py` (`HotbarProcess`, pidfile, `QueryFullProcessImageNameW`, log to `hotbar.log`). Dep 11.1.
+- [x] 11.3 RED controller tests (fake factory): starts with `controller.start` when enabled; `quit` stops it incl. force-exit path; toggle persists `hotbar_enabled` and starts/stops; disabled at startup does not spawn. Spec: process Toggle off, Disabled at startup.
+- [x] 11.4 RED headless test: `daemon._build_daemon`/`main` with prefs `hotbar_enabled:true` never constructs/starts `HotbarProcess` (patched to raise). Spec: process Headless start.
+- [x] 11.5 GREEN `controller.py` (factory, start/quit/toggle), `preferences.py` (`hotbar_enabled: True`), `TrayState.hotbar_enabled`, `windows_tray.py`, `rumps_view.py` menu item. Dep 11.2-11.4.
+- [x] 11.6 REFACTOR; run `pytest tests/test_hotbar_process.py` plus controller and tray tests; commit `feat(host): start hotbar from the tray`.
 - Split point if over 400: PR 11a = 11.1-11.2 (`hotbar_process.py` + test); PR 11b = 11.3-11.6 (controller, preferences, views, headless test), based on 11a.
 
 ## Final: Docs and manual Windows checklist (after PR 11, on the tracker)

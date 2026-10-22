@@ -99,6 +99,12 @@ class RumpsTrayView:
         )
         self._sim_desk_item.state = controller.sim_desk
 
+        self._hotbar_item = rumps.MenuItem(
+            "Show hotbar",
+            callback=lambda _sender: controller.toggle_hotbar_enabled(),
+        )
+        self._hotbar_item.state = controller.hotbar_enabled
+
         # Brightness slider - rumps MenuItem with custom NSView
         self._brightness_slider = create_slider_menu_item(
             "Brightness", min_val=0, max_val=255, initial=102,
@@ -178,6 +184,7 @@ class RumpsTrayView:
             self._ble_menu,
             self._sim_menu,
             self._sim_desk_item,
+            self._hotbar_item,
             None,
             self._brightness_item,
             self._session_timeout_menu,
@@ -254,6 +261,7 @@ class RumpsTrayView:
                 self._sim_window_toggle.set_callback(self._on_toggle_sim_window)
                 self._sim_pinned_toggle.set_callback(self._on_toggle_sim_pinned)
         self._sim_desk_item.state = state.sim_desk
+        self._hotbar_item.state = state.hotbar_enabled
         self._sim_enabled_toggle.state = state.sim_enabled
         self._sim_window_toggle.state = state.sim_window_visible
         self._sim_pinned_toggle.state = state.sim_pinned

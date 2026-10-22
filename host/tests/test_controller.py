@@ -122,6 +122,19 @@ class FakeSimProcess:
         return True
 
 
+class FakeHotbar:
+    def __init__(self):
+        self.starts = 0
+        self.stops = 0
+
+    def start(self):
+        self.starts += 1
+        return True
+
+    def stop(self):
+        self.stops += 1
+
+
 class DeadThread:
     def is_alive(self):
         return False
@@ -177,12 +190,14 @@ def _wait_until(predicate, timeout=2.0):
     return predicate()
 
 
-def make_controller(prefs_path, sim_factory=None):
+def make_controller(prefs_path, sim_factory=None, hotbar=None):
     view = FakeView()
+    hotbar = hotbar or FakeHotbar()
     controller = ClawdTankController(
         view,
         prefs_path=prefs_path,
         sim_process_factory=sim_factory or (lambda **kw: FakeSimProcess(**kw)),
+        hotbar_factory=lambda: hotbar,
     )
     return controller, view
 
@@ -419,6 +434,105 @@ def test_desk_ignores_window_and_pin_toggles_and_window_hidden_events(prefs_path
     assert controller._sim_window_visible is True
     time.sleep(0.1)
     assert fake.calls == []
+
+
+# --- Hotbar ------------------------------------------------------------------
+
+
+def _start_with_stubs(controller, monkeypatch):
+    monkeypatch.setattr(controller, "_start_simulator", lambda: None)
+    monkeypatch.setattr(controller, "cleanup_legacy_claude_mod", lambda: None)
+
+    class _D:
+        def __init__(self, **kw):
+            pass
+
+        async def run(self):
+            pass
+
+    monkeypatch.setattr("clawd_tank_menubar.controller.ClawdDaemon", _D)
+    controller.start()
+
+
+def test_hotbar_is_enabled_by_default_and_restored_from_preferences(prefs_path):
+    controller, _ = make_controller(prefs_path)
+    assert controller.hotbar_enabled is True
+    prefs_path.write_text(json.dumps({"hotbar_enabled": False}))
+    controller, _ = make_controller(prefs_path)
+    assert controller.hotbar_enabled is False
+
+
+def test_start_launches_the_hotbar_when_enabled(prefs_path, monkeypatch):
+    prefs_path.write_text(json.dumps({"ble_enabled": False}))
+    hotbar = FakeHotbar()
+    controller, _ = make_controller(prefs_path, hotbar=hotbar)
+    _start_with_stubs(controller, monkeypatch)
+    assert hotbar.starts == 1
+
+
+def test_start_does_not_launch_the_hotbar_when_disabled(prefs_path, monkeypatch):
+    prefs_path.write_text(json.dumps({"ble_enabled": False, "hotbar_enabled": False}))
+    hotbar = FakeHotbar()
+    controller, _ = make_controller(prefs_path, hotbar=hotbar)
+    _start_with_stubs(controller, monkeypatch)
+    assert hotbar.starts == 0
+
+
+def test_toggle_hotbar_off_stops_it_and_persists(prefs_path):
+    hotbar = FakeHotbar()
+    controller, view = make_controller(prefs_path, hotbar=hotbar)
+    controller._start_hotbar()
+
+    controller.toggle_hotbar_enabled()
+
+    assert hotbar.stops == 1
+    assert load_preferences(prefs_path)["hotbar_enabled"] is False
+    assert view.renders[-1].hotbar_enabled is False
+
+
+def test_toggle_hotbar_on_starts_it_and_persists(prefs_path):
+    prefs_path.write_text(json.dumps({"hotbar_enabled": False}))
+    hotbar = FakeHotbar()
+    controller, view = make_controller(prefs_path, hotbar=hotbar)
+
+    controller.toggle_hotbar_enabled()
+
+    assert hotbar.starts == 1
+    assert load_preferences(prefs_path)["hotbar_enabled"] is True
+    assert view.renders[-1].hotbar_enabled is True
+
+
+def test_quit_stops_the_hotbar(prefs_path, loop_thread):
+    hotbar = FakeHotbar()
+    controller, view = make_controller(prefs_path, hotbar=hotbar)
+    controller._start_hotbar()
+    controller._daemon = FakeDaemon()
+    controller._loop = loop_thread
+
+    controller.quit()
+
+    assert hotbar.stops >= 1
+    assert view.quit_called is True
+
+
+def test_quit_stops_the_hotbar_on_the_force_exit_path(prefs_path, loop_thread):
+    hotbar = FakeHotbar()
+    controller, _ = make_controller(prefs_path, hotbar=hotbar)
+    controller._start_hotbar()
+
+    class BoomDaemon(FakeDaemon):
+        async def remove_transport(self, name):
+            raise RuntimeError("boom")
+
+    controller._daemon = BoomDaemon()
+    controller._loop = loop_thread
+    exit_calls = []
+    controller._force_exit = lambda code: exit_calls.append(code)
+
+    controller.quit()
+
+    assert exit_calls == [1]
+    assert hotbar.stops >= 1
 
 
 # --- Session timeout ---------------------------------------------------------

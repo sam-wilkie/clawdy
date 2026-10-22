@@ -73,6 +73,8 @@ class TrayState:
     antigravity_hooks_installed: bool = False
     # Pi (gentle-shell) extension installed? Reflects hooks.are_pi_hooks_installed().
     pi_hooks_installed: bool = False
+    # Tauri info hotbar owned by the tray (spec: hotbar-process).
+    hotbar_enabled: bool = True
 
 
 class TrayView(Protocol):
@@ -105,6 +107,12 @@ def _default_sim_process_factory(on_window_event, start_pinned, desk=False):
     )
 
 
+def _default_hotbar_factory():
+    from clawd_tank_daemon.hotbar_process import HotbarProcess, find_hotbar_exe
+
+    return HotbarProcess(find_hotbar_exe())
+
+
 class ClawdTankController(DaemonObserver):
     def __init__(
         self,
@@ -113,11 +121,14 @@ class ClawdTankController(DaemonObserver):
         prefs_path: Optional[Path] = None,
         sim_process_factory: Optional[Callable] = None,
         force_exit: Callable[[int], None] = os._exit,
+        hotbar_factory: Optional[Callable] = None,
     ):
         self._view = view
         self._prefs_path = preferences.PREFS_PATH if prefs_path is None else prefs_path
         self._sim_process_factory = sim_process_factory or _default_sim_process_factory
         self._force_exit = force_exit
+        self._hotbar_factory = hotbar_factory or _default_hotbar_factory
+        self._hotbar = None
 
         self._daemon: Optional[ClawdDaemon] = None
         self._daemon_thread: Optional[threading.Thread] = None
@@ -135,6 +146,7 @@ class ClawdTankController(DaemonObserver):
         self._sim_pinned = bool(prefs.get("sim_always_on_top", True))
         # Desk pet only counts while the simulator itself is enabled.
         self._sim_desk = bool(prefs.get("sim_desk_mode", False)) and self._sim_enabled
+        self._hotbar_enabled = bool(prefs.get("hotbar_enabled", True))
         self._brightness = DEFAULT_BRIGHTNESS
         self._session_timeout_seconds = DEFAULT_SESSION_TIMEOUT_SECONDS
 
@@ -187,6 +199,10 @@ class ClawdTankController(DaemonObserver):
     @property
     def sim_desk(self) -> bool:
         return self._sim_desk
+
+    @property
+    def hotbar_enabled(self) -> bool:
+        return self._hotbar_enabled
 
     @property
     def hooks_installed(self) -> bool:
@@ -255,6 +271,7 @@ class ClawdTankController(DaemonObserver):
             opencode_hooks_installed=self._opencode_hooks_installed,
             antigravity_hooks_installed=self._antigravity_hooks_installed,
             pi_hooks_installed=self._pi_hooks_installed,
+            hotbar_enabled=self._hotbar_enabled,
         )
         self._view.render(state)
 
@@ -303,11 +320,15 @@ class ClawdTankController(DaemonObserver):
             # _sim_desk was derived from the same preferences in __init__.
             self._start_simulator()
 
+        if self._hotbar_enabled:
+            self._start_hotbar()
+
     # Seconds the async shutdown sequence may take before quit gives up.
     _quit_timeout = 8
 
     def quit(self) -> None:
         sim = self._sim_process
+        self._stop_hotbar()  # synchronous and idempotent: also covers force-exit
         try:
             if self._loop and self._daemon:
                 future = asyncio.run_coroutine_threadsafe(
@@ -720,6 +741,30 @@ class ClawdTankController(DaemonObserver):
     def reconnect(self) -> None:
         if self._loop and self._daemon:
             asyncio.run_coroutine_threadsafe(self._daemon.reconnect(), self._loop)
+
+    # --- Hotbar lifecycle -----------------------------------------------
+
+    def _start_hotbar(self) -> None:
+        if self._hotbar is None:
+            self._hotbar = self._hotbar_factory()
+        self._hotbar.start()
+
+    def _stop_hotbar(self) -> None:
+        if self._hotbar is None:
+            return
+        try:
+            self._hotbar.stop()
+        except Exception:
+            logger.exception("Could not stop the hotbar")
+
+    def toggle_hotbar_enabled(self) -> None:
+        self._hotbar_enabled = not self._hotbar_enabled
+        save_preferences(self._prefs_path, updates={"hotbar_enabled": self._hotbar_enabled})
+        if self._hotbar_enabled:
+            self._start_hotbar()
+        else:
+            self._stop_hotbar()
+        self._render()
 
     # --- Simulator lifecycle --------------------------------------------
 
