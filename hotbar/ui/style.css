@@ -6,13 +6,20 @@
   --b-claude: #D97757; --b-codex: #10A37F; --b-opencode: #2A1A22; --b-kiro: #9046FF; --b-gentle: #EB1889;
   --ui: system-ui, "Segoe UI", Roboto, sans-serif; --num: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
-@media (prefers-color-scheme: dark) { :root {
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) {
   color-scheme: dark; --surface: #241A20; --surface-2: #2E222A; --fg: #F6F1F0; --muted: #B9AAB5;
   --line: #3B2D37; --track: #3B2D37; --hover: #2E222A; --ring: #F6F1F0; --plum: #D9C9D4;
   --ok: #4CC071; --warn: #E9A25A; --err: #F06B77; --chip: #2E222A;
   --shadow: 0 2px 10px rgba(0, 0, 0, .55);
   --b-claude: #E8906C; --b-codex: #2DC79A; --b-opencode: #F6F1F0; --b-kiro: #AB7BFF; --b-gentle: #F2509F;
 } }
+[data-theme=dark] {
+  color-scheme: dark; --surface: #241A20; --surface-2: #2E222A; --fg: #F6F1F0; --muted: #B9AAB5;
+  --line: #3B2D37; --track: #3B2D37; --hover: #2E222A; --ring: #F6F1F0; --plum: #D9C9D4;
+  --ok: #4CC071; --warn: #E9A25A; --err: #F06B77; --chip: #2E222A;
+  --shadow: 0 2px 10px rgba(0, 0, 0, .55);
+  --b-claude: #E8906C; --b-codex: #2DC79A; --b-opencode: #F6F1F0; --b-kiro: #AB7BFF; --b-gentle: #F2509F;
+}
 * { box-sizing: border-box; }
 html, body { margin: 0; background: transparent; color: var(--fg); font: 13px/1.35 var(--ui); }
 body { min-height: 100vh; display: grid; place-items: center; overflow: hidden; }
@@ -104,3 +111,12 @@ img.orig { width: 16px; height: 16px; border-radius: 4px; mask: none; background
 .more { all: unset; font-size: 12px; color: var(--muted); cursor: pointer; justify-self: start; }
 .more:hover { color: var(--fg); } .more:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
 @media (prefers-reduced-motion: reduce) { .dbtn, .ring .fg { transition: none; } }
+
+.dots { display: none; }
+.dock.collapsed > :not(.chevron):not(.dots) { display: none; }
+.dock.collapsed .dots { display: flex; flex-direction: column; gap: 8px; }
+.collapsed .chevron > svg { transform: rotate(180deg); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--acc); }
+.dot.dim { opacity: .35; }
+.dot.track { background: var(--track); }
+.dot.alert { background: var(--err); box-shadow: 0 0 0 3px color-mix(in srgb, var(--err) 20%, transparent); }

@@ -8,6 +8,18 @@ export function petOf(id) {
 }
 export const agentOf = (data, id) => data?.agents?.[id] ?? { status: 'absent' };
 export const billingOf = (agent) => agent?.billing === 'plan' ? 'plan' : 'payg';
+export function collapsedDot(agent) {
+  if (agent?.status === 'absent') return 'track';
+  const ring = ringOf(agent);
+  if (agent?.status === 'error' || ring?.high) return 'alert';
+  return ring && ring.pct < 30 ? 'dim' : 'brand';
+}
+export const attentionList = data => AGENTS.filter(({ id }) => collapsedDot(agentOf(data, id)) === 'alert')
+  .map(({ name }) => name);
+export function attentionLabel(data) {
+  const names = attentionList(data);
+  return names.length ? `Atención: ${names.join(', ')}` : 'Sin alertas';
+}
 const usd = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'USD' });
 const number = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
 export const formatPct = (value) => `${number.format(value)} %`;

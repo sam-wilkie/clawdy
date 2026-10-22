@@ -1,6 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AGENTS, agentOf, billingOf, ringOf, dockLabel, formatUsd } from './state.js';
+import { collapsedDot, attentionList, attentionLabel } from './state.js';
+
+test('collapsed dots share ring thresholds, absence and billing rules', () => {
+  for (const [pct, expected] of [[0, 'dim'], [29.9, 'dim'], [30, 'brand'], [89.9, 'brand'], [90, 'alert'], [120, 'alert']])
+    assert.equal(collapsedDot(plan(pct)), expected);
+  assert.equal(collapsedDot(plan(20, 93)), 'alert');
+  assert.equal(collapsedDot({ ...plan(99), billing: 'payg' }), 'brand');
+  assert.equal(collapsedDot({ ...payg(), status: 'error' }), 'alert');
+  assert.equal(collapsedDot({ ...plan(99), status: 'absent' }), 'track');
+  assert.equal(collapsedDot({ billing: 'plan' }), 'brand');
+  assert.equal(collapsedDot({ ...plan(99), plan: { status: 'error' } }), 'brand');
+});
+test('attention names and accessible tooltip use configured agent order', () => {
+  const data = { agents: { claude: plan(93), codex: plan(90), opencode: { ...payg(), status: 'error' },
+    kiro: { ...plan(99), status: 'absent' }, pi: { ...plan(99), billing: 'payg' } } };
+  assert.deepEqual(attentionList(data), ['Claude', 'Codex', 'OpenCode']);
+  assert.equal(attentionLabel(data), 'Atención: Claude, Codex, OpenCode');
+  assert.equal(attentionLabel({ agents: { claude: plan(93), codex: plan(90) } }), 'Atención: Claude, Codex');
+  assert.deepEqual(attentionList(null), []);
+  assert.equal(attentionLabel(null), 'Sin alertas');
+  assert.equal(attentionLabel({ agents: { claude: plan(89) } }), 'Sin alertas');
+});
 import { panelState, acceptUsage, costLabel, projectRows } from './state.js';
 import * as cards from './state.js';
 
