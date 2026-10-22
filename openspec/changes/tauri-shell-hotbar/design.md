@@ -179,8 +179,8 @@ No migration. New files only appear under `~/.clawd-tank`. Behaviour change: Cla
 - [ ] OpenCode: when it stops writing the legacy `message` table, add a `session_message` path (detect with an empty legacy result alongside non-empty v2 tables).
 - [x] Q4: the 5-minute stale default (`stale_after_s: 300`) is confirmed by the user.
 - [ ] SQLite `mode=ro` behaviour on a WAL DB without `-shm` varies by SQLite version (Python's bundled 3.4x). The PR 4 RED tests decide whether the `immutable` retry is ever reached.
-- [ ] r3: Claude is always `billing:"plan"`. A Claude Code user on an API key has no `rate_limits`, so they get `plan.status:"no_data"` and no money shown. Confirm, or define a payg signal for Claude.
-- [ ] r3: Codex `billing` before the first successful `account/read` (and when Codex is signed out) defaults to `plan`. Confirm.
+- [x] r3: Claude billing. Resolved 2026-10-21 (decided by the agent on the user's delegation; revisit if it misleads): Claude is `plan` only while the cache carries `rate_limits`; with none it is `payg` with `plan.status:"no_data"`, so an API-key user sees the estimated cost (`≈ … estimado`). This is what `plan_usage.read_claude_plan` does and `tests/test_plan_usage.py` pins; the old premise ("always plan") was out of date. Known edge: a subscription user whose statusLine cache is still empty (first run) briefly sees an estimate instead of limits.
+- [x] r3: Codex billing default. Resolved 2026-10-21 (same delegation): `plan` before the first successful `account/read`, when signed out, and when Codex is not installed; a timeout keeps the previous billing. Only a positive answer flips it (`apiKey` gives `payg`, `chatgpt` gives `plan`), so subscription users never see a cost flash. Cost: an API-key user sees no money until the first read succeeds. Matches `CodexPlanSource` and `tests/test_codex_plan.py`.
 - [ ] r3: the mockup's explanatory copy mentions green/orange rings from 70 %; the approved brief (brand colour, cherry at >= 90 %) is followed.
 
 ## Revision log
