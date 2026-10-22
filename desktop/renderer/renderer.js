@@ -354,6 +354,7 @@ let permShownAt = 0;
 
 function renderPermission() {
   if (permQueue.length === 0) {
+    if (!permCard.hidden) window.pet.setExpanded(false);
     permCard.hidden = true;
     syncMouseInteractivity();
     return;
@@ -364,6 +365,7 @@ function renderPermission() {
   permSummary.textContent = r.summary || r.tool || "";
   permCount.textContent = permQueue.length > 1 ? "+" + (permQueue.length - 1) : "";
   if (permCard.hidden) {
+    window.pet.setExpanded(true); // room above the crab so the bubble doesn't cover it
     permCard.hidden = false;
     permShownAt = Date.now();
   }

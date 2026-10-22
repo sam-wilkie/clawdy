@@ -33,6 +33,8 @@ const debugLog = process.env.CLAWDY_DEBUG === "1"
 /** Logical size of each pet window (CSS pixels). */
 const WIN_W = 200;
 const WIN_H = 200;
+/** Extra height added above the crab while a permission bubble is shown. */
+const PERM_EXTRA_H = 56;
 /** Gap between stacked product windows (px), and inset from screen edges. */
 const WIN_GAP = 8;
 const EDGE_INSET = 24;
@@ -323,7 +325,7 @@ function layoutWindows() {
     if (!entry || !entry.win || entry.win.isDestroyed()) return;
     if (entry.moved) return; // respect a user-dragged window
     const { x, y } = slotPosition(slot);
-    entry.win.setPosition(x, y);
+    entry.win.setPosition(x, entry.expanded ? y - PERM_EXTRA_H : y);
   });
 }
 
@@ -406,6 +408,21 @@ ipcMain.on("set-interactive", (evt, interactive) => {
   if (!win || win.isDestroyed()) return;
   if (interactive) win.setIgnoreMouseEvents(false);
   else win.setIgnoreMouseEvents(true, { forward: true });
+});
+
+/** Permission bubble shown/hidden: grow the sender's window upward by
+ *  PERM_EXTRA_H (or shrink it back) so the crab keeps its screen position.
+ *  shortcut: no clamp to the work area, so a crab dragged to the top edge gets
+ *  a bubble partly offscreen; flip it below the crab if that shows up. */
+ipcMain.on("set-expanded", (evt, expanded) => {
+  const win = BrowserWindow.fromWebContents(evt.sender);
+  if (!win || win.isDestroyed()) return;
+  const entry = [...windows.values()].find((e) => e.win === win);
+  if (!entry || !!entry.expanded === expanded) return;
+  entry.expanded = expanded;
+  const b = win.getBounds();
+  const dh = expanded ? PERM_EXTRA_H : -PERM_EXTRA_H;
+  win.setBounds({ x: b.x, y: b.y - dh, width: WIN_W, height: b.height + dh });
 });
 
 /** Drag: move the sender's own window by a pointer delta, and mark it moved so

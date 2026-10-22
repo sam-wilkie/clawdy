@@ -3,7 +3,8 @@
 // Copied to <agent-dir>/extensions/clawd-tank.js by hooks.install_pi_hooks().
 // It forwards Pi lifecycle and tool events to the Clawd Tank daemon by running
 // the notify command with the agent argument "pi" and the raw payload on stdin.
-// Permission prompts wait for the pet's decision and block the tool call on deny.
+// Pi runs tools without approval, so the extension only reports them; it never
+// asks the pet for permission (that popped a bubble on every bash/write/edit).
 // Everything here is fire-and-forget and must never throw into Pi.
 
 import { spawn } from "node:child_process"
@@ -12,8 +13,6 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const COMMAND_FILE = join(dirname(fileURLToPath(import.meta.url)), "clawd-tank.command")
-const PERMISSION_WAIT_MS = 22000
-const TOOLS_NEEDING_APPROVAL = new Set(["bash", "write", "edit"])
 
 let cachedCommand
 function notifyCommand() {
@@ -26,33 +25,27 @@ function notifyCommand() {
   return cachedCommand
 }
 
-// Runs the notify command with `payload` on stdin. Resolves with stdout (only
-// collected when `wait` is true) and never rejects.
-function send(payload, wait = false) {
+// Runs the notify command with `payload` on stdin. Never rejects.
+function send(payload) {
   return new Promise((resolve) => {
     try {
       const command = notifyCommand()
-      if (!command) return resolve("")
+      if (!command) return resolve()
       const child = spawn(`${command} pi`, {
         shell: true,
         windowsHide: true,
-        stdio: ["pipe", wait ? "pipe" : "ignore", "ignore"],
+        stdio: ["pipe", "ignore", "ignore"],
       })
-      let out = ""
       const timer = setTimeout(() => {
         try { child.kill() } catch {}
-        resolve("")
-      }, wait ? PERMISSION_WAIT_MS : 5000)
-      if (wait) child.stdout.on("data", (d) => { out += d })
-      child.on("error", () => { clearTimeout(timer); resolve("") })
-      child.on("close", () => {
-        clearTimeout(timer)
-        resolve(out)
-      })
+        resolve()
+      }, 5000)
+      child.on("error", () => { clearTimeout(timer); resolve() })
+      child.on("close", () => { clearTimeout(timer); resolve() })
       child.stdin.on("error", () => {})
       child.stdin.end(JSON.stringify(payload))
     } catch {
-      resolve("")
+      resolve()
     }
   })
 }
@@ -75,23 +68,8 @@ export default function (pi) {
   pi.on("turn_end", forward("turn_end"))
   pi.on("session_shutdown", forward("session_shutdown"))
 
-  pi.on("tool_call", async (evt, ctx) => {
-    try {
-      const tool = evt.toolName || ""
-      if (!TOOLS_NEEDING_APPROVAL.has(tool)) {
-        await send({ ...base("tool_call", ctx), tool })
-        return undefined
-      }
-      const out = await send({ ...base("permission", ctx), tool, args: evt.input }, true)
-      let decision = "none"
-      try { decision = JSON.parse(out).decision || "none" } catch {}
-      if (decision === "deny") {
-        return { block: true, reason: "Denied from the Clawd Tank pet" }
-      }
-      return undefined
-    } catch {
-      return undefined
-    }
+  pi.on("tool_call", (evt, ctx) => {
+    send({ ...base("tool_call", ctx), tool: evt.toolName || "" }).catch(() => {})
   })
 
   pi.on("tool_result", (evt, ctx) => {

@@ -21,7 +21,9 @@ html, body {
   width: var(--crab);
   height: var(--crab);
   left: calc(50% - var(--crab) / 2);
-  top: calc(50% - var(--crab) / 2);
+  /* Centered in the 200px window, but anchored to the bottom so the crab stays
+     put when main.js grows the window upward for a permission bubble. */
+  bottom: calc(100px - var(--crab) / 2);
   transform: translate3d(0, 0, 0);
   will-change: transform;
 }
@@ -119,9 +121,9 @@ img.crab-layer[hidden] { display: none; }
 
   position: absolute;
   left: 50%;
-  top: 6px;
+  bottom: 104px; /* just above the crab's head; main.js grows the window upward */
   transform: translateX(-50%);
-  width: 220px;
+  width: calc(100% - 12px); /* the pet window is only 200px wide */
   box-sizing: border-box;
   padding: 10px 11px 11px;
   border-radius: 12px;
@@ -137,9 +139,10 @@ img.crab-layer[hidden] { display: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  flex-wrap: wrap; /* a long tool name drops below the title instead of splitting it */
+  gap: 3px 8px;
 }
-#perm-title { font-weight: 600; font-size: 13px; color: var(--perm-ink); }
+#perm-title { white-space: nowrap; font-weight: 600; font-size: 13px; color: var(--perm-ink); }
 #perm-tool {
   padding: 1px 7px;
   border-radius: 999px;
@@ -150,6 +153,9 @@ img.crab-layer[hidden] { display: none; }
   letter-spacing: .04em;
   text-transform: uppercase;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 #perm-tool:empty { display: none; }
 #perm-meta {
@@ -170,8 +176,8 @@ img.crab-layer[hidden] { display: none; }
   background: var(--perm-paper);
   color: var(--perm-plum);
   font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  max-height: 3.2em;
-  overflow: hidden;
+  max-height: 4.2em;
+  overflow-y: auto; /* long commands scroll instead of being cut off */
   word-break: break-all;
 }
 #perm-buttons { display: flex; gap: 6px; }
