@@ -1,12 +1,14 @@
 use std::{fs, io, path::{Path, PathBuf}, sync::Mutex, time::{Duration, Instant}};
 use tauri::{Emitter, Manager, menu::{Menu, MenuItem}};
-use crate::placement::{self, Rect};
+use crate::placement::{self, Edge, Rect};
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Theme { Light, Dark }
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HotbarState {
+    #[serde(default)]
+    pub edge: Option<Edge>,
     pub x: Option<f64>, pub y: Option<f64>, pub collapsed: bool, pub theme: Option<Theme>,
 }
 pub fn load(path: &Path) -> HotbarState {
@@ -19,16 +21,30 @@ fn save(path: &Path, value: &HotbarState) -> io::Result<()> {
     fs::write(&tmp, serde_json::to_vec(value)?)?;
     fs::rename(&tmp, path)
 }
-fn should_save(quiet: Option<Duration>, toggle: bool) -> bool {
-    toggle || quiet.is_some_and(|d| d >= Duration::from_millis(400))
+/// The OS move loop keeps the button down while the user pauses, so a pause alone is not a drop.
+#[cfg(windows)]
+fn mouse_down() -> bool {
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
+    // SAFETY: GetAsyncKeyState has no preconditions; the high bit is set while the key is down.
+    unsafe { GetAsyncKeyState(VK_LBUTTON as i32) < 0 }
 }
-pub struct Store { path: PathBuf, inner: Mutex<(HotbarState, Option<Instant>)> }
+#[cfg(not(windows))]
+fn mouse_down() -> bool { false }
+fn drag_ended(quiet: Option<Duration>, button_down: bool) -> bool {
+    !button_down && should_save(quiet, false)
+}
+fn should_save(quiet: Option<Duration>, toggle: bool) -> bool {
+    toggle || quiet.is_some_and(|d| d >= Duration::from_millis(250))
+}
+pub struct Store { path: PathBuf, inner: Mutex<(HotbarState, Option<Instant>)>, expected: Mutex<Option<Rect>> }
 impl Store {
     fn update(&self, toggle: bool, change: impl FnOnce(&mut HotbarState)) {
         let mut inner = self.inner.lock().unwrap_or_else(|p| p.into_inner());
         change(&mut inner.0);
-        inner.1 = Some(Instant::now());
+        // A menu action must not cancel a pending drag-end snap.
+        let pending_move = inner.1;
         if should_save(inner.1.map(|t| t.elapsed()), toggle) { self.flush(&mut inner); }
+        inner.1 = pending_move;
     }
     fn flush(&self, inner: &mut (HotbarState, Option<Instant>)) {
         match save(&self.path, &inner.0) {
@@ -54,60 +70,88 @@ fn area(monitor: &tauri::Monitor) -> Rect {
     Rect { x: work.position.x as f64, y: work.position.y as f64,
         width: work.size.width as f64, height: work.size.height as f64 }
 }
-fn size(collapsed: bool, scale: f64) -> (f64, f64) {
-    (82. * scale, if collapsed { 156. } else { 466. } * scale)
+fn bounds(monitor: &tauri::Monitor) -> Rect {
+    Rect { x: monitor.position().x as f64, y: monitor.position().y as f64,
+        width: monitor.size().width as f64, height: monitor.size().height as f64 }
 }
-fn place(bar: &tauri::WebviewWindow, rect: Rect) -> tauri::Result<()> {
+fn window_rect(bar: &tauri::WebviewWindow) -> tauri::Result<Rect> {
+    let pos = bar.outer_position()?; let size = bar.outer_size()?;
+    Ok(Rect { x: pos.x as f64, y: pos.y as f64, width: size.width as f64, height: size.height as f64 })
+}
+fn place(app: &tauri::AppHandle, bar: &tauri::WebviewWindow, rect: Rect, edge: Edge, collapsed: bool) -> tauri::Result<()> {
+    // Match the integer physical rectangle Windows will report, including fractional DPI scales.
+    let rect = Rect { x: rect.x as i32 as f64, y: rect.y as i32 as f64,
+        width: rect.width as u32 as f64, height: rect.height as u32 as f64 };
+    *app.state::<Store>().expected.lock().unwrap_or_else(|p| p.into_inner()) = Some(rect);
     bar.set_size(tauri::PhysicalSize::new(rect.width as u32, rect.height as u32))?;
-    bar.set_position(tauri::PhysicalPosition::new(rect.x as i32, rect.y as i32))
+    bar.set_position(tauri::PhysicalPosition::new(rect.x as i32, rect.y as i32))?;
+    app.state::<Store>().update(true, |s| {
+        s.x = Some(rect.x); s.y = Some(rect.y); s.edge = Some(edge); s.collapsed = collapsed;
+    });
+    app.emit("hotbar-state", hotbar_state(app.state()))
+}
+fn snap(app: &tauri::AppHandle, toggle: bool) -> tauri::Result<()> {
+    let bar = app.get_webview_window("bar").ok_or(tauri::Error::WindowNotFound)?;
+    let rect = window_rect(&bar)?;
+    if !toggle && *app.state::<Store>().expected.lock().unwrap_or_else(|p| p.into_inner()) == Some(rect) {
+        return Ok(()); // Resize/position notifications from our own snap have settled.
+    }
+    let state = hotbar_state(app.state());
+    let collapsed = if toggle { !state.collapsed } else { state.collapsed };
+    let monitors = bar.available_monitors()?;
+    let primary = bar.primary_monitor()?.ok_or(tauri::Error::WindowNotFound)?;
+    let areas: Vec<_> = monitors.iter().map(bounds).collect();
+    let (rect, edge) = if let Some(index) = placement::monitor_index(rect, &areas) {
+        let monitor = &monitors[index];
+        let work = area(monitor);
+        let edge = if toggle { state.edge.unwrap_or(Edge::Right) } else { placement::nearest_edge(rect, work) };
+        (placement::dock(rect, edge, collapsed, work, monitor.scale_factor()), edge)
+    } else {
+        placement::restore(None, None, collapsed, &[], (area(&primary), primary.scale_factor()))
+    };
+    place(app, &bar, rect, edge, collapsed)
 }
 pub fn start(app: &tauri::AppHandle) -> tauri::Result<()> {
     let path = app.path().home_dir()?.join(".clawd-tank/hotbar-state.json");
     let value = load(&path);
-    app.manage(Store { path, inner: Mutex::new((value.clone(), None)) });
+    app.manage(Store { path, inner: Mutex::new((value.clone(), None)), expected: Mutex::new(None) });
     if let Some(bar) = app.get_webview_window("bar") {
         if let Some(primary) = bar.primary_monitor()? {
-            let monitors = bar.available_monitors()?;
-            let areas: Vec<_> = monitors.iter().map(area).collect();
-            let saved = value.x.zip(value.y).map(|(x, y)| Rect { x, y,
-                width: size(value.collapsed, bar.scale_factor().unwrap_or(1.)).0,
-                height: size(value.collapsed, bar.scale_factor().unwrap_or(1.)).1 });
-            let monitor = saved.and_then(|r| monitors.iter().find(|m| {
-                let a = area(m);
-                r.x + r.width / 2. >= a.x && r.x + r.width / 2. < a.x + a.width
-                    && r.y + r.height / 2. >= a.y && r.y + r.height / 2. < a.y + a.height
-            })).unwrap_or(&primary);
-            place(&bar, placement::clamp(saved, size(value.collapsed, monitor.scale_factor()), &areas, area(&primary)))?;
+            let monitors: Vec<_> = bar.available_monitors()?.iter().map(|m| (bounds(m), area(m), m.scale_factor())).collect();
+            let (rect, edge) = placement::restore(value.x.zip(value.y), value.edge, value.collapsed,
+                &monitors, (area(&primary), primary.scale_factor()));
+            place(app, &bar, rect, edge, value.collapsed)?;
         }
     }
     let handle = app.clone();
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_millis(50));
         let store = handle.state::<Store>();
-        let mut inner = store.inner.lock().unwrap_or_else(|p| p.into_inner());
-        if should_save(inner.1.map(|t| t.elapsed()), false) { store.flush(&mut inner); }
+        let ready = {
+            let mut inner = store.inner.lock().unwrap_or_else(|p| p.into_inner());
+            let ready = drag_ended(inner.1.map(|t| t.elapsed()), mouse_down());
+            if ready { inner.1 = None; }
+            ready
+        };
+        if ready {
+            let app = handle.clone();
+            let _ = handle.run_on_main_thread(move || {
+                // A newer move may have arrived while this callback waited for the UI thread.
+                if app.state::<Store>().inner.lock().unwrap_or_else(|p| p.into_inner()).1.is_some() { return; }
+                if let Err(err) = snap(&app, false) { eprintln!("hotbar: cannot dock: {err}"); }
+            });
+        }
     });
     Ok(())
 }
-pub fn moved(window: &tauri::Window, position: &tauri::PhysicalPosition<i32>) {
+pub fn moved(window: &tauri::Window, _position: &tauri::PhysicalPosition<i32>) {
     if let Some(store) = window.try_state::<Store>() {
-        store.update(false, |s| { s.x = Some(position.x as f64); s.y = Some(position.y as f64); });
+        store.inner.lock().unwrap_or_else(|p| p.into_inner()).1 = Some(Instant::now());
     }
 }
 #[tauri::command]
 pub fn toggle_collapsed(app: tauri::AppHandle) -> Result<(), String> {
-    let change = || -> tauri::Result<()> {
-        let bar = app.get_webview_window("bar").ok_or(tauri::Error::WindowNotFound)?;
-        let monitor = bar.current_monitor()?.or(bar.primary_monitor()?).ok_or(tauri::Error::WindowNotFound)?;
-        let collapsed = !hotbar_state(app.state()).collapsed;
-        let pos = bar.outer_position()?; let old = bar.outer_size()?;
-        let rect = placement::resize_anchored(Rect { x: pos.x as f64, y: pos.y as f64,
-            width: old.width as f64, height: old.height as f64 }, size(collapsed, monitor.scale_factor()), area(&monitor));
-        place(&bar, rect)?;
-        app.state::<Store>().update(true, |s| { s.collapsed = collapsed; s.x = Some(rect.x); s.y = Some(rect.y); });
-        app.emit("hotbar-state", hotbar_state(app.state()))
-    };
-    change().map_err(|e| e.to_string())
+    snap(&app, true).map_err(|e| e.to_string())
 }
 fn dark(app: &tauri::AppHandle) -> bool {
     hotbar_state(app.state()).theme.map(|t| t == Theme::Dark).unwrap_or_else(||
@@ -159,7 +203,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("clawdy-state-{}", std::process::id()));
         let path = dir.join("hotbar-state.json");
         assert_eq!(load(&path), HotbarState::default());
-        let state = HotbarState { x: Some(-900.), y: Some(120.), collapsed: true, theme: Some(Theme::Dark) };
+        let state = HotbarState { edge: Some(Edge::Left), x: Some(-900.), y: Some(120.), collapsed: true, theme: Some(Theme::Dark) };
         save(&path, &state).unwrap();
         assert_eq!(load(&path), state);
         assert!(!path.with_extension("json.tmp").exists());
@@ -170,6 +214,10 @@ mod tests {
             std::fs::write(&path, data).unwrap();
             assert_eq!(load(&path), HotbarState::default());
         }
+        std::fs::write(&path, r#"{"x":100,"y":20,"collapsed":false,"theme":null}"#).unwrap();
+        let legacy = load(&path);
+        assert_eq!(legacy.edge, None);
+        assert_eq!(legacy.x, Some(100.));
         for theme in [None, Some(Theme::Light), Some(Theme::Dark)] {
             save(&path, &HotbarState { theme, ..state.clone() }).unwrap();
             assert_eq!(load(&path).theme, theme);
@@ -184,17 +232,27 @@ mod tests {
         let blocker = std::env::temp_dir().join(format!("clawdy-blocker-{}", std::process::id()));
         std::fs::write(&blocker, "a file, so its child path cannot be created").unwrap();
         let store = Store { path: blocker.join("hotbar-state.json"),
-            inner: Mutex::new((HotbarState::default(), Some(Instant::now()))) };
+            inner: Mutex::new((HotbarState::default(), Some(Instant::now()))), expected: Mutex::new(None) };
+        store.update(true, |s| s.theme = Some(Theme::Dark));
         let mut inner = store.inner.lock().unwrap();
+        assert!(inner.1.is_some(), "an immediate save preserves the drag debounce");
         store.flush(&mut inner);
         assert!(inner.1.is_none());
         std::fs::remove_file(blocker).unwrap();
     }
     #[test]
+    fn a_pause_with_the_button_still_down_is_not_a_drop() {
+        let quiet = Some(Duration::from_millis(500));
+        assert!(drag_ended(quiet, false));
+        assert!(!drag_ended(quiet, true));
+        assert!(!drag_ended(Some(Duration::from_millis(100)), false));
+        assert!(!drag_ended(None, false));
+    }
+    #[test]
     fn moves_wait_for_quiet_but_toggles_save_immediately() {
         assert!(!should_save(None, false));
-        assert!(!should_save(Some(Duration::from_millis(399)), false));
-        assert!(should_save(Some(Duration::from_millis(400)), false));
+        assert!(!should_save(Some(Duration::from_millis(249)), false));
+        assert!(should_save(Some(Duration::from_millis(250)), false));
         assert!(should_save(Some(Duration::ZERO), true));
         assert!(should_save(None, true));
     }

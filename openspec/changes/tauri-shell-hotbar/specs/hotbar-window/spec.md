@@ -8,7 +8,17 @@ The Tauri hotbar: a docked, always-on-top bar. Windows is the only verified plat
 
 ### Requirement: Placement and persistence
 
-The bar MUST default to the right edge of the primary monitor's usable area, vertically centred with a small margin, be draggable across monitors, and save `{x, y, collapsed, theme}` to `hotbar-state.json` (debounced on move end and on toggle). A saved position MUST be clamped into the usable area of the monitor containing the bar's centre; if the centre is on no connected monitor, the bar MUST use the default placement on the primary monitor. A corrupt or missing state file MUST yield the default. The hotbar MUST NOT write `hotbar.json`.
+The bar is a widget docked flush against a screen edge: it MUST always rest against the left, right, top or bottom edge of a monitor's usable area, with no gap, and MUST default to the right edge of the primary monitor, centred along the edge. It MUST be draggable across monitors; when a drag ends it MUST snap to the nearest edge of the monitor containing its centre, so it never rests away from an edge. Left and right edges use the vertical layout and top and bottom use the horizontal layout (same cells, laid out in a row). Only the corners facing into the screen MUST be rounded; the corners on the edge side MUST be square. The bar MUST save `{x, y, edge, collapsed, theme}` to `hotbar-state.json` (debounced on move end and on toggle). A saved position MUST be restored onto the saved edge of the monitor containing the saved centre, clamped along that edge; a saved position without `edge` MUST snap to the nearest edge. If the centre is on no connected monitor, the bar MUST use the default placement on the primary monitor. A corrupt or missing state file MUST yield the default. The hotbar MUST NOT write `hotbar.json`.
+
+#### Scenario: Drag snaps to an edge
+- GIVEN the bar docked on the right edge
+- WHEN it is dragged to the middle of the screen and released nearer the top edge
+- THEN it snaps flush to the top edge in the horizontal layout, and stays there after restart
+
+#### Scenario: Secondary monitor
+- GIVEN a second monitor
+- WHEN the bar is released near that monitor's left edge
+- THEN it docks flush to that edge of the second monitor
 
 #### Scenario: Drag and restart
 - GIVEN the bar dragged to monitor 2
@@ -32,7 +42,7 @@ The bar MUST default to the right edge of the primary monitor's usable area, ver
 
 ### Requirement: Collapse
 
-The bar MUST collapse to a small pill on the nearer screen edge (chevron plus per-agent dots, see hotbar-usage-panel Collapsed state) and expand again, via the chevron or the menu, and persist the collapsed state.
+The bar MUST collapse to a small pill on the edge it is docked to (chevron plus per-agent dots, see hotbar-usage-panel Collapsed state) and expand again, via the chevron or the menu, and persist the collapsed state.
 
 #### Scenario: Collapse
 - GIVEN an expanded bar
