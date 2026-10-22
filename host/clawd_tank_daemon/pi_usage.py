@@ -3,6 +3,7 @@
 import json
 import logging
 import math
+import os
 from datetime import datetime, timezone, tzinfo
 from pathlib import Path
 from typing import Optional
@@ -16,17 +17,23 @@ def _int(value) -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) else 0
 
 
+def pi_sessions_root(env=None, home=None) -> Path:
+    env = os.environ if env is None else env
+    agent = env.get("PI_CODING_AGENT_DIR")
+    return (Path(agent) if agent else (home or Path.home()) / ".gentle-shell" / "agent") / "sessions"
+
+
 class PiUsageReader(JsonlTailReader):
     cost_kind = "reported"
 
     def __init__(
         self,
-        root: Path,
+        root: Optional[Path] = None,
         tz: Optional[tzinfo] = None,
         retention_days: int = 62,
         temp_root: Optional[str] = None,
     ):
-        super().__init__(root, tz, retention_days, temp_root)
+        super().__init__(root if root is not None else pi_sessions_root(), tz, retention_days, temp_root)
         self._retention_days = retention_days
         # Reuse the same window and retention rules for [reported USD, missing count].
         self._costs = UsageBuckets(tz, retention_days, {})

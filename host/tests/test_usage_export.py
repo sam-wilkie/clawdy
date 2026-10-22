@@ -33,10 +33,12 @@ def test_schema_absent_error_and_top30():
     assert set(doc) == {"version", "generated_at", "currency", "agents"}
     assert (doc["version"], doc["currency"]) == (1, "USD")
     assert datetime.fromisoformat(doc["generated_at"]) == NOW
-    assert set(doc["agents"]) == set(KINDS)
-    for name, agent in doc["agents"].items():
+    assert set(doc["agents"]) == {*KINDS, "kiro"}
+    assert doc["agents"]["kiro"] == {"status": "absent"}
+    for name in KINDS:
+        agent = doc["agents"][name]
         assert agent["status"] == "ok" and agent["cost_kind"] == KINDS[name]
-        assert set(agent) == {"status", "cost_kind", "totals", "projects"}
+        assert set(agent) == {"status", "cost_kind", "totals", "projects", "billing"}
         assert set(agent["totals"]) == {"today", "7d", "30d", "month"}
         for window in agent["totals"].values():
             assert set(window) == {"in", "out", "cw", "cr", "cost", "cost_partial"}
@@ -124,3 +126,49 @@ def test_excluded_cwd_never_exported(tmp_path):
     reader = ClaudeUsageReader(root, temp_root=str(tmp_path))
     reader.refresh()
     assert export.build_document({"claude": reader}, NOW)["agents"]["claude"]["projects"] == []
+
+
+def test_plan_export_billing_and_failure_retention():
+    rs = readers()
+    good = {"status": "ok", "billing": "plan", "plan": {"status": "ok", "limits": [
+        {"id": "credits", "label": "Cycle credits", "used_pct": 34, "resets_at": None}],
+        "credits": {"used": 340, "limit": 1000}}}
+    plans = {"claude": good, "kiro": good}
+    doc = export.build_document(rs, NOW, plans=plans)
+    assert doc["version"] == 1 and set(doc["agents"]) == {*KINDS, "kiro"}
+    for name, entry in doc["agents"].items():
+        assert entry["billing"] == ("payg" if name in ("pi", "opencode") else "plan")
+    assert set(doc["agents"]["kiro"]) == {"status", "billing", "cost_kind", "plan"}
+    assert doc["agents"]["kiro"]["cost_kind"] == "none"
+    failed = export.build_document(rs, NOW, doc, plans={"claude": None, "kiro": None})
+    for name in ("claude", "kiro"):
+        assert failed["agents"][name] == {**doc["agents"][name],
+            "status": "error" if name == "kiro" else "ok", "plan": {**good["plan"], "status": "error"}}
+    payg = export.build_document(rs, NOW, plans={"claude": {
+        "status": "ok", "billing": "payg", "plan": {"status": "no_data"}}})
+    assert payg["agents"]["claude"]["billing"] == "payg"
+    assert payg["agents"]["kiro"] == {"status": "absent"}
+    assert "plan" not in payg["agents"]["codex"]
+    assert doc["agents"]["claude"]["plan"]["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_plan_source_isolation_off_thread_and_log_once(sandbox_home, caplog):
+    import threading
+    from clawd_tank_daemon.plan_usage import read_claude_plan
+    d = ClawdDaemon(sim_only=True)
+    rs = readers()
+    d._project_usage_readers, d._project_usage_reader = rs, rs["claude"]
+    main_thread = threading.get_ident()
+    def source(now):
+        assert threading.get_ident() != main_thread
+        return read_claude_plan(sandbox_home / "missing", now)
+    d._plan_sources = {"claude": source, "kiro": Mock(side_effect=RuntimeError("broken plan"))}
+    for _ in range(2):
+        await d._refresh_project_usage()
+    doc = json.loads(d._project_usage_path.read_text())
+    assert doc["agents"]["claude"]["billing"] == "payg"
+    assert doc["agents"]["claude"]["plan"] == {"status": "no_data"}
+    assert doc["agents"]["claude"]["totals"]["30d"]["in"] == 5
+    assert doc["agents"]["kiro"]["status"] == "error"
+    assert caplog.text.count("Plan usage refresh failed for kiro") == 1

@@ -18,8 +18,9 @@ from .ble_client import ClawdBleClient
 from .claude_usage import ClaudeUsageReader
 from .codex_usage import CodexUsageReader
 from .opencode_usage import OpenCodeUsageReader
-from .pi_usage import PiUsageReader
+from .pi_usage import PiUsageReader, pi_sessions_root
 from .usage_export import build_document, write_json_atomic
+from .plan_usage import read_claude_plan, read_kiro_plan, kiro_state_paths
 from .kiro_log_watcher import run_kiro_log_watcher
 from .process_utils import pid_alive, terminate_pid
 from .protocol import (
@@ -455,10 +456,15 @@ class ClawdDaemon:
             "claude": self._project_usage_reader,
             "codex": CodexUsageReader(Path.home() / ".codex" / "sessions"),
             "opencode": OpenCodeUsageReader(Path.home() / ".local" / "share" / "opencode" / "opencode.db"),
-            "pi": PiUsageReader(Path.home() / ".pi" / "agent" / "sessions"),
+            "pi": PiUsageReader(pi_sessions_root()),
         }
         self._project_usage_path = Path.home() / ".clawd-tank" / "project-usage.json"
         self._project_usage_document = None
+        self._plan_sources = {
+            "claude": lambda now: read_claude_plan(USAGE_CACHE_PATH, now),
+            "kiro": lambda now: read_kiro_plan(kiro_state_paths(), now),
+        }
+        self._plan_failures = set()
         self._project_usage_payload: Optional[str] = None
         self._running = True
         self._shutdown_event = asyncio.Event()
@@ -1282,9 +1288,19 @@ class ClawdDaemon:
                 reader.status = "error"
                 logger.exception("Project usage refresh failed for %s", name)
         now = datetime.now().astimezone()
+        plans = {}
+        for name, source in self._plan_sources.items():
+            try:
+                plans[name] = await asyncio.to_thread(source, now)
+            except Exception as exc:
+                plans[name] = None
+                signature = (name, type(exc).__name__, str(exc))
+                if signature not in self._plan_failures:
+                    self._plan_failures.add(signature)
+                    logger.warning("Plan usage refresh failed for %s (%s)", name, type(exc).__name__)
         try:
             self._project_usage_document = build_document(
-                self._project_usage_readers, now, self._project_usage_document)
+                self._project_usage_readers, now, self._project_usage_document, plans=plans)
             await asyncio.to_thread(write_json_atomic, self._project_usage_path, self._project_usage_document)
         except Exception:
             # An export bug must not end the checker loop or the pet push below.
