@@ -13,7 +13,7 @@ The hotbar MUST read `hotbar.json` (`version`, `stale_after_s`, `agents`, `cells
 #### Scenario: Missing config
 - GIVEN no `hotbar.json`
 - WHEN the hotbar starts
-- THEN a default file is created and the four agent cells show
+- THEN a default file is created and the five agent buttons show (Claude, Codex, OpenCode, Kiro, Gentle Shell)
 
 #### Scenario: Invalid cell
 - GIVEN a config with one valid cell and one with an unknown action prefix

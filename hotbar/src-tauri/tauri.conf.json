@@ -8,8 +8,8 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "label": "bar", "title": "Clawdy Hotbar", "url": "index.html",
-        "width": 64, "height": 240, "decorations": false,
+        "label": "bar", "title": "Clawdy Hotbar", "url": "bar.html",
+        "width": 180, "height": 400, "decorations": false,
         "alwaysOnTop": true, "resizable": false, "skipTaskbar": true
       },
       {
