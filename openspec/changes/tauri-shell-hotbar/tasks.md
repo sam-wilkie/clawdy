@@ -64,15 +64,15 @@ GitNexus impact: none (new file).
 - [x] 3.1 Verify Codex token inclusion on a real `~/.codex/sessions` rollout (`input_tokens` includes cached/cache-write?); record result in the test fixture comment. Closes open question 1.
 - [x] 3.2 RED `host/tests/test_codex_usage.py` + fixtures: `token_count` ignored (no double counting); duplicate `response_id` once; model from latest `turn_context`; cwd from `session_meta`; excluded cwd; priced vs unpriced -> `cost: null`; garbage line; absent; append keeps per-file context. Spec: codex all scenarios.
 - [x] 3.3 GREEN `host/clawd_tank_daemon/codex_usage.py` with `CODEX_PRICES` (dated source per row; unverified -> unpriced). Dep 3.1, 3.2.
-- [ ] 3.4 REFACTOR; `pytest tests/test_codex_usage.py`; commit `feat(host): add Codex usage reader`.
+- [x] 3.4 REFACTOR; `pytest tests/test_codex_usage.py`; commit `feat(host): add Codex usage reader`.
 
 ## PR 4: OpenCode reader (~280) base: PR 3
 
 GitNexus impact: none (new file).
 
-- [ ] 4.1 RED `host/tests/test_opencode_usage.py` (fixture WAL DB built in test): totals per project/window from `message` rows; `part` ignored; row updated between passes re-aggregated; cost reported; live WAL writer still readable, committed rows only; DB bytes unchanged. Spec: opencode Fixture totals, Row updated, Cost reported, Concurrent writer.
-- [ ] 4.2 RED same file: cleanly closed WAL DB (no `-wal`/`-shm`) readable and directory listing unchanged; ro failure with `-wal` present -> `error`, never `immutable`; missing table keeps last snapshot with `error`; locked after good pass keeps snapshot; error on first pass; absent. Spec: opencode Locked after a good pass, Missing table, Error on first pass, Absent.
-- [ ] 4.3 GREEN `host/clawd_tank_daemon/opencode_usage.py`: `mode=ro` first, `immutable=1` retry only without `-wal`, `timeout=0.5`, 62 d re-aggregation, log once per schema signature. Dep 4.1, 4.2. The RED tests decide whether the immutable retry is reachable (open question 4).
+- [x] 4.1 RED `host/tests/test_opencode_usage.py` (fixture WAL DB built in test): totals per project/window from `message` rows; `part` ignored; row updated between passes re-aggregated; cost reported; live WAL writer still readable, committed rows only; DB bytes unchanged. Spec: opencode Fixture totals, Row updated, Cost reported, Concurrent writer.
+- [x] 4.2 RED same file: cleanly closed WAL DB (no `-wal`/`-shm`) readable and directory listing unchanged; ro failure with `-wal` present -> `error`, never `immutable`; missing table keeps last snapshot with `error`; locked after good pass keeps snapshot; error on first pass; absent. Spec: opencode Locked after a good pass, Missing table, Error on first pass, Absent.
+- [x] 4.3 GREEN `host/clawd_tank_daemon/opencode_usage.py`: `mode=ro` first, `immutable=1` retry only without `-wal`, `timeout=0.5`, 62 d re-aggregation, log once per schema signature. Dep 4.1, 4.2. The RED tests decide whether the immutable retry is reachable (open question 4).
 - [ ] 4.4 REFACTOR; `pytest tests/test_opencode_usage.py`; commit `feat(host): add OpenCode usage reader`.
 
 ## PR 5: Export + daemon file write (~230) base: PR 4

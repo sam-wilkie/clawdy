@@ -81,4 +81,4 @@ class CodexUsageReader(JsonlTailReader):
         except (ValueError, KeyError, TypeError, AttributeError, OverflowError, OSError):
             logger.warning("codex usage: skipping malformed record")
             return
-        self.buckets.add(key, day, ctx.get("model", ""), [inp - cr - cw, out, cw, 0, cr])
+        self.buckets.add(key, day, ctx.get("model", ""), [max(0, inp - cr - cw), out, cw, 0, cr])
