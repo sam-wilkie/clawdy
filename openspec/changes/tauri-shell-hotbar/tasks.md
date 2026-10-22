@@ -61,9 +61,9 @@ GitNexus impact: none (new file); reuse `usage_common` only.
 
 GitNexus impact: none (new file).
 
-- [ ] 3.1 Verify Codex token inclusion on a real `~/.codex/sessions` rollout (`input_tokens` includes cached/cache-write?); record result in the test fixture comment. Closes open question 1.
-- [ ] 3.2 RED `host/tests/test_codex_usage.py` + fixtures: `token_count` ignored (no double counting); duplicate `response_id` once; model from latest `turn_context`; cwd from `session_meta`; excluded cwd; priced vs unpriced -> `cost: null`; garbage line; absent; append keeps per-file context. Spec: codex all scenarios.
-- [ ] 3.3 GREEN `host/clawd_tank_daemon/codex_usage.py` with `CODEX_PRICES` (dated source per row; unverified -> unpriced). Dep 3.1, 3.2.
+- [x] 3.1 Verify Codex token inclusion on a real `~/.codex/sessions` rollout (`input_tokens` includes cached/cache-write?); record result in the test fixture comment. Closes open question 1.
+- [x] 3.2 RED `host/tests/test_codex_usage.py` + fixtures: `token_count` ignored (no double counting); duplicate `response_id` once; model from latest `turn_context`; cwd from `session_meta`; excluded cwd; priced vs unpriced -> `cost: null`; garbage line; absent; append keeps per-file context. Spec: codex all scenarios.
+- [x] 3.3 GREEN `host/clawd_tank_daemon/codex_usage.py` with `CODEX_PRICES` (dated source per row; unverified -> unpriced). Dep 3.1, 3.2.
 - [ ] 3.4 REFACTOR; `pytest tests/test_codex_usage.py`; commit `feat(host): add Codex usage reader`.
 
 ## PR 4: OpenCode reader (~280) base: PR 3

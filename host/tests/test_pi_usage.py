@@ -145,6 +145,27 @@ def test_absent_root(tmp_path):
     assert r.status == "absent" and r.snapshot(NOW) == []
 
 
+def test_root_removed_clears_tokens_and_costs(tmp_path, repo):
+    root = tmp_path / "sessions"
+    path = root / "s.jsonl"
+    write(path, [session(repo), entry("m1")])
+    r = reader(root)
+    assert r.snapshot(NOW)[0]["today"]["cost"] == 0.25
+    path.unlink()
+    root.rmdir()
+    r.refresh()
+    assert r.status == "absent" and r.snapshot(NOW) == []
+    write(path, [session(repo), entry("m1", cost=0.1)])
+    r.refresh()
+    assert r.snapshot(NOW)[0]["today"]["cost"] == 0.1
+
+
+def test_reported_cost_rounded_to_six_decimals(tmp_path, repo):
+    root = tmp_path / "sessions"
+    write(root / "s.jsonl", [session(repo), entry("m1", cost=0.1), entry("m2", cost=0.2)])
+    assert reader(root).snapshot(NOW)[0]["today"]["cost"] == 0.3
+
+
 def test_missing_ids_and_malformed_records(tmp_path, repo, caplog):
     root = tmp_path / "sessions"
     e = entry("unused", cost=0)
