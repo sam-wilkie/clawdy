@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Clawdy Hotbar",
+  "version": "0.1.0",
+  "identifier": "com.clawdy.hotbar",
+  "build": { "frontendDist": "../ui" },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "bar", "title": "Clawdy Hotbar", "url": "index.html",
+        "width": 64, "height": 240, "decorations": false,
+        "alwaysOnTop": true, "resizable": false, "skipTaskbar": true
+      },
+      {
+        "label": "panel", "title": "Clawdy Usage", "url": "index.html",
+        "width": 400, "height": 480, "decorations": false, "visible": false,
+        "alwaysOnTop": true, "resizable": false, "skipTaskbar": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": { "active": false }
+}
