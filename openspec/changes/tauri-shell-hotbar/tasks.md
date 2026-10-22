@@ -73,16 +73,16 @@ GitNexus impact: none (new file).
 - [x] 4.1 RED `host/tests/test_opencode_usage.py` (fixture WAL DB built in test): totals per project/window from `message` rows; `part` ignored; row updated between passes re-aggregated; cost reported; live WAL writer still readable, committed rows only; DB bytes unchanged. Spec: opencode Fixture totals, Row updated, Cost reported, Concurrent writer.
 - [x] 4.2 RED same file: cleanly closed WAL DB (no `-wal`/`-shm`) readable and directory listing unchanged; ro failure with `-wal` present -> `error`, never `immutable`; missing table keeps last snapshot with `error`; locked after good pass keeps snapshot; error on first pass; absent. Spec: opencode Locked after a good pass, Missing table, Error on first pass, Absent.
 - [x] 4.3 GREEN `host/clawd_tank_daemon/opencode_usage.py`: `mode=ro` first, `immutable=1` retry only without `-wal`, `timeout=0.5`, 62 d re-aggregation, log once per schema signature. Dep 4.1, 4.2. The RED tests decide whether the immutable retry is reachable (open question 4).
-- [ ] 4.4 REFACTOR; `pytest tests/test_opencode_usage.py`; commit `feat(host): add OpenCode usage reader`.
+- [x] 4.4 REFACTOR; `pytest tests/test_opencode_usage.py`; commit `feat(host): add OpenCode usage reader`.
 
 ## PR 5: Export + daemon file write (~230) base: PR 4
 
 GitNexus impact first: `ClawdDaemon.__init__`, `_refresh_project_usage`, `_project_usage_checker`, `project_usage_to_payload`.
 
-- [ ] 5.1 RED `host/tests/test_usage_export.py`: four-agent schema keys; absent agent; reader error keeps last good; top 30 by 30d; written on unchanged pass (mtime advances); one reader raising leaves others written; no `.tmp` left; interrupted write leaves old file; `PermissionError` on replace logged, retried next pass. Spec: file all scenarios.
-- [ ] 5.2 RED `host/tests/test_project_usage_transport.py`: `set_project_usage` payload keeps same keys and window shape (values may differ per Q3). Spec: file Exclusion rule.
-- [ ] 5.3 GREEN `host/clawd_tank_daemon/usage_export.py` (`build_document`, `write_json_atomic`). Dep 5.1.
-- [ ] 5.4 GREEN `host/clawd_tank_daemon/daemon.py`: reader list, per-reader `try`, file written every pass, then unchanged Claude-only `set_project_usage`. Dep 5.2, 5.3.
+- [x] 5.1 RED `host/tests/test_usage_export.py`: four-agent schema keys; absent agent; reader error keeps last good; top 30 by 30d; written on unchanged pass (mtime advances); one reader raising leaves others written; no `.tmp` left; interrupted write leaves old file; `PermissionError` on replace logged, retried next pass. Spec: file all scenarios.
+- [x] 5.2 RED `host/tests/test_project_usage_transport.py`: `set_project_usage` payload keeps same keys and window shape (values may differ per Q3). Spec: file Exclusion rule.
+- [x] 5.3 GREEN `host/clawd_tank_daemon/usage_export.py` (`build_document`, `write_json_atomic`). Dep 5.1.
+- [x] 5.4 GREEN `host/clawd_tank_daemon/daemon.py`: reader list, per-reader `try`, file written every pass, then unchanged Claude-only `set_project_usage`. Dep 5.2, 5.3.
 - [ ] 5.5 REFACTOR; `pytest tests/test_usage_export.py tests/test_project_usage_transport.py tests/test_daemon.py` (deselect known hang test); commit `feat(host): export project usage file`.
 
 ## PR 6: Tauri skeleton, watchdog, single instance (~250) base: PR 5

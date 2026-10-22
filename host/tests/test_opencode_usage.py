@@ -194,3 +194,31 @@ def test_absent_clears_previous_snapshot(db):
     path.unlink()
     r.refresh(NOW)
     assert r.status == "absent" and r.snapshot(NOW) == []
+
+
+def test_snapshot_pins_bucket_and_cost_generation(db, monkeypatch):
+    path, c, _ = db
+    r = reader(path)
+    before = r.snapshot(NOW)
+    buckets = r._state[0]
+    original = buckets.snapshot
+
+    def refresh_during_snapshot(now):
+        c.execute("DELETE FROM message")
+        c.commit()
+        r.refresh(NOW)
+        return original(now)
+
+    monkeypatch.setattr(buckets, "snapshot", refresh_during_snapshot)
+    assert r.snapshot(NOW) == before
+    assert r.snapshot(NOW) == []
+
+
+def test_invalid_utf8_row_is_skipped(db):
+    path, c, _ = db
+    c.execute("INSERT INTO message VALUES ('bad', 's', ?, 0, CAST(x'ff' AS TEXT))",
+              (int(NOW.timestamp() * 1000),))
+    c.commit()
+    r = reader(path)
+    assert r.status == "ok"
+    assert r.snapshot(NOW)[0]["today"]["in"] == 10

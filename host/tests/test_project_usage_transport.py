@@ -70,6 +70,20 @@ def test_payload_shape_and_estimate_marker():
     assert p["projects"][0]["label"] == "a" and p["projects"][0]["30d"]["in"] == 5
 
 
+@pytest.mark.asyncio
+async def test_export_keeps_claude_transport_contract(sandbox_home):
+    d, ts = make(FakeReader([[project("claude", 5)]]))
+    d._project_usage_readers["pi"] = FakeReader([[project("pi", 99)]])
+    await d._refresh_project_usage()
+    payload, = usage_lines(ts["pet"])
+    assert set(payload) == {"action", "currency", "estimate", "projects"}
+    assert payload["action"] == "set_project_usage" and payload["estimate"] is True
+    assert payload["projects"] == [project("claude", 5)]
+    for name in ("today", "7d", "30d", "month"):
+        assert set(payload["projects"][0][name]) == set(window())
+    assert (sandbox_home / ".clawd-tank" / "project-usage.json").exists()
+
+
 def test_payload_sorted_by_30d_tokens_and_capped_at_30_non_zero():
     snap = [project(f"p{i}", i) for i in range(0, 40)]
     projects = json.loads(project_usage_to_payload(snap))["projects"]
@@ -97,6 +111,19 @@ async def test_only_desktop_pet_receives_project_usage():
     await d._refresh_project_usage()
     assert len(usage_lines(ts["pet"])) == 1
     assert ts["ble"].written == [] and ts["sim"].written == []
+
+
+@pytest.mark.asyncio
+async def test_export_failure_does_not_stop_pet_push(caplog, monkeypatch):
+    def boom(*args):
+        raise TypeError("not serializable")
+
+    monkeypatch.setattr("clawd_tank_daemon.daemon.write_json_atomic", boom)
+    d, ts = make(FakeReader([[project("a", 5)]]))
+    with caplog.at_level("ERROR"):
+        await d._refresh_project_usage()  # must not raise
+    assert "project usage export failed" in caplog.text.lower()
+    assert len(usage_lines(ts["pet"])) == 1
 
 
 @pytest.mark.asyncio
