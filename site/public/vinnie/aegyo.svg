@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500" shape-rendering="crispEdges">
+  <!-- Monster v2 aegyo: 3.2 s loop, all motion continuous on eased tracks. Starts at the idle rest pose, dips into a bashful sway about the feet with a small squash, mittens tuck in to the chest and wiggle out of phase, the face crossfades to shy ^ ^ eyes with blush, blinks into big pleading eyes (looking up) mid-loop, then everything relaxes back to rest. Four pixel hearts rise from above the head, staggered so one or two are always in the air. -->
+  <defs>
+    <style>
+      .b, .sh { transform-box: view-box; transform-origin: 15px 30px; animation: b 3.2s ease-in-out infinite; }
+      .sh { animation-name: sh; }
+      .tl, .hl, .hr, .rs, .ps, .sf, .h { transform-box: fill-box; transform-origin: 50% 50%; }
+      .tl { animation: tl 3.2s ease-in-out infinite; }
+      .hl { animation: hl 3.2s ease-in-out infinite; }
+      .hr { animation: hr 3.2s ease-in-out infinite; }
+      .ro { animation: ro 3.2s ease-in-out infinite; }
+      .rs { animation: rs 3.2s ease-in-out infinite; }
+      .sf { opacity: 0; animation: sf 3.2s ease-in-out infinite; }
+      .po { opacity: 0; animation: po 3.2s ease-in-out infinite; }
+      .ps { animation: ps 3.2s ease-in-out infinite; }
+      .bl { opacity: 0; animation: bl 3.2s ease-in-out infinite; }
+      .h { opacity: 0; animation: h 3.2s ease-out infinite; }
+      .h1 { animation-delay: -3s; }
+      .h2 { animation-delay: -2.2s; }
+      .h3 { animation-delay: -1.4s; animation-name: h-l; }
+      .h4 { animation-delay: -.6s; }
+      @keyframes b { 0%, 5%, 100% { translate: 0 0; rotate: 0deg; scale: 1 1; } 15% { translate: 0 1px; rotate: -2deg; scale: 1.03 .96; } 28% { translate: 0 .5px; rotate: -1deg; scale: 1.01 .98; } 45% { translate: 0 .8px; rotate: 1deg; scale: 1.02 .97; } 60% { translate: 0 .3px; rotate: .4deg; scale: 1 .99; } 78% { translate: 0 0; rotate: 0deg; scale: 1 1; } }
+      @keyframes sh { 0%, 5%, 100% { scale: 1 1; } 15% { scale: 1.06 1; } 45% { scale: 1.04 1; } 78% { scale: 1 1; } }
+      @keyframes tl { 0%, 5%, 100% { translate: 0 0; rotate: 0deg; } 15% { translate: -.5px .5px; rotate: -3deg; } 45% { translate: .5px .3px; rotate: 2deg; } 60% { translate: .3px 0; rotate: 1deg; } 78% { translate: 0 0; rotate: 0deg; } }
+      @keyframes hl { 0%, 3%, 100% { translate: 0 0; rotate: 0deg; } 18% { translate: 5.6px .8px; rotate: 14deg; } 26% { translate: 5px 1.2px; rotate: 6deg; } 34% { translate: 5.6px .8px; rotate: 14deg; } 42% { translate: 5px 1.2px; rotate: 6deg; } 50% { translate: 5.6px .8px; rotate: 14deg; } 58% { translate: 5px 1.2px; rotate: 6deg; } 64% { translate: 5.3px 1px; rotate: 10deg; } 84% { translate: 0 0; rotate: 0deg; } }
+      @keyframes hr { 0%, 5%, 100% { translate: 0 0; rotate: 0deg; } 20% { translate: -5px 1.2px; rotate: -6deg; } 28% { translate: -5.6px .8px; rotate: -14deg; } 36% { translate: -5px 1.2px; rotate: -6deg; } 44% { translate: -5.6px .8px; rotate: -14deg; } 52% { translate: -5px 1.2px; rotate: -6deg; } 60% { translate: -5.6px .8px; rotate: -14deg; } 66% { translate: -5.3px 1px; rotate: -10deg; } 86% { translate: 0 0; rotate: 0deg; } }
+      @keyframes ro { 0%, 6% { opacity: 1; } 12%, 82% { opacity: 0; } 90%, 100% { opacity: 1; } }
+      @keyframes rs { 0%, 6% { scale: 1 1; } 12%, 82% { scale: 1 .3; } 90%, 100% { scale: 1 1; } }
+      @keyframes sf { 0%, 6% { opacity: 0; scale: 1 .4; } 12%, 42% { opacity: 1; scale: 1 1; } 47%, 63% { opacity: 0; scale: 1 .4; } 68%, 82% { opacity: 1; scale: 1 1; } 88%, 100% { opacity: 0; scale: 1 .4; } }
+      @keyframes po { 0%, 42% { opacity: 0; } 47%, 63% { opacity: 1; } 68%, 100% { opacity: 0; } }
+      @keyframes ps { 0%, 42% { scale: 1 .4; } 47%, 63% { scale: 1.06 1.06; } 68%, 100% { scale: 1 .4; } }
+      @keyframes bl { 0%, 6% { opacity: 0; } 12%, 82% { opacity: 1; } 88%, 100% { opacity: 0; } }
+      @keyframes h { 0% { translate: 0 3px; scale: .4; opacity: 0; } 7% { translate: -1px -3px; scale: 1; opacity: 1; } 24% { translate: 1.5px -11px; scale: 1; opacity: 1; } 36% { translate: 3.5px -17px; scale: .9; opacity: .8; } 45%, 100% { translate: 5px -22px; scale: .75; opacity: 0; } }
+      @keyframes h-l { 0% { translate: 0 3px; scale: .4; opacity: 0; } 7% { translate: 1px -3px; scale: 1; opacity: 1; } 24% { translate: -1px -11px; scale: 1; opacity: 1; } 36% { translate: -2.5px -17px; scale: .9; opacity: .8; } 45%, 100% { translate: -3.5px -22px; scale: .75; opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+    </style>
+    <g id="shadow">
+      <path fill="#000000" fill-opacity="0.3" d="M5 30h20v1h-20z"/>
+      <path fill="#000000" fill-opacity="0.15" d="M8 31h14v1h-14z"/>
+    </g>
+    <g id="cloud">
+      <path fill="#5E4B5A" d="M2 8h1v1h-1zM2 9h1v1h-1zM1 10h1v1h-1zM1 11h1v1h-1zM1 12h1v1h-1zM1 13h1v1h-1zM1 14h1v1h-1zM1 15h1v1h-1zM1 16h1v1h-1zM1 17h1v1h-1zM1 18h1v1h-1zM1 19h1v1h-1zM1 20h1v1h-1zM2 21h1v1h-1zM2 22h1v1h-1zM3 23h1v1h-1zM4 24h1v1h-1zM5 25h1v1h-1zM6 26h2v1h-2zM8 27h2v1h-2zM10 28h4v1h-4zM16 28h2v1h-2zM14 29h2v1h-2z"/>
+      <path fill="#7C1E2B" d="M14 1h2v1h-2zM10 2h4v1h-4zM16 2h4v1h-4zM8 3h2v1h-2zM20 3h2v1h-2zM6 4h2v1h-2zM22 4h2v1h-2zM5 5h1v1h-1zM24 5h1v1h-1zM4 6h1v1h-1zM25 6h1v1h-1zM3 7h1v1h-1zM26 7h1v1h-1zM27 8h1v1h-1zM27 9h1v1h-1zM28 10h1v1h-1zM28 11h1v1h-1zM28 12h1v1h-1zM28 13h1v1h-1zM28 14h1v1h-1zM28 15h1v1h-1zM28 16h1v1h-1zM28 17h1v1h-1zM28 18h1v1h-1zM28 19h1v1h-1zM28 20h1v1h-1zM27 21h1v1h-1zM27 22h1v1h-1zM26 23h1v1h-1zM25 24h1v1h-1zM24 25h1v1h-1zM22 26h2v1h-2zM20 27h2v1h-2zM18 28h2v1h-2z"/>
+      <path fill="#FFFFFF" d="M4 7h1v1h-1zM3 8h1v1h-1zM3 9h1v1h-1zM2 10h1v1h-1zM2 11h1v1h-1zM2 12h1v1h-1zM2 13h1v1h-1zM2 14h1v1h-1zM2 15h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1z"/>
+      <path fill="#F2848D" d="M14 2h1v1h-1zM10 3h4v1h-4zM16 3h3v1h-3zM8 4h2v1h-2zM20 4h1v1h-1zM6 5h2v1h-2zM22 5h1v1h-1zM5 6h1v1h-1z"/>
+      <path fill="#F6F1F0" d="M6 6h8v1h-8zM5 7h12v1h-12zM4 8h14v1h-14zM4 9h15v1h-15zM3 10h17v1h-17zM3 11h18v1h-18zM3 12h18v1h-18zM3 13h19v1h-19zM3 14h19v1h-19zM3 15h20v1h-20zM3 16h20v1h-20zM3 17h20v1h-20zM3 18h20v1h-20zM3 19h20v1h-20zM3 20h20v1h-20zM4 21h18v1h-18zM5 22h17v1h-17zM6 23h16v1h-16zM8 24h13v1h-13zM10 25h10v1h-10zM14 26h2v1h-2z"/>
+      <path fill="#DE4553" d="M14 3h2v1h-2zM10 4h10v1h-10zM8 5h14v1h-14zM14 6h10v1h-10zM17 7h8v1h-8zM18 8h8v1h-8zM19 9h7v1h-7zM20 10h7v1h-7zM21 11h6v1h-6zM21 12h6v1h-6zM22 13h5v1h-5zM22 14h5v1h-5zM23 15h4v1h-4zM23 16h4v1h-4zM23 17h4v1h-4zM23 18h4v1h-4zM23 19h4v1h-4zM23 20h4v1h-4zM22 21h4v1h-4zM22 22h3v1h-3zM22 23h2v1h-2zM21 24h1v1h-1z"/>
+      <path fill="#D9CDD2" d="M2 19h1v1h-1zM2 20h1v1h-1zM3 21h1v1h-1zM3 22h2v1h-2zM4 23h2v1h-2zM5 24h3v1h-3zM6 25h4v1h-4zM20 25h1v1h-1zM8 26h6v1h-6zM16 26h4v1h-4zM10 27h9v1h-9zM14 28h2v1h-2z"/>
+      <path fill="#B32F40" d="M15 2h1v1h-1zM19 3h1v1h-1zM21 4h1v1h-1zM23 5h1v1h-1zM24 6h1v1h-1zM25 7h1v1h-1zM26 8h1v1h-1zM26 9h1v1h-1zM27 10h1v1h-1zM27 11h1v1h-1zM27 12h1v1h-1zM27 13h1v1h-1zM27 14h1v1h-1zM27 15h1v1h-1zM27 16h1v1h-1zM27 17h1v1h-1zM27 18h1v1h-1zM27 19h1v1h-1zM27 20h1v1h-1zM26 21h1v1h-1zM25 22h2v1h-2zM24 23h2v1h-2zM22 24h3v1h-3zM21 25h3v1h-3zM20 26h2v1h-2zM19 27h1v1h-1z"/>
+    </g>
+    <g id="eye-rings"><path fill="#DE4553" d="M6 14h5v1h-5zM5 15h1v1h-1zM11 15h1v1h-1zM5 16h1v1h-1zM11 16h1v1h-1zM5 17h1v1h-1zM11 17h1v1h-1zM5 18h1v1h-1zM11 18h1v1h-1zM5 19h1v1h-1zM11 19h1v1h-1zM5 20h1v1h-1zM11 20h1v1h-1zM6 21h5v1h-5z"/><path fill="#2A1A22" d="M6 15h5v1h-5zM6 16h5v1h-5zM6 17h5v1h-5zM6 18h5v1h-5zM6 19h5v1h-5zM6 20h5v1h-5z"/><path fill="#B9AAB2" d="M18 14h5v1h-5zM17 15h1v1h-1zM23 15h1v1h-1zM17 16h1v1h-1zM23 16h1v1h-1zM17 17h1v1h-1zM23 17h1v1h-1zM17 18h1v1h-1zM23 18h1v1h-1zM17 19h1v1h-1zM23 19h1v1h-1zM17 20h1v1h-1zM23 20h1v1h-1zM18 21h5v1h-5z"/><path fill="#2A1A22" d="M18 15h5v1h-5zM18 16h5v1h-5zM18 17h5v1h-5zM18 18h5v1h-5zM18 19h5v1h-5zM18 20h5v1h-5z"/><path fill="#B9AAB2" d="M12 12h5v1h-5zM11 13h1v1h-1zM17 13h1v1h-1zM11 14h1v1h-1zM17 14h1v1h-1zM11 15h1v1h-1zM17 15h1v1h-1zM11 16h1v1h-1zM17 16h1v1h-1zM11 17h1v1h-1zM17 17h1v1h-1zM11 18h1v1h-1zM17 18h1v1h-1zM12 19h5v1h-5z"/><path fill="#2A1A22" d="M12 13h5v1h-5zM12 14h5v1h-5zM12 15h5v1h-5zM12 16h5v1h-5zM12 17h5v1h-5zM12 18h5v1h-5z"/></g>
+    <g id="eyes-open"><path fill="#FFFFFF" d="M7 16h2v1h-2zM7 17h2v1h-2zM9 19h1v1h-1z"/><path fill="#FFFFFF" d="M19 16h2v1h-2zM19 17h2v1h-2zM21 19h1v1h-1z"/><path fill="#FFFFFF" d="M13 14h2v1h-2zM13 15h2v1h-2zM15 17h1v1h-1z"/></g>
+    <g id="cursor"><path fill="#5A2433" d="M11 23h1v1h-1zM18 23h1v1h-1zM12 24h6v1h-6z"/><path fill="#FFFFFF" d="M13 25h1v1h-1zM16 25h1v1h-1z"/></g>
+    <g id="mini-puff"><path fill="#7C1E2B" d="M1 0h2v1h-2zM0 1h1v1h-1zM3 1h1v1h-1zM0 2h1v1h-1zM3 2h1v1h-1zM1 3h2v1h-2z"/><path fill="#F2848D" d="M1 1h1v1h-1z"/><path fill="#DE4553" d="M2 1h1v1h-1zM1 2h2v1h-2z"/></g>
+    <g id="hand"><path fill="#5E4B5A" d="M-1 -1h5v1h-5zM-2 0h1v1h-1zM4 0h1v1h-1zM-2 1h1v1h-1zM4 1h2v1h-2zM-2 2h1v1h-1zM3 2h1v1h-1zM5 2h1v1h-1zM-2 3h1v1h-1zM5 3h1v1h-1zM-2 4h1v1h-1zM4 4h1v1h-1zM-1 5h5v1h-5z"/><path fill="#F6F1F0" d="M-1 0h2v1h-2zM-1 1h4v1h-4zM0 2h3v1h-3zM0 3h4v1h-4zM1 4h3v1h-3z"/><path fill="#FFFFFF" d="M1 0h3v1h-3zM3 1h1v1h-1zM4 2h1v1h-1zM4 3h1v1h-1z"/><path fill="#D9CDD2" d="M-1 2h1v1h-1zM-1 3h1v1h-1zM-1 4h2v1h-2z"/></g>
+    <g id="hand-r"><path fill="#7C1E2B" d="M0 -1h5v1h-5zM-1 0h1v1h-1zM5 0h1v1h-1zM-2 1h2v1h-2zM5 1h1v1h-1zM-2 2h1v1h-1zM0 2h1v1h-1zM5 2h1v1h-1zM-2 3h1v1h-1zM5 3h1v1h-1zM-1 4h1v1h-1zM5 4h1v1h-1zM0 5h5v1h-5z"/><path fill="#F2848D" d="M0 0h3v1h-3zM0 1h1v1h-1zM-1 2h1v1h-1zM-1 3h1v1h-1z"/><path fill="#DE4553" d="M3 0h2v1h-2zM1 1h4v1h-4zM1 2h3v1h-3zM0 3h4v1h-4zM0 4h3v1h-3z"/><path fill="#B32F40" d="M4 2h1v1h-1zM4 3h1v1h-1zM3 4h2v1h-2z"/></g>
+    <g id="face-happy"><path fill="#2A1A22" d="M4 17h5v1h-5zM3 18h1v1h-1zM9 18h1v1h-1z"/><path fill="#2A1A22" d="M19 17h5v1h-5zM18 18h1v1h-1zM24 18h1v1h-1z"/><path fill="#2A1A22" d="M12 15h5v1h-5zM11 16h1v1h-1zM17 16h1v1h-1z"/><path fill="#5A2433" d="M12 23h6v1h-6zM12 24h1v1h-1zM17 24h1v1h-1zM13 25h1v1h-1zM16 25h1v1h-1zM14 26h2v1h-2z"/><path fill="#FFFFFF" d="M13 24h1v1h-1zM16 24h1v1h-1z"/><path fill="#5A0F1E" d="M14 24h2v1h-2z"/><path fill="#F07A8A" d="M14 25h2v1h-2z"/></g>
+    <g id="blush"><path fill="#F2A0AE" d="M1 21h3v1h-3zM1 22h3v1h-3z"/><path fill="#F2A0AE" d="M26 21h3v1h-3zM26 22h3v1h-3z"/></g>
+    <g id="heart-main"><path fill="#DE4553" d="M1 0h2v1h-2zM4 0h2v1h-2zM0 1h7v1h-7zM0 2h7v1h-7zM1 3h5v1h-5zM2 4h3v1h-3zM3 5h1v1h-1z"/><path fill="#F2848D" d="M2 0h1v1h-1zM2 1h1v1h-1zM1 2h1v1h-1z"/><path fill="#FFFFFF" d="M1 1h1v1h-1z"/><path fill="#B32F40" d="M6 2h1v1h-1zM5 3h1v1h-1zM4 4h1v1h-1zM3 5h1v1h-1z"/></g>
+    <g id="heart-mid"><path fill="#DE4553" d="M0 0h2v1h-2zM3 0h2v1h-2zM0 1h5v1h-5zM1 2h3v1h-3zM2 3h1v1h-1z"/><path fill="#F2848D" d="M1 1h1v1h-1z"/><path fill="#B32F40" d="M4 1h1v1h-1zM3 2h1v1h-1zM2 3h1v1h-1z"/></g>
+    <g id="heart-small"><path fill="#F2A0AE" d="M0 0h1v1h-1zM3 0h1v1h-1zM0 1h4v1h-4zM1 2h2v1h-2z"/><path fill="#F2848D" d="M3 1h1v1h-1zM2 2h1v1h-1z"/></g>
+    <g id="heart-tiny"><path fill="#F2848D" d="M0 0h1v1h-1zM2 0h1v1h-1zM0 1h3v1h-3zM1 2h1v1h-1z"/></g>
+  </defs>
+  <g transform="scale(.5)">
+    <g class="sh"><use href="#shadow"/></g>
+    <g class="b">
+      <use href="#cloud"/>
+      <g class="tl">
+        <g class="bl"><use href="#blush"/></g>
+        <g class="ro"><g class="rs"><use href="#eye-rings"/><use href="#eyes-open"/></g><use href="#cursor"/></g>
+        <g class="sf"><use href="#face-happy"/></g>
+        <g class="po"><g class="ps"><use href="#eye-rings"/><g transform="translate(0 -1)"><use href="#eyes-open"/></g></g><use href="#cursor"/></g>
+      </g>
+      <g transform="translate(-1 19)"><g class="hl"><use href="#hand"/></g></g>
+      <g transform="translate(26 19)"><g class="hr"><use href="#hand-r"/></g></g>
+    </g>
+    <g transform="translate(20 -7)"><g class="h h1"><use href="#heart-main"/></g></g>
+    <g transform="translate(26 -2)"><g class="h h2"><use href="#heart-mid"/></g></g>
+    <g transform="translate(15 -5)"><g class="h h3"><use href="#heart-small"/></g></g>
+    <g transform="translate(25 -4)"><g class="h h4"><use href="#heart-tiny"/></g></g>
+  </g>
+</svg>
