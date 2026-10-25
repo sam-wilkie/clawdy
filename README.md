@@ -41,12 +41,12 @@ Esta tabla describe el checkout actual, incluidos cambios locales pendientes de 
 ## `$ ./descargar`
 
 <p align="center">
-<a href="https://github.com/sam-wilkie/clawdy/releases/latest/download/Margarita-Tank.dmg"><picture>
+<a href="https://github.com/sam-wilkie/clawdy/releases/latest/download/Clawdy.dmg"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/download-macos-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="assets/readme/download-macos-light.svg">
   <img alt="Descargar para macOS (Apple Silicon, .dmg)" src="assets/readme/download-macos-dark.svg" width="332">
 </picture></a>
-<a href="https://github.com/sam-wilkie/clawdy/releases/latest/download/Margarita-Tank-Setup.exe"><picture>
+<a href="https://github.com/sam-wilkie/clawdy/releases/latest/download/Clawdy-Setup.exe"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/download-windows-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="assets/readme/download-windows-light.svg">
   <img alt="Descargar para Windows (x64, instalador .exe)" src="assets/readme/download-windows-dark.svg" width="332">
@@ -259,6 +259,8 @@ pnpm install
 pnpm start
 ```
 
+`desktop/pnpm-workspace.yaml` autoriza el script de instalación de Electron, que descarga su binario. Sin él, pnpm 11 o posterior lo bloquea y `pnpm start` no encuentra Electron.
+
 Para recibir actividad necesita el daemon conectado por TCP: iniciarla sola no instala hooks ni muestra sesiones. Con las dependencias instaladas, la app de bandeja/barra de menú puede lanzarla desde **Electron Desktop Pet** (macOS) o **Floating desk pet** (Windows).
 
 Para verla sin ningún agente conectado, arranca primero la mascota (`pnpm start`) y, en otra terminal, `node fake-daemon.js`: se conecta al puerto de la mascota e inyecta sesiones simuladas durante unos segundos.
@@ -274,6 +276,8 @@ python -m venv .venv
 .venv/bin/python -m clawd_tank_menubar               # app de bandeja / barra de menú
 ```
 
+Requiere Python 3.10 o posterior. En macOS el `python3` del sistema es 3.9: crea el entorno con uno más reciente, por ejemplo `brew install python@3.12` y `python3.12 -m venv .venv`.
+
 El daemon no necesita la bandeja. Al arrancar con `python -m clawd_tank_daemon.daemon` lee `~/.clawd-tank/preferences.json` (`ble_enabled`, `sim_enabled`, `sim_desk_mode`) e instala o actualiza los hooks; los que apuntan a un ejecutable que ya no existe se reasignan. `--no-install-hooks` deja los hooks como están, y `--sim`, `--sim-only` y `--sim-port` mandan sobre las preferencias.
 
 ### Simulador (sin hardware)
@@ -285,6 +289,8 @@ cmake --build build
 ./build/clawd-tank-sim            # ventana interactiva
 ./build/clawd-tank-sim --listen   # escucha al daemon por TCP
 ```
+
+Ese comando es el de Windows (MinGW). En macOS instala `brew install cmake sdl2` y compila con `cmake -B build && cmake --build build`; los detalles, incluida la descarga de LVGL, están en [simulator/README.md](simulator/README.md).
 
 <a id="pantalla-esp32-opcional"></a>
 
