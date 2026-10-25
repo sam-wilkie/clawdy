@@ -34,7 +34,7 @@ html, body {
   transition: transform .12s steps(3);
 }
 #crab[data-held="true"] #crab-art { transform: rotate(-5deg) translateY(-3%); }
-/* Mochi's round body is taller than the crab; at 80 % it weighs about the same.
+/* Vinnie's round body is taller than the crab; at 80 % it weighs about the same.
    The individual `scale` property composes with the held tilt above, and the
    shared transform-origin keeps it standing on the same ground line. */
 #crab[data-art="monster"] #crab-art { scale: 0.8; }
@@ -106,17 +106,17 @@ img.crab-layer[hidden] { display: none; }
 #crab-label:empty { display: none; }
 
 /* Permission card: a rounded white card above the crab with Allow/Deny. Sans-serif
-   chrome with a monospace command block; palette from Mochi (white body, cherry red,
+   chrome with a monospace command block; palette from Vinnie (white body, cherry red,
    plum outline and ink; see tools/monster_pixel.py). Shown only while a request is
    pending; the renderer enables window interactivity so the buttons are clickable
    (the rest of the window stays click-through). The SDL2 simulator keeps its pixel bubble. */
 #perm-card {
-  --perm-white: #FFFFFF;                  /* Mochi white */
-  --perm-paper: #F6F1F0;                  /* Mochi white, shaded */
-  --perm-ink: #2A1A22;                    /* Mochi eye ink */
-  --perm-plum: #5E4B5A;                   /* Mochi outline */
-  --perm-muted: #6E6470;                  /* Mochi dim ink */
-  --perm-cherry: #DE4553;                 /* Mochi red */
+  --perm-white: #FFFFFF;                  /* Vinnie white */
+  --perm-paper: #F6F1F0;                  /* Vinnie white, shaded */
+  --perm-ink: #2A1A22;                    /* Vinnie eye ink */
+  --perm-plum: #5E4B5A;                   /* Vinnie outline */
+  --perm-muted: #6E6470;                  /* Vinnie dim ink */
+  --perm-cherry: #DE4553;                 /* Vinnie red */
   --perm-green: #28964a;
 
   position: absolute;

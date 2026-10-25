@@ -1,9 +1,9 @@
-"""Mochi presentation sheet for the README and the brand: key poses with captions.
+"""Vinnie presentation sheet for the README and the brand: key poses with captions.
 
-Each pose is a frame of Mochi's real animation file (paused at a chosen time), so
-the sheet always matches what the pet plays. Output: assets/readme/mochi-sheet.png.
+Each pose is a frame of Vinnie's real animation file (paused at a chosen time), so
+the sheet always matches what the pet plays. Output: assets/readme/vinnie-sheet.png.
 
-Run from the repository root: ``python tools/mochi_sheet.py`` (Playwright + Pillow).
+Run from the repository root: ``python tools/vinnie_sheet.py`` (Playwright + Pillow).
 """
 
 import tempfile
@@ -14,7 +14,7 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 SET = ROOT / "desktop" / "renderer" / "assets" / "monster"
-OUT = ROOT / "assets" / "readme" / "mochi-sheet.png"
+OUT = ROOT / "assets" / "readme" / "vinnie-sheet.png"
 
 # (state, time in ms, caption): one pose per trait of the character sheet
 POSES = [
@@ -50,7 +50,7 @@ def main() -> None:
     h = TITLE_H + rows * (CELL + 34) + (rows + 1) * PAD
     sheet = Image.new("RGBA", (w, h), BG + (255,))
     d = ImageDraw.Draw(sheet)
-    d.text((PAD + 4, 18), "Mochi", font=font(44, True), fill=INK)
+    d.text((PAD + 4, 18), "Vinnie", font=font(44, True), fill=INK)
     d.text((PAD + 170, 34), "la mascota por defecto de Clawdy · tres ojos, cero apuro", font=font(20), fill=SUB)
     with sync_playwright() as p, tempfile.TemporaryDirectory() as tmp:
         browser = p.chromium.launch()

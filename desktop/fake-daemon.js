@@ -59,10 +59,10 @@ const sock = net.createConnection({ host: HOST, port: PORT }, () => {
   // going_away, then disconnects.
   const only = process.argv[2];
 
-  // `node fake-daemon.js mochi` shows Mochi, the default pet, for the agents with
+  // `node fake-daemon.js vinnie` shows Vinnie, the default pet, for the agents with
   // no art of their own (kiro, opencode, antigravity), each in a different state,
   // and rotates the states every 6 s so every animation can be watched. Ctrl+C ends.
-  if (only === "mochi") {
+  if (only === "vinnie") {
     const AGENTS = ["kiro", "opencode", "antigravity"];
     const SHOW = ["idle", "thinking", "typing", "building", "debugger", "beacon", "wizard", "sweeping",
       "waiting_reply", "alert", "cool", "happy", "hat_mishap", "low_battery", "error", "sleeping"];
@@ -71,7 +71,7 @@ const sock = net.createConnection({ host: HOST, port: PORT }, () => {
       const products = AGENTS.map((agent, k) => ({ agent, count: 1, anim: SHOW[(step + 5 * k) % SHOW.length] }));
       sock.write(JSON.stringify({ action: "set_sessions", products, anims: products.map((p) => p.anim),
         ids: AGENTS, subagents: 0 }) + "\n");
-      console.log("[fake-daemon] mochi:", products.map((p) => `${p.agent}=${p.anim}`).join("  "));
+      console.log("[fake-daemon] vinnie:", products.map((p) => `${p.agent}=${p.anim}`).join("  "));
       step += 1;
     };
     send();
