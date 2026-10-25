@@ -11,3 +11,12 @@ export const dockOffset = (feet: Point, zone: Rect, lift: number) => ({
   dx: (zone.left + zone.right) / 2 - feet.x,
   dy: zone.bottom - lift - feet.y,
 })
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+
+/** Offset of Vinnie's feet while dragging: where it was left (base) plus the pointer delta, kept inside the viewport. */
+export function dragOffset(feet: Point, base: { dx: number; dy: number }, delta: { dx: number; dy: number }, vw: number, vh: number, margin = 8, top = 80) {
+  const fx = clamp(feet.x + base.dx + delta.dx, margin, vw - margin)
+  const fy = clamp(feet.y + base.dy + delta.dy, top, vh - margin)
+  return { dx: fx - feet.x, dy: fy - feet.y }
+}

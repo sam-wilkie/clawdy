@@ -4,6 +4,7 @@ import { Exit } from './Exit'
 import { Flowers } from './Flowers'
 import { GithubCorner } from './GithubCorner'
 import { initialFlow, reduce, wantsIntro } from './flow'
+import type { Point } from './geometry'
 import { markSeen, readSeen } from './intro-schedule'
 import { Intro } from './Intro'
 import { PermCard } from './PermCard'
@@ -29,6 +30,8 @@ export default function App() {
   const [drag, setDrag] = useState<DragInfo>(NO_DRAG)
   const [dragged, setDragged] = useState(false)
   const [arcReady, setArcReady] = useState(false)
+  const [bloomed, setBloomed] = useState(false) // the first click or drag makes the flowers bloom
+  const [petCenter, setPetCenter] = useState<Point | null>(null)
   const [restarts, setRestarts] = useState(0)
   const slotRef = useRef<HTMLDivElement>(null)
   const zoneRef = useRef<HTMLDivElement>(null)
@@ -47,6 +50,8 @@ export default function App() {
     dispatch({ type: 'restart' })
     setRestarts((n) => n + 1) // a fresh Vinnie walks back in
     setDragged(false)
+    setBloomed(false)
+    setPetCenter(null)
     setArcReady(false)
     setDrag(NO_DRAG)
   }
@@ -54,11 +59,11 @@ export default function App() {
   return (
     <main className="stage" data-phase={phase} data-frame={view.intro ? intro.frame : '4'}>
       <h1 className="sr">Clawdy, una mascota pixel art llamada Vinnie que reacciona a tus sesiones de Claude Code.</h1>
-      <Flowers show={drag.dragging || view.terminal} zoneRef={zoneRef} reduced={reduced} />
+      <Flowers show={(bloomed || drag.dragging) && (view.stage || view.terminal)} center={petCenter} reduced={reduced} />
       {view.intro && <Intro {...intro} />}
       {view.exit && <Exit reduced={reduced} onRestart={restart} />}
-      <div ref={zoneRef} className={`drop-zone${drag.dragging ? ' show' : ''}${drag.over ? ' over' : ''}`} aria-hidden="true">Suéltame aquí</div>
-      <ArcHint show={view.stage && arcReady && !dragged} petRef={slotRef} zoneRef={zoneRef} />
+      <div ref={zoneRef} className={`drop-zone${drag.dragging || (dragged && view.stage) ? ' show' : ''}${drag.over ? ' over' : ''}`} aria-hidden="true">Suéltame aquí</div>
+      <ArcHint show={view.stage && arcReady && !dragged && !bloomed} petRef={slotRef} zoneRef={zoneRef} />
       {view.terminal && <Terminal stage={term.stage} text={term.text} dim={view.asking} choice={phase === 'plead' ? 3 : 1} termRef={termRef} />}
       {view.asking && <PermCard pleading={phase === 'plead'} onAllow={() => dispatch({ type: 'allow' })} onDeny={() => dispatch({ type: 'deny' })} />}
       {view.showcase && <Showcase onRestart={restart} />}
@@ -74,11 +79,13 @@ export default function App() {
           extra={phase === 'plead' ? <PixelHearts /> : undefined}
           entrance={!withIntro || restarts > 0}
           reduced={reduced}
-          onDrag={(d) => { setDrag(d); if (d.dragging) setDragged(true) }}
+          onDrag={(d) => { setDrag(d); if (d.dragging) { setDragged(true); setBloomed(true) } }}
+          onPoke={() => setBloomed(true)}
+          onCenter={setPetCenter}
           onDrop={() => dispatch({ type: 'dropped' })}
         />
       )}
-      {view.stage && !drag.dragging && <p className="hint" aria-hidden="true">Prueba a arrastrarme</p>}
+      {view.stage && !bloomed && !drag.dragging && <p className="hint" aria-hidden="true">Prueba a arrastrarme</p>}
       <GithubCorner hidden={view.showcase} />
     </main>
   )

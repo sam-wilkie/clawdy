@@ -1,5 +1,6 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useRef } from 'react'
 import { PX, buildFlowers, type Flower } from './flower-field'
+import type { Point } from './geometry'
 
 const GRID = 37  // keep in sync with --grid in index.css
 const FADE = 700 // ms per bloom
@@ -19,22 +20,36 @@ function draw(ctx: CanvasRenderingContext2D, f: Flower, alpha: number) {
   })
 }
 
-/** A patch of pixel flowers around the drop zone. Blooms fade in from the centre, then breathe softly. */
-export function Flowers({ show, zoneRef, reduced }: { show: boolean; zoneRef: RefObject<HTMLElement | null>; reduced: boolean }) {
+/** A patch of pixel flowers around Vinnie. Blooms fade in from the centre, then breathe softly; the patch follows Vinnie. */
+export function Flowers({ show, center, reduced }: { show: boolean; center: Point | null; reduced: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null)
+  const at = useRef<Point | null>(center)
+  const refresh = useRef<() => void>(() => {})
+
+  // The loop below reads the centre through a ref, so moving Vinnie never restarts the bloom.
+  useEffect(() => { at.current = center; refresh.current() }, [center])
 
   useEffect(() => {
-    const cv = canvas.current, zone = zoneRef.current
+    const cv = canvas.current
     const ctx = cv?.getContext('2d')
-    if (!cv || !zone || !ctx) return
+    if (!cv || !ctx) return
     let raf = 0
     let flowers: Flower[] = []
+    let built: Point | null = null
     let started = 0
     let last = 0
     let dpr = 1
 
     const clear = () => { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height) }
+    const rebuild = () => {
+      const c = at.current
+      if (!c) { flowers = []; built = null; return }
+      if (built && built.x === c.x && built.y === c.y) return
+      built = c
+      flowers = buildFlowers(c, window.innerWidth <= 600 ? 84 : 104, GRID)
+    }
     const paint = (now: number) => {
+      rebuild()
       clear()
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       const t = now - started
@@ -48,12 +63,11 @@ export function Flowers({ show, zoneRef, reduced }: { show: boolean; zoneRef: Re
       }
       ctx.globalAlpha = 1
     }
-    const build = () => {
+    const size = () => {
       dpr = Math.min(2, window.devicePixelRatio || 1)
       cv.width = Math.round(window.innerWidth * dpr)
       cv.height = Math.round(window.innerHeight * dpr)
-      const r = zone.getBoundingClientRect()
-      flowers = buildFlowers({ x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }, window.innerWidth <= 600 ? 84 : 104, GRID)
+      built = null
     }
     const loop = (now: number) => {
       raf = 0
@@ -62,21 +76,23 @@ export function Flowers({ show, zoneRef, reduced }: { show: boolean; zoneRef: Re
       raf = requestAnimationFrame(loop)
     }
     const onVisible = () => { if (!document.hidden && !reduced && !raf) raf = requestAnimationFrame(loop) }
-    const onResize = () => { build(); paint(performance.now()) }
+    const onResize = () => { size(); paint(performance.now()) }
 
-    if (!show) { clear(); return }
-    build()
+    if (!show) { clear(); refresh.current = () => {}; return }
+    size()
     started = performance.now()
+    refresh.current = () => { if (reduced) paint(performance.now()) } // animated mode repaints on its own
     if (reduced) paint(started)
     else raf = requestAnimationFrame(loop)
     window.addEventListener('resize', onResize)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       if (raf) cancelAnimationFrame(raf)
+      refresh.current = () => {}
       window.removeEventListener('resize', onResize)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [show, zoneRef, reduced])
+  }, [show, reduced])
 
   return <canvas ref={canvas} className="flowers" aria-hidden="true" />
 }

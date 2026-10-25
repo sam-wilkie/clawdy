@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react'
 import { createSpin } from './dizzy'
 import type { Phase } from './flow'
-import { contains, dockOffset, feetOf } from './geometry'
+import { contains, dockOffset, dragOffset, feetOf, type Point } from './geometry'
 import { DURATION, petReduce } from './pet-state'
 import type { Spot } from './phase-view'
 import { Vinnie } from './Vinnie'
@@ -13,7 +13,7 @@ const DOCK_LIFT = 40     // Vinnie's feet rest this far above the bottom of the 
 
 export interface DragInfo { dragging: boolean; over: boolean }
 const NO_DRAG: DragInfo = { dragging: false, over: false }
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+const ZERO = { dx: 0, dy: 0 }
 
 interface Props {
   phase: Phase
@@ -27,21 +27,26 @@ interface Props {
   reduced: boolean
   onDrag: (d: DragInfo) => void
   onDrop: () => void
+  onPoke: () => void              // a click or tap on Vinnie
+  onCenter: (p: Point) => void    // where Vinnie's body is, so the flowers can follow
 }
 
 /** Vinnie on the stage: idle life (sleep, wake, happy, dizzy) and drag and drop onto the drop zone. */
-export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, entrance, reduced, onDrag, onDrop }: Props) {
+export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, entrance, reduced, onDrag, onDrop, onPoke, onCenter }: Props) {
   const [state, send] = useReducer(petReduce, entrance && !reduced ? 'walking' : 'idle')
-  const [off, setOff] = useState({ dx: 0, dy: 0 })
-  const [dock, setDock] = useState({ dx: 0, dy: 0 })
+  const [off, setOff] = useState(ZERO)
+  const [dock, setDock] = useState(ZERO)
+  const offRef = useRef(ZERO)
   const [drag, setDrag] = useState<DragInfo>(NO_DRAG)
-  const press = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null)
+  const press = useRef<{ id: number; x: number; y: number; moved: boolean; base: typeof ZERO } | null>(null)
   const over = useRef(false)
   const sleepTimer = useRef(0)
   const dizzyUntil = useRef(0)
 
   const stage = phase === 'stage'
   const docked = spot !== 'rest'
+  const o = docked ? dock : stage ? off : ZERO // Vinnie stays where it was dropped, on the stage
+  useEffect(() => { offRef.current = off })
 
   const armSleep = useCallback(() => {
     window.clearTimeout(sleepTimer.current)
@@ -84,7 +89,7 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
       const r = slotRef.current?.getBoundingClientRect()
       if (!r) return
       const f = feetOf(r)
-      if (spin.push(e.clientX, e.clientY, f.x, f.y - BODY_LIFT, now)) {
+      if (spin.push(e.clientX, e.clientY, f.x + offRef.current.dx, f.y + offRef.current.dy - BODY_LIFT, now)) {
         send('spin')
         dizzyUntil.current = now + DURATION.dizzy + DURATION.cooldown
       }
@@ -113,11 +118,18 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
     return () => window.removeEventListener('resize', place)
   }, [spot, slotRef, zoneRef, termRef])
 
+  // Tell the page where Vinnie's body is (not while it waits beside the terminal), so the flowers can follow.
+  useEffect(() => {
+    if (spot === 'terminal' || phase === 'intro') return
+    const slot = slotRef.current?.getBoundingClientRect()
+    if (slot) { const f = feetOf(slot); onCenter({ x: f.x + o.dx, y: f.y + o.dy - BODY_LIFT }) }
+  }, [o.dx, o.dy, spot, phase, slotRef, onCenter])
+
   const report = (d: DragInfo) => { setDrag(d); onDrag(d) }
 
   const onPointerDown = (e: PointerEvent<HTMLButtonElement>) => {
     if (!stage || e.button > 0) return
-    press.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false }
+    press.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, base: off }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
 
@@ -128,10 +140,9 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
     if (!p.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return
     p.moved = true
     const feet = feetOf(slot.getBoundingClientRect())
-    // keep Vinnie's feet inside the viewport
-    const fx = clamp(feet.x + dx, 8, window.innerWidth - 8), fy = clamp(feet.y + dy, 80, window.innerHeight - 8)
-    setOff({ dx: fx - feet.x, dy: fy - feet.y })
-    over.current = contains(zone.getBoundingClientRect(), fx, fy - BODY_LIFT)
+    const next = dragOffset(feet, p.base, { dx, dy }, window.innerWidth, window.innerHeight)
+    setOff(next)
+    over.current = contains(zone.getBoundingClientRect(), feet.x + next.dx, feet.y + next.dy - BODY_LIFT)
     report({ dragging: true, over: over.current })
   }
 
@@ -141,18 +152,17 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
     if (!p || e.pointerId !== p.id) return
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
     const slot = slotRef.current, zone = zoneRef.current
-    if (!p.moved) { if (!cancelled) send('click'); return }
+    if (!p.moved) { if (!cancelled) { send('click'); onPoke() } return }
     if (over.current && !cancelled && slot && zone) {
       setDock(dockOffset(feetOf(slot.getBoundingClientRect()), zone.getBoundingClientRect(), DOCK_LIFT))
+      setOff(ZERO)
       onDrop()
     }
     over.current = false
-    setOff({ dx: 0, dy: 0 })
     report(NO_DRAG)
   }
 
   const shown: VinnieState = forced ?? (spot === 'zone' ? 'typing' : drag.dragging ? (drag.over ? 'typing' : 'idle') : state)
-  const o = docked ? dock : off
   const cls = ['pet', entrance && 'arrive', drag.dragging && 'held'].filter(Boolean).join(' ')
 
   return (
@@ -170,7 +180,7 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
           onPointerMove={onPointerMove}
           onPointerUp={(e) => finish(e, false)}
           onPointerCancel={(e) => finish(e, true)}
-          onClick={(e) => { if (e.detail === 0 && stage) send('click') }}
+          onClick={(e) => { if (e.detail === 0 && stage) { send('click'); onPoke() } }}
         />
       </div>
     </div>

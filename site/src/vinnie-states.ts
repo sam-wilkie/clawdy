@@ -22,3 +22,8 @@ export const VINNIE = {
 } as const
 
 export type VinnieState = keyof typeof VINNIE
+
+/** Fetch every animation up front, so the first swap (a click, a drag) never waits on the network. */
+export function preloadVinnie(): void {
+  for (const { src } of Object.values(VINNIE)) new Image().src = src
+}
