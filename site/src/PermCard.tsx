@@ -6,7 +6,7 @@ export function PermCard({ pleading, onAllow, onDeny }: { pleading: boolean; onA
   const allow = useRef<HTMLButtonElement>(null)
   useEffect(() => { allow.current?.focus({ preventScroll: true }) }, [])
   return (
-    <div className={`perm${pleading ? ' pleading' : ''}`} role="dialog" aria-label="Solicitud de permiso">
+    <dialog open className={`perm${pleading ? ' pleading' : ''}`} aria-label="Solicitud de permiso">
       <div className="perm-head">
         <h2>Solicitud de permiso</h2>
         <span className="pill">BASH</span>
@@ -17,6 +17,6 @@ export function PermCard({ pleading, onAllow, onDeny }: { pleading: boolean; onA
         <button ref={allow} type="button" className="btn allow" onClick={onAllow}>Permitir</button>
         <button type="button" className="btn deny" onClick={onDeny}>Rechazar</button>
       </div>
-    </div>
+    </dialog>
   )
 }

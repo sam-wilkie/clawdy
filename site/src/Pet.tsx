@@ -3,6 +3,7 @@ import { createSpin } from './dizzy'
 import type { Phase } from './flow'
 import { contains, dockOffset, feetOf } from './geometry'
 import { DURATION, petReduce } from './pet-state'
+import type { Spot } from './phase-view'
 import { Vinnie } from './Vinnie'
 import type { VinnieState } from './vinnie-states'
 
@@ -13,8 +14,6 @@ const DOCK_LIFT = 40     // Vinnie's feet rest this far above the bottom of the 
 export interface DragInfo { dragging: boolean; over: boolean }
 const NO_DRAG: DragInfo = { dragging: false, over: false }
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
-
-export type Spot = 'rest' | 'zone' | 'terminal'
 
 interface Props {
   phase: Phase
