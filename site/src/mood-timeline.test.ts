@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { moodAt, moodTimeline } from './mood-timeline'
+import { T } from './terminal-script'
 
 describe('moodTimeline', () => {
   it('shows the idea bulb when the card arrives, then waits for the answer', () => {
@@ -26,8 +27,14 @@ describe('moodTimeline while the terminal runs', () => {
     expect(moodTimeline('terminal', 'think').map((b) => b.mood)).toEqual(['walking', 'slip_in'])
   })
 
-  it('stays hidden while it crosses under the window, then slips out', () => {
-    expect(moodTimeline('terminal', 'tool').map((b) => b.mood)).toEqual(['slip_in', 'slip_out'])
+  it('crosses hidden under the window, peeks out at the right edge looking around, then slips out', () => {
+    expect(moodTimeline('terminal', 'tool').map((b) => b.mood)).toEqual(['slip_in', 'peek', 'slip_out'])
+  })
+
+  it('leaves the tool stage long enough for the whole slip-in, peek and slip-out', () => {
+    const beats = moodTimeline('terminal', 'tool')
+    const before = beats.slice(0, -1).reduce((t, b) => t + (b.ms ?? 0), 0)
+    expect(before + 1450).toBeLessThanOrEqual(T.tool)
   })
 
   it('on a narrow screen it just walks to the waiting spot', () => {

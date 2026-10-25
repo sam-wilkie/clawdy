@@ -12,8 +12,11 @@ export interface Beat { mood: VinnieState; ms?: number }
 export function moodTimeline(phase: Phase, stage?: TerminalStage, compact = false): Beat[] {
   if (phase === 'terminal' && (stage === 'think' || stage === 'tool')) {
     if (compact) return [{ mood: 'walking', ms: 700 }]
-    // think: walk to the window's left edge, slip under it; tool: cross hidden under the window, slip out at the right edge
-    return stage === 'think' ? [{ mood: 'walking', ms: 650 }, { mood: 'slip_in' }] : [{ mood: 'slip_in', ms: 650 }, { mood: 'slip_out' }]
+    // think: walk to the window's left edge, slip under it; tool: cross hidden under the window, peek out at the right
+    // edge (look left, right, up, blink: 1.8 s sprite), slip out
+    return stage === 'think'
+      ? [{ mood: 'walking', ms: 650 }, { mood: 'slip_in' }]
+      : [{ mood: 'slip_in', ms: 650 }, { mood: 'peek', ms: 1800 }, { mood: 'slip_out' }]
   }
   switch (phase) {
     case 'permission': return [{ mood: 'idea', ms: 2400 }, { mood: 'waiting_reply' }]

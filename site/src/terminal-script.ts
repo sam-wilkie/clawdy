@@ -6,8 +6,9 @@ export const PROMPT = 'Clona https://github.com/sam-wilkie/clawdy y ayúdame a i
 export const TOOL_COMMAND = 'git clone https://github.com/sam-wilkie/clawdy.git'
 
 // ms. The prompt types out, is sent, the agent thinks, then asks to run a tool ('ready' = the card is up).
-// think and tool are long enough for Vinnie to slip under the window (650 ms walk + 1.45 s sprite) and to come out again.
-export const T = { typeChar: 55, sent: 400, think: 2200, tool: 2200 }
+// think is long enough for Vinnie to walk (650 ms) and slip under the window (1.45 s sprite); tool for him to cross hidden
+// (650 ms), peek out and look around (1.8 s) and come out (1.45 s).
+export const T = { typeChar: 55, sent: 400, think: 2200, tool: 4000 }
 
 export function terminalFrames(prompt: string = PROMPT): { stage: TerminalStage; ms: number }[] {
   return [
