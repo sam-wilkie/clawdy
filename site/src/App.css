@@ -8,22 +8,50 @@
 .stage[data-frame="1e"] { --pet-y: calc(50% + 28px); --pet-scale: 1; }
 
 /* ---- Vinnie ---------------------------------------------------------------------------------- */
-.pet {
-  position: absolute; z-index: 5; width: var(--S); height: var(--S);
+.pet-slot {
+  position: absolute; z-index: 5; width: var(--S); height: var(--S); pointer-events: none;
   left: calc(50% - var(--S) / 2); top: calc(var(--pet-y) - var(--S) * .89);
-  transform: scale(var(--pet-scale)); transform-origin: 50% 89%;
-  transition: top .6s var(--ease-boing), transform .6s var(--ease-boing);
+  transition: top .6s var(--ease-boing);
 }
+.pet {
+  position: absolute; inset: 0; transform-origin: 50% 89%;
+  transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(var(--pet-scale));
+  transition: transform .6s var(--ease-boing);
+}
+.pet.held { transition: none; }
+.pet.arrive { animation: arrive 1.5s cubic-bezier(.16, 1, .3, 1) backwards; }
+@keyframes arrive { from { transform: translate(-30vw, 0) scale(var(--pet-scale)); opacity: 0; } }
+.pet-hit {
+  position: absolute; left: 30%; top: 56%; width: 40%; height: 34%; padding: 0; margin: 0; border: 0; background: transparent;
+  pointer-events: auto; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.pet-hit:disabled { pointer-events: none; }
+.pet.held .pet-hit { cursor: grabbing; }
+
 .hint {
-  position: absolute; z-index: 4; left: 50%; top: calc(50% + 28px + 35px); transform: translateX(-50%); margin: 0;
+  position: absolute; z-index: 4; left: 50%; top: calc(var(--pet-y) + 35px); transform: translateX(-50%); margin: 0;
   padding: 8px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-hi);
   font: 14px/1.3 var(--mono); color: var(--ink); box-shadow: 0 2px 8px rgba(0, 0, 0, .08); white-space: nowrap;
+  animation: fade-in .4s ease-out;
 }
+@keyframes fade-in { from { opacity: 0; } }
+
 .drop-zone {
   position: absolute; z-index: 3; width: 128px; height: 149px; display: grid; place-items: center; text-align: center;
   left: max(16px, calc(50% - 410px)); bottom: 82px; border: 2px dashed var(--border); border-radius: 18px; background: var(--surface);
-  font: 13px/1.3 var(--mono); color: var(--muted); opacity: 0; transition: opacity .3s;
+  font: 13px/1.3 var(--mono); color: var(--muted); opacity: 0; transition: opacity .3s, border-color .2s, background .2s;
 }
+.drop-zone.show { opacity: 1; }
+.drop-zone.over { border-color: var(--red); background: rgba(222, 69, 83, .1); }
+.flowers { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+
+/* ---- Dashed arc with a hand, from Vinnie to the drop zone --------------------------------------- */
+.arc-hint { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none; overflow: visible; animation: fade-in .6s ease-out; }
+.arc-path { fill: none; stroke: rgba(10, 10, 10, .35); stroke-width: 2; stroke-dasharray: 6 6; stroke-linecap: round; }
+.arc-arrow { fill: rgba(10, 10, 10, .35); }
+.arc-hand { offset-rotate: 0deg; animation: arc-slide 2.6s ease-in-out infinite; }
+.arc-hand path { fill: var(--surface-hi); stroke: var(--ink); stroke-width: 1.3; stroke-linejoin: round; }
+@keyframes arc-slide { 0% { offset-distance: 0%; opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
 
 /* ---- Intro: dark screen, typed wordmark, then the iris ------------------------------------------ */
 .intro { position: absolute; inset: 0; z-index: 2; background: var(--term-bg); overflow: hidden; }
