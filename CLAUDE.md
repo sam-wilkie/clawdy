@@ -124,13 +124,7 @@ The tray starts and stops the hotbar (`hotbar_process.py`); "Show hotbar" in the
 
 ### Site (React)
 
-```bash
-cd site && pnpm install
-cd site && pnpm dev --host 127.0.0.1   # http://127.0.0.1:5173/
-cd site && pnpm test && pnpm build
-```
-
-The Clawdy landing (`site/`, Vite + React + TypeScript). Flow, phases and file layout: `site/README.md`. The old `website/` prototype is gitignored and no longer maintained.
+The Clawdy landing no longer lives in this repo. It moved to the private repo `sam-wilkie/vinnie-web` (local checkout `O:\Proyectos\vinnie-web`, Vite + React + TypeScript). Do not recreate `site/` here.
 
 ### Releases
 
