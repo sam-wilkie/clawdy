@@ -18,7 +18,7 @@
   --serif: Fraunces, Georgia, serif;
   --sans: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
 
-  --grid: 37px;
+  --grid: 36px;
   --S: clamp(150px, 26vmin, 230px); /* Vinnie box: about 190 px at 1280x720 */
   --ease-boing: cubic-bezier(.06, .06, .51, 1.1);
   color-scheme: light;

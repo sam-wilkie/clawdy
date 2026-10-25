@@ -20,3 +20,7 @@ export function dragOffset(feet: Point, base: { dx: number; dy: number }, delta:
   const fy = clamp(feet.y + base.dy + delta.dy, top, vh - margin)
   return { dx: fx - feet.x, dy: fy - feet.y }
 }
+
+/** Vinnie's body centre sits this far above its feet; its feet rest this far above the bottom of the drop zone. */
+export const BODY_LIFT = 40
+export const DOCK_LIFT = 40

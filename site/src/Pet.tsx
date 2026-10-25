@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useReducer, useRef, useState, type PointerEvent, type RefObject } from 'react'
-import { createShake, createSpin } from './dizzy'
+import { useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react'
+import { createShake } from './dizzy'
 import type { Phase } from './flow'
-import { contains, dockOffset, dragOffset, feetOf, type Point } from './geometry'
-import { DURATION, petReduce } from './pet-state'
+import { BODY_LIFT, DOCK_LIFT, contains, dockOffset, dragOffset, feetOf } from './geometry'
+import { DURATION } from './pet-state'
 import type { Spot } from './phase-view'
+import { useDock } from './useDock'
+import { usePetLife } from './usePetLife'
+import { useSpinDizzy } from './useSpinDizzy'
 import { Vinnie } from './Vinnie'
 import type { VinnieState } from './vinnie-states'
 
 const DRAG_THRESHOLD = 6 // px before a press becomes a drag
-const BODY_LIFT = 40     // the body centre sits this far above the feet
-const DOCK_LIFT = 40     // Vinnie's feet rest this far above the bottom of the drop zone
 
 export interface DragInfo { dragging: boolean; over: boolean }
 const NO_DRAG: DragInfo = { dragging: false, over: false }
@@ -19,6 +20,7 @@ interface Props {
   phase: Phase
   spot: Spot
   slotRef: RefObject<HTMLDivElement | null>
+  bodyRef: RefObject<HTMLDivElement | null>   // the moving box (it carries the drag offset), for the flowers to follow
   zoneRef: RefObject<HTMLDivElement | null>
   termRef: RefObject<HTMLDivElement | null>
   forced?: VinnieState
@@ -27,111 +29,29 @@ interface Props {
   onDrag: (d: DragInfo) => void
   onDrop: () => void
   onPoke: () => void              // a click or tap on Vinnie
-  onCenter: (p: Point) => void    // where Vinnie's body is, so the flowers can follow
 }
 
 /** Vinnie on the stage: idle life (sleep, wake, happy, dizzy) and drag and drop onto the drop zone. */
-export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, entrance, reduced, onDrag, onDrop, onPoke, onCenter }: Props) {
-  const [state, send] = useReducer(petReduce, entrance && !reduced ? 'walking' : 'idle')
+export function Pet({ phase, spot, slotRef, bodyRef, zoneRef, termRef, forced, entrance, reduced, onDrag, onDrop, onPoke }: Props) {
+  const { state, send, dizzy } = usePetLife(entrance, reduced)
   const [off, setOff] = useState(ZERO)
-  const [dock, setDock] = useState(ZERO)
   const offRef = useRef(ZERO)
+  const { dock, setDock } = useDock(spot, slotRef, zoneRef, termRef)
   const [drag, setDrag] = useState<DragInfo>(NO_DRAG)
+  const [shake] = useState(createShake)
   const press = useRef<{ id: number; x: number; y: number; moved: boolean; base: typeof ZERO; lastX: number } | null>(null)
   const over = useRef(false)
-  const sleepTimer = useRef(0)
-  const dizzyUntil = useRef(0)
-  const dizzyMs = useRef<number>(DURATION.dizzy)
-  const shake = useRef(createShake())
 
   const stage = phase === 'stage'
-  const docked = spot !== 'rest'
-  const o = docked ? dock : stage ? off : ZERO // Vinnie stays where it was dropped, on the stage
+  const o = spot !== 'rest' ? dock : stage ? off : ZERO // Vinnie stays where it was dropped, on the stage
   useEffect(() => { offRef.current = off })
-
-  const armSleep = useCallback(() => {
-    window.clearTimeout(sleepTimer.current)
-    if (reduced || document.hidden) return
-    sleepTimer.current = window.setTimeout(() => send('sleep'), DURATION.idle)
-  }, [reduced])
-
-  // Timed states return to idle; idle falls asleep after a long quiet spell.
-  useEffect(() => {
-    const ms = { happy: DURATION.happy, dizzy: dizzyMs.current, wake: DURATION.wake, walking: DURATION.walking, idle: 0, sleeping: 0 }[state]
-    if (reduced || !ms) return
-    const id = window.setTimeout(() => send('settle'), ms)
-    return () => window.clearTimeout(id)
-  }, [state, reduced])
-  useEffect(() => { if (state === 'idle') armSleep() }, [state, armSleep])
-  useEffect(() => () => window.clearTimeout(sleepTimer.current), [])
-
-  // Any activity wakes Vinnie and re-arms the sleep timer.
-  useEffect(() => {
-    const activity = () => { send('activity'); armSleep() }
-    window.addEventListener('pointermove', activity, { passive: true })
-    window.addEventListener('pointerdown', activity, { passive: true })
-    window.addEventListener('keydown', activity)
-    document.addEventListener('visibilitychange', armSleep)
-    return () => {
-      window.removeEventListener('pointermove', activity)
-      window.removeEventListener('pointerdown', activity)
-      window.removeEventListener('keydown', activity)
-      document.removeEventListener('visibilitychange', armSleep)
-    }
-  }, [armSleep])
-
-  // Two circles of the pointer around Vinnie make it dizzy, then a cooldown.
-  useEffect(() => {
-    if (!stage || reduced || drag.dragging) return
-    const spin = createSpin()
-    const onMove = (e: globalThis.PointerEvent) => {
-      const now = performance.now()
-      if (now < dizzyUntil.current) { spin.reset(); return }
-      const r = slotRef.current?.getBoundingClientRect()
-      if (!r) return
-      const f = feetOf(r)
-      if (spin.push(e.clientX, e.clientY, f.x + offRef.current.dx, f.y + offRef.current.dy - BODY_LIFT, now)) {
-        dizzyMs.current = DURATION.dizzy
-        send('spin')
-        dizzyUntil.current = now + DURATION.dizzy + DURATION.cooldown
-      }
-    }
-    window.addEventListener('pointermove', onMove, { passive: true })
-    return () => window.removeEventListener('pointermove', onMove)
-  }, [stage, reduced, drag.dragging, slotRef])
-
-  // Docked spots: on the drop zone (typing) or waiting to the right of the terminal. Recomputed on resize.
-  useEffect(() => {
-    if (spot === 'rest') return
-    const place = () => {
-      const slot = slotRef.current?.getBoundingClientRect()
-      if (!slot) return
-      const feet = feetOf(slot)
-      if (spot === 'zone') {
-        const zone = zoneRef.current?.getBoundingClientRect()
-        if (zone) setDock(dockOffset(feet, zone, DOCK_LIFT))
-        return
-      }
-      const term = termRef.current?.getBoundingClientRect()
-      if (term) setDock({ dx: Math.min(term.right + 60, window.innerWidth - 60) - feet.x, dy: term.bottom + 14 - feet.y })
-    }
-    place()
-    window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
-  }, [spot, slotRef, zoneRef, termRef])
-
-  // Tell the page where Vinnie's body is (not while it waits beside the terminal), so the flowers can follow.
-  useEffect(() => {
-    if (spot === 'terminal' || phase === 'intro') return
-    const slot = slotRef.current?.getBoundingClientRect()
-    if (slot) { const f = feetOf(slot); onCenter({ x: f.x + o.dx, y: f.y + o.dy - BODY_LIFT }) }
-  }, [o.dx, o.dy, spot, phase, slotRef, onCenter])
+  useSpinDizzy(stage && !reduced && !drag.dragging, slotRef, offRef, () => dizzy(DURATION.dizzy))
 
   const report = (d: DragInfo) => { setDrag(d); onDrag(d) }
 
   const onPointerDown = (e: PointerEvent<HTMLButtonElement>) => {
     if (!stage || e.button > 0) return
-    shake.current.reset()
+    shake.reset()
     press.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, base: off, lastX: e.clientX }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
@@ -145,7 +65,7 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, entrance, 
     if (!p.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return
     p.moved = true
     // Shaking Vinnie while dragging makes it dizzy, like the desktop pet.
-    if (!reduced && shake.current.push(step, performance.now())) { dizzyMs.current = DURATION.dizzyShake; send('spin') }
+    if (!reduced && shake.push(step, performance.now())) dizzy(DURATION.dizzyShake)
     const feet = feetOf(slot.getBoundingClientRect())
     const next = dragOffset(feet, p.base, { dx, dy }, window.innerWidth, window.innerHeight)
     setOff(next)
@@ -174,8 +94,8 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, entrance, 
 
   return (
     <div ref={slotRef} className="pet-slot">
-      <div className={cls} style={{ '--dx': `${o.dx}px`, '--dy': `${o.dy}px` } as React.CSSProperties}>
-        <Vinnie state={shown} />
+      <div ref={bodyRef} className={cls} style={{ '--dx': `${o.dx}px`, '--dy': `${o.dy}px` } as React.CSSProperties}>
+        <Vinnie state={shown} follow={!reduced} />
         <button
           className="pet-hit"
           type="button"

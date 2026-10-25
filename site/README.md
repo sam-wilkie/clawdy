@@ -30,6 +30,11 @@ The phases and their transitions live in `src/flow.ts`; `src/phase-view.ts` deri
 
 - Name pure modules in kebab-case (`flower-field.ts`, not `flowers.ts`): on Windows `flowers.ts` and `Flowers.tsx`
   are the same path to TypeScript and Vite.
+- Pointer effect (`src/PointerPulse.tsx`, `src/pulse-field.ts`): always on, a pixel trail on the page grid that goes from near
+  white to Vinnie red and fades out. Adapted from the Grid Pulse component on 21st.dev by carolinaraulino (idea and
+  falloff; palette, cell size and code are ours). Off under `prefers-reduced-motion`.
+- Gaze (`src/GazeSprite.tsx`, `src/gaze.ts`): Vinnie's idle sprite is inlined so its face slides toward the pointer with
+  easing. Every other state is an `<img>`. Importing `public/vinnie/idle.svg?raw` keeps one copy of the art.
 - Colors: Vinnie red `#DE4553`, ink `#0A0A0A`, black, and snow `#FAFAFA` (the Wilkiedevs off-white). Tokens are in `src/index.css`.
 - The flow and geometry follow https://clawdondesk.com, observed with REA and Playwright. Its code and art are AGPL-3.0
   and are not used here.

@@ -1,7 +1,10 @@
+import { GazeSprite } from './GazeSprite'
 import { VINNIE, type VinnieState } from './vinnie-states'
 
 /** Vinnie as an <img> of its animated SVG, placed so every state shares one pixel scale (viewBox ratio and offset). */
-export function Vinnie({ state, replay = 0, className }: { state: VinnieState; replay?: number; className?: string }) {
+export function Vinnie({ state, replay = 0, className, follow }: { state: VinnieState; replay?: number; className?: string; follow?: boolean }) {
+  // The idle sprite is inlined when its face should follow the pointer; every other state is an <img>.
+  if (state === 'idle' && follow !== undefined) return <GazeSprite follow={follow} />
   const { src, vb } = VINNIE[state]
   const size = vb[2] / 45 * 100
   return (

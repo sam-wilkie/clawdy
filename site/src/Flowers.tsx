@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 import { PX, buildFlowers, type Flower } from './flower-field'
-import type { Point } from './geometry'
+import { BODY_LIFT, feetOf, type Point } from './geometry'
 
-const GRID = 37  // keep in sync with --grid in index.css
+const GRID = 36  // keep in sync with --grid in index.css
 const FADE = 700 // ms per bloom
 const FPS = 12   // breathing is slow, no need for 60 fps
 
@@ -20,14 +20,18 @@ function draw(ctx: CanvasRenderingContext2D, f: Flower, alpha: number) {
   })
 }
 
-/** A patch of pixel flowers around Vinnie. Blooms fade in from the centre, then breathe softly; the patch follows Vinnie. */
-export function Flowers({ show, center, reduced }: { show: boolean; center: Point | null; reduced: boolean }) {
-  const canvas = useRef<HTMLCanvasElement>(null)
-  const at = useRef<Point | null>(center)
-  const refresh = useRef<() => void>(() => {})
+interface Props {
+  show: boolean
+  bodyRef: RefObject<HTMLElement | null> // Vinnie's moving box: the patch is centred on its body, read every frame
+  follow: boolean                        // false keeps the patch where it was (Vinnie waits beside the terminal)
+  reduced: boolean
+}
 
-  // The loop below reads the centre through a ref, so moving Vinnie never restarts the bloom.
-  useEffect(() => { at.current = center; refresh.current() }, [center])
+/** A patch of pixel flowers around Vinnie. Blooms fade in from the centre, then breathe softly; the patch follows Vinnie. */
+export function Flowers({ show, bodyRef, follow, reduced }: Props) {
+  const canvas = useRef<HTMLCanvasElement>(null)
+  const following = useRef(follow)
+  useEffect(() => { following.current = follow })
 
   useEffect(() => {
     const cv = canvas.current
@@ -36,17 +40,19 @@ export function Flowers({ show, center, reduced }: { show: boolean; center: Poin
     let raf = 0
     let flowers: Flower[] = []
     let built: Point | null = null
+    let at: Point | null = null
     let started = 0
     let last = 0
     let dpr = 1
 
     const clear = () => { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height) }
     const rebuild = () => {
-      const c = at.current
-      if (!c) { flowers = []; built = null; return }
-      if (built && built.x === c.x && built.y === c.y) return
-      built = c
-      flowers = buildFlowers(c, window.innerWidth <= 600 ? 84 : 104, GRID)
+      const r = bodyRef.current?.getBoundingClientRect()
+      if (following.current && r && r.width > 0) { const f = feetOf(r); at = { x: f.x, y: f.y - BODY_LIFT } }
+      if (!at) { flowers = []; built = null; return }
+      if (built && Math.abs(built.x - at.x) < 0.5 && Math.abs(built.y - at.y) < 0.5) return
+      built = at
+      flowers = buildFlowers(at, window.innerWidth <= 600 ? 84 : 104, GRID)
     }
     const paint = (now: number) => {
       rebuild()
@@ -76,23 +82,24 @@ export function Flowers({ show, center, reduced }: { show: boolean; center: Poin
       raf = requestAnimationFrame(loop)
     }
     const onVisible = () => { if (!document.hidden && !reduced && !raf) raf = requestAnimationFrame(loop) }
-    const onResize = () => { size(); paint(performance.now()) }
+    const repaint = () => { size(); paint(performance.now()) }
+    const settle = () => paint(performance.now()) // reduced motion has no loop: repaint once a drag ends
 
-    if (!show) { clear(); refresh.current = () => {}; return }
+    if (!show) { clear(); return }
     size()
     started = performance.now()
-    refresh.current = () => { if (reduced) paint(performance.now()) } // animated mode repaints on its own
     if (reduced) paint(started)
     else raf = requestAnimationFrame(loop)
-    window.addEventListener('resize', onResize)
+    window.addEventListener('resize', repaint)
+    window.addEventListener('pointerup', settle)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       if (raf) cancelAnimationFrame(raf)
-      refresh.current = () => {}
-      window.removeEventListener('resize', onResize)
+      window.removeEventListener('resize', repaint)
+      window.removeEventListener('pointerup', settle)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [show, reduced])
+  }, [show, bodyRef, reduced])
 
   return <canvas ref={canvas} className="flowers" aria-hidden="true" />
 }
