@@ -19,6 +19,8 @@ export const VINNIE = {
   alert: entry('alert'),
   error: entry('error'),
   idea: entry('idea'),
+  slip_in: entry('slip-in'),   // slides under the terminal window's left edge (drawn for a window edge at viewBox x = 16)
+  slip_out: entry('slip-out'), // comes out from under its right edge (window edge at viewBox x = 0), ends in the idle pose
   waiting_reply: entry('waiting_reply'),
   cool: entry('cool'),
 } as const

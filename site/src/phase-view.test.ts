@@ -35,4 +35,21 @@ describe('phaseView', () => {
   it('hides Vinnie on the showcase page only', () => {
     expect(phases.filter((p) => phaseView(p).petHidden)).toEqual(['showcase'])
   })
+
+  it('while the terminal runs: types on the drop zone, slips behind the window, then comes out', () => {
+    expect(phaseView('terminal', 'type').spot).toBe('zone')
+    expect(phaseView('terminal', 'sent').spot).toBe('zone')
+    expect(phaseView('terminal', 'think').spot).toBe('hide')
+    expect(phaseView('terminal', 'tool').spot).toBe('terminal')
+    expect(phaseView('terminal', 'think').behind).toBe(true)
+    expect(phaseView('terminal', 'tool').behind).toBe(true)
+    expect(phaseView('terminal', 'sent').behind).toBe(false)
+    expect(phaseView('permission').behind).toBe(false)
+  })
+
+  it('on a narrow screen there is no window edge to hide behind: straight to the waiting spot', () => {
+    const v = phaseView('terminal', 'think', true)
+    expect(v.spot).toBe('terminal')
+    expect(v.behind).toBe(false)
+  })
 })

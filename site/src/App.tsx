@@ -18,6 +18,7 @@ import './App.css'
 
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const skipIntro = new URLSearchParams(window.location.search).get('intro') === '0'
+const NARROW = 760 // below this width the terminal fills the screen: no window edge to slip behind
 
 export default function App() {
   const [withIntro] = useState(() => wantsIntro({ reduced, skip: skipIntro }))
@@ -31,9 +32,10 @@ export default function App() {
   const termRef = useRef<HTMLDivElement>(null)
 
   const { phase } = flow
-  const view = phaseView(phase)
+  const compact = reduced || window.innerWidth < NARROW
+  const view = phaseView(phase, term.stage, compact)
   const act = useStageActivity(view.stage, reduced)
-  const mood = useMood(phase)
+  const mood = useMood(phase, term.stage, compact)
 
   const restart = () => {
     const playIntro = wantsIntro({ reduced, skip: skipIntro })
@@ -59,6 +61,7 @@ export default function App() {
           key={restarts}
           phase={phase}
           spot={view.spot}
+          behind={view.behind}
           slotRef={slotRef}
           zoneRef={zoneRef}
           termRef={termRef}

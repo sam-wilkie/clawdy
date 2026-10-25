@@ -11,8 +11,9 @@
 .pet-slot {
   position: absolute; z-index: 5; width: var(--S); height: var(--S); pointer-events: none;
   left: calc(50% - var(--S) / 2); top: calc(var(--pet-y) - var(--S) * .89);
-  transition: top .6s var(--ease-boing);
+  transition: top .6s var(--ease-boing), z-index 0s .65s; /* back in front only after he is out */
 }
+.pet-slot.behind { z-index: 2; transition: top .6s var(--ease-boing); } /* under the terminal window (z 3) right away */
 .pet {
   position: absolute; inset: 0; transform-origin: 50% 89%;
   transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(var(--pet-scale));

@@ -19,6 +19,7 @@ const ZERO = { dx: 0, dy: 0 }
 interface Props {
   phase: Phase
   spot: Spot
+  behind: boolean                 // under the terminal window in z-order, while Vinnie slips behind it
   slotRef: RefObject<HTMLDivElement | null>
   zoneRef: RefObject<HTMLDivElement | null>
   termRef: RefObject<HTMLDivElement | null>
@@ -31,7 +32,7 @@ interface Props {
 }
 
 /** Vinnie on the stage: idle life (sleep, wake, happy, dizzy) and drag and drop onto the drop zone. */
-export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, entrance, reduced, onDrag, onDrop, onPoke }: Props) {
+export function Pet({ phase, spot, behind, slotRef, zoneRef, termRef, forced, entrance, reduced, onDrag, onDrop, onPoke }: Props) {
   const { state, send, dizzy } = usePetLife(entrance, reduced)
   const [off, setOff] = useState(ZERO)
   const offRef = useRef(ZERO)
@@ -92,7 +93,7 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, entrance, 
   const cls = ['pet', entrance && 'arrive', drag.dragging && 'held'].filter(Boolean).join(' ')
 
   return (
-    <div ref={slotRef} className="pet-slot">
+    <div ref={slotRef} className={`pet-slot${behind ? ' behind' : ''}`}>
       <div className={cls} style={{ '--dx': `${o.dx}px`, '--dy': `${o.dy}px` } as React.CSSProperties}>
         <Vinnie state={shown} follow={!reduced} />
         <button

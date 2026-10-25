@@ -1,13 +1,21 @@
 import type { Phase } from './flow'
+import type { TerminalStage } from './terminal-script'
 import type { VinnieState } from './vinnie-states'
 
-/** Where Vinnie stands: free on the stage, docked on the drop zone, or waiting beside the terminal. */
-export type Spot = 'rest' | 'zone' | 'terminal'
+/** Where Vinnie stands: free on the stage, docked on the drop zone, at the window's left edge to slip in, or beside its right edge. */
+export type Spot = 'rest' | 'zone' | 'hide' | 'terminal'
 
-/** Everything the page derives from the flow phase, in one place. */
-export function phaseView(phase: Phase) {
+/**
+ * Everything the page derives from the flow phase, in one place. While the terminal runs, Vinnie types on the drop zone,
+ * slips under the window's left edge while the agent thinks and comes out at its right edge (stage = the terminal's step).
+ * compact (a narrow screen or reduced motion) has no edge to hide behind: Vinnie just walks to the waiting spot.
+ */
+export function phaseView(phase: Phase, stage?: TerminalStage, compact = false) {
   const asking = phase === 'permission' || phase === 'plead'
-  const spot: Spot = phase === 'terminal' ? 'zone' : asking ? 'terminal' : 'rest'
+  const running = phase === 'terminal' && (stage === 'think' || stage === 'tool')
+  const spot: Spot = phase === 'terminal'
+    ? running ? (compact || stage === 'tool' ? 'terminal' : 'hide') : 'zone'
+    : asking ? 'terminal' : 'rest'
   const mood: VinnieState | undefined = phase === 'exit' ? 'cool' : undefined
   return {
     intro: phase === 'intro',
@@ -17,6 +25,7 @@ export function phaseView(phase: Phase) {
     showcase: phase === 'showcase',
     exit: phase === 'exit',
     petHidden: phase === 'showcase',
+    behind: running && !compact, // under the window in z-order, so the real window hides him as he slides
     spot,
     mood,
   }

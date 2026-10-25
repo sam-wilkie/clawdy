@@ -16,6 +16,26 @@ describe('moodTimeline', () => {
   })
 })
 
+describe('moodTimeline while the terminal runs', () => {
+  it('has nothing while it types', () => {
+    expect(moodTimeline('terminal', 'type')).toEqual([])
+    expect(moodTimeline('terminal', 'sent')).toEqual([])
+  })
+
+  it('walks to the window edge and slips in while the agent thinks', () => {
+    expect(moodTimeline('terminal', 'think').map((b) => b.mood)).toEqual(['walking', 'slip_in'])
+  })
+
+  it('stays hidden while it crosses under the window, then slips out', () => {
+    expect(moodTimeline('terminal', 'tool').map((b) => b.mood)).toEqual(['slip_in', 'slip_out'])
+  })
+
+  it('on a narrow screen it just walks to the waiting spot', () => {
+    expect(moodTimeline('terminal', 'think', true).map((b) => b.mood)).toEqual(['walking'])
+    expect(moodTimeline('terminal', 'tool', true).map((b) => b.mood)).toEqual(['walking'])
+  })
+})
+
 describe('moodAt', () => {
   const plead = moodTimeline('plead')
 
