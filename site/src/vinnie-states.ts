@@ -18,6 +18,7 @@ export const VINNIE = {
   debugger: entry('debugger'),
   alert: entry('alert'),
   error: entry('error'),
+  idea: entry('idea'),
   waiting_reply: entry('waiting_reply'),
   cool: entry('cool'),
 } as const

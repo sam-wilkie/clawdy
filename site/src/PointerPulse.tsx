@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { PALETTE, pulseCells, tintFor } from './pulse-field'
 
-const CELL = 18       // half the page's dot grid (--grid is 36), so the pixels line up with the dots
-const REACH = 3.4     // cells around the pointer that can catch light (about 60 px)
-const MAX_LIT = 240   // a lid, so a fast sweep cannot light the whole page
-const FADE_IN = 160   // ms
-const FADE_OUT = 600  // ms
+const CELL = 9        // a quarter of the page's dot grid (--grid is 36), so the pixels line up with the dots
+const REACH = 5       // cells around the pointer that can catch light (about 45 px)
+const MAX_LIT = 420   // a lid, so a fast sweep cannot light the whole page
+const FADE_IN = 70    // ms
+const FADE_OUT = 260  // ms
 
 interface Cell { col: number; row: number; tint: number; born: number; until: number }
 
@@ -40,7 +40,7 @@ export function PointerPulse({ reduced }: { reduced: boolean }) {
           if (t >= 1) { cells.delete(key); continue }
           alpha = 1 - easeIn(t)
         }
-        ctx.globalAlpha = alpha * 0.92
+        ctx.globalAlpha = alpha * 0.8
         ctx.fillStyle = PALETTE[c.tint]
         ctx.fillRect(c.col * CELL + 1, c.row * CELL + 1, CELL - 1, CELL - 1) // a 1 px gap keeps the cells apart
       }
@@ -74,7 +74,7 @@ export function PointerPulse({ reduced }: { reduced: boolean }) {
         // A cell caught again while it fades picks up from where it had got to instead of blinking out and in.
         let born = now
         if (lit) born = now - (1 - Math.sqrt(1 - (1 - easeIn(Math.min(1, (now - lit.until) / FADE_OUT))))) * FADE_IN
-        cells.set(key, { col: c.col, row: c.row, tint: lit?.tint ?? tintFor(c.away, REACH, Math.random), born, until: now + 180 + Math.random() * 650 })
+        cells.set(key, { col: c.col, row: c.row, tint: lit?.tint ?? tintFor(c.away, REACH, Math.random), born, until: now + 70 + Math.random() * 230 })
       }
       wake()
     }

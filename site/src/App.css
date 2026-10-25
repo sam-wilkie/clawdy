@@ -43,8 +43,8 @@
 }
 .drop-zone.show { opacity: 1; }
 .drop-zone.over { border-color: var(--red); background: rgba(222, 69, 83, .1); }
-.pulse { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-.flowers { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+/* Above the dark intro, exit and terminal as well as the snow desk, below Vinnie, the card and the showcase. */
+.pulse { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none; }
 
 /* ---- Dashed arc with a hand, from Vinnie to the drop zone --------------------------------------- */
 .arc-hint { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none; overflow: visible; animation: fade-in .6s ease-out; }

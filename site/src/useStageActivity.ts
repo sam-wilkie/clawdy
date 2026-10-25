@@ -8,7 +8,7 @@ const NO_DRAG: DragInfo = { dragging: false, over: false }
 export function useStageActivity(stage: boolean, reduced: boolean) {
   const [drag, setDrag] = useState<DragInfo>(NO_DRAG)
   const [dragged, setDragged] = useState(false)
-  const [bloomed, setBloomed] = useState(false) // the first click or drag makes the flowers bloom
+  const [poked, setPoked] = useState(false) // the first click or drag: the hint and the arc go away
   const [arcReady, setArcReady] = useState(false)
 
   useEffect(() => {
@@ -19,10 +19,10 @@ export function useStageActivity(stage: boolean, reduced: boolean) {
 
   const onDrag = useCallback((d: DragInfo) => {
     setDrag(d)
-    if (d.dragging) { setDragged(true); setBloomed(true) }
+    if (d.dragging) { setDragged(true); setPoked(true) }
   }, [])
-  const poke = useCallback(() => setBloomed(true), [])
-  const reset = useCallback(() => { setDrag(NO_DRAG); setDragged(false); setBloomed(false); setArcReady(false) }, [])
+  const poke = useCallback(() => setPoked(true), [])
+  const reset = useCallback(() => { setDrag(NO_DRAG); setDragged(false); setPoked(false); setArcReady(false) }, [])
 
-  return { drag, dragged, bloomed, arcReady, onDrag, poke, reset }
+  return { drag, dragged, poked, arcReady, onDrag, poke, reset }
 }

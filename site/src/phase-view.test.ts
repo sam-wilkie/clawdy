@@ -27,11 +27,9 @@ describe('phaseView', () => {
     expect(phases.map((p) => phaseView(p).spot)).toEqual(['rest', 'rest', 'zone', 'terminal', 'terminal', 'rest', 'rest'])
   })
 
-  it('picks Vinnie\'s mood from the phase', () => {
-    expect(phaseView('permission').mood).toBe('alert')
-    expect(phaseView('plead').mood).toBe('error')
+  it('keeps a fixed mood only on the exit screen (the others follow the mood timeline)', () => {
     expect(phaseView('exit').mood).toBe('cool')
-    expect(phaseView('stage').mood).toBeUndefined()
+    for (const p of ['intro', 'stage', 'terminal', 'permission', 'plead', 'showcase'] as const) expect(phaseView(p).mood).toBeUndefined()
   })
 
   it('hides Vinnie on the showcase page only', () => {

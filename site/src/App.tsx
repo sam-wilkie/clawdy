@@ -1,7 +1,6 @@
 import { useReducer, useRef, useState } from 'react'
 import { ArcHint } from './ArcHint'
 import { Exit } from './Exit'
-import { Flowers } from './Flowers'
 import { GithubCorner } from './GithubCorner'
 import { initialFlow, reduce, wantsIntro } from './flow'
 import { Intro } from './Intro'
@@ -12,6 +11,7 @@ import { PointerPulse } from './PointerPulse'
 import { Showcase } from './Showcase'
 import { Terminal } from './Terminal'
 import { useIntro } from './useIntro'
+import { useMood } from './useMood'
 import { useStageActivity } from './useStageActivity'
 import { useTerminal } from './useTerminal'
 import './App.css'
@@ -27,13 +27,13 @@ export default function App() {
   const [restarts, setRestarts] = useState(0)
   const [entrance, setEntrance] = useState(!withIntro) // Vinnie walks in only when there is no intro
   const slotRef = useRef<HTMLDivElement>(null)
-  const bodyRef = useRef<HTMLDivElement>(null)
   const zoneRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<HTMLDivElement>(null)
 
   const { phase } = flow
   const view = phaseView(phase)
   const act = useStageActivity(view.stage, reduced)
+  const mood = useMood(phase)
 
   const restart = () => {
     const playIntro = wantsIntro({ reduced, skip: skipIntro })
@@ -47,11 +47,10 @@ export default function App() {
     <main className="stage" data-phase={phase} data-frame={view.intro ? intro.frame : '4'}>
       <h1 className="sr">Clawdy, una mascota pixel art llamada Vinnie que reacciona a tus sesiones de Claude Code.</h1>
       <PointerPulse reduced={reduced} />
-      <Flowers show={(act.bloomed || act.drag.dragging) && (view.stage || view.terminal)} bodyRef={bodyRef} follow={view.spot !== 'terminal'} reduced={reduced} />
       {view.intro && <Intro {...intro} />}
       {view.exit && <Exit reduced={reduced} onRestart={restart} />}
       <div ref={zoneRef} className={`drop-zone${act.drag.dragging || view.stage ? ' show' : ''}${act.drag.over ? ' over' : ''}`} aria-hidden="true">Suéltame aquí</div>
-      <ArcHint show={view.stage && act.arcReady && !act.dragged && !act.bloomed} petRef={slotRef} zoneRef={zoneRef} />
+      <ArcHint show={view.stage && act.arcReady && !act.dragged && !act.poked} petRef={slotRef} zoneRef={zoneRef} />
       {view.terminal && <Terminal stage={term.stage} text={term.text} dim={view.asking} choice={phase === 'plead' ? 3 : 1} termRef={termRef} />}
       {view.asking && <PermCard pleading={phase === 'plead'} onAllow={() => dispatch({ type: 'allow' })} onDeny={() => dispatch({ type: 'deny' })} />}
       {view.showcase && <Showcase onRestart={restart} />}
@@ -61,10 +60,9 @@ export default function App() {
           phase={phase}
           spot={view.spot}
           slotRef={slotRef}
-          bodyRef={bodyRef}
           zoneRef={zoneRef}
           termRef={termRef}
-          forced={view.intro && intro.frame === '3' ? 'alert' : view.mood}
+          forced={view.intro && intro.frame === '3' ? 'alert' : view.mood ?? mood}
           entrance={entrance}
           reduced={reduced}
           onDrag={act.onDrag}
@@ -72,7 +70,7 @@ export default function App() {
           onDrop={() => dispatch({ type: 'dropped' })}
         />
       )}
-      {view.stage && !act.bloomed && !act.drag.dragging && <p className="hint" aria-hidden="true">Prueba a arrastrarme</p>}
+      {view.stage && !act.poked && !act.drag.dragging && <p className="hint" aria-hidden="true">Prueba a arrastrarme</p>}
       <GithubCorner hidden={view.showcase} />
     </main>
   )

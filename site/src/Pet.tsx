@@ -20,7 +20,6 @@ interface Props {
   phase: Phase
   spot: Spot
   slotRef: RefObject<HTMLDivElement | null>
-  bodyRef: RefObject<HTMLDivElement | null>   // the moving box (it carries the drag offset), for the flowers to follow
   zoneRef: RefObject<HTMLDivElement | null>
   termRef: RefObject<HTMLDivElement | null>
   forced?: VinnieState
@@ -32,7 +31,7 @@ interface Props {
 }
 
 /** Vinnie on the stage: idle life (sleep, wake, happy, dizzy) and drag and drop onto the drop zone. */
-export function Pet({ phase, spot, slotRef, bodyRef, zoneRef, termRef, forced, entrance, reduced, onDrag, onDrop, onPoke }: Props) {
+export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, entrance, reduced, onDrag, onDrop, onPoke }: Props) {
   const { state, send, dizzy } = usePetLife(entrance, reduced)
   const [off, setOff] = useState(ZERO)
   const offRef = useRef(ZERO)
@@ -94,7 +93,7 @@ export function Pet({ phase, spot, slotRef, bodyRef, zoneRef, termRef, forced, e
 
   return (
     <div ref={slotRef} className="pet-slot">
-      <div ref={bodyRef} className={cls} style={{ '--dx': `${o.dx}px`, '--dy': `${o.dy}px` } as React.CSSProperties}>
+      <div className={cls} style={{ '--dx': `${o.dx}px`, '--dy': `${o.dy}px` } as React.CSSProperties}>
         <Vinnie state={shown} follow={!reduced} />
         <button
           className="pet-hit"

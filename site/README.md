@@ -20,7 +20,7 @@ The phases and their transitions live in `src/flow.ts`; `src/phase-view.ts` deri
 
 ## Layout
 
-- `src/flow.ts`, `phase-view.ts`, `pet-state.ts`, `dizzy.ts`, `geometry.ts`, `flower-field.ts`, `intro-schedule.ts`,
+- `src/flow.ts`, `phase-view.ts`, `pet-state.ts`, `dizzy.ts`, `geometry.ts`, `pulse-field.ts`, `gaze.ts`, `mood-timeline.ts`, `intro-schedule.ts`,
   `terminal-script.ts`, `showcase-data.ts`: pure logic, each with a test.
 - `src/*.tsx`, `use*.ts`: components and hooks (intro, pet, terminal, permission card, showcase, exit).
 - `public/vinnie/*.svg`: Vinnie's animations, copied from `desktop/renderer/assets/monster/`.
@@ -28,8 +28,8 @@ The phases and their transitions live in `src/flow.ts`; `src/phase-view.ts` deri
 
 ## Notes
 
-- Name pure modules in kebab-case (`flower-field.ts`, not `flowers.ts`): on Windows `flowers.ts` and `Flowers.tsx`
-  are the same path to TypeScript and Vite.
+- Name pure modules in kebab-case (`pulse-field.ts`, not `pulse.ts` next to a `Pulse.tsx`): on Windows two files that differ
+  only by case are the same path to TypeScript and Vite.
 - Pointer effect (`src/PointerPulse.tsx`, `src/pulse-field.ts`): always on, a pixel trail on the page grid that goes from near
   white to Vinnie red and fades out. Adapted from the Grid Pulse component on 21st.dev by carolinaraulino (idea and
   falloff; palette, cell size and code are ours). Off under `prefers-reduced-motion`.
