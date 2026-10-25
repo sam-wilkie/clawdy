@@ -126,13 +126,6 @@
 .btn.deny { border: 1px solid var(--border); background: var(--surface-hi); color: var(--ink); }
 .btn:hover { filter: brightness(.96); }
 
-/* ---- Pleading hearts ------------------------------------------------------------------------- */
-.hearts { position: absolute; left: 44%; top: 40%; width: 0; height: 0; pointer-events: none; }
-.heart { position: absolute; fill: var(--red); animation: rise 1.6s ease-out infinite; }
-.heart.h1 { width: 22px; left: -6px; }
-.heart.h2 { width: 14px; left: 22px; opacity: .6; animation-delay: .5s; }
-@keyframes rise { from { transform: translateY(8px); opacity: 0; } 20% { opacity: 1; } to { transform: translateY(-34px); opacity: 0; } }
-
 @media (max-width: 900px) {
   .perm { left: 50%; bottom: auto; top: max(16px, env(safe-area-inset-top)); width: min(359px, calc(100vw - 32px)); transform: translateX(-50%); animation: none; }
 }

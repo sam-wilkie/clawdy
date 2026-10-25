@@ -29,7 +29,7 @@ describe('phaseView', () => {
 
   it('picks Vinnie\'s mood from the phase', () => {
     expect(phaseView('permission').mood).toBe('alert')
-    expect(phaseView('plead').mood).toBe('happy')
+    expect(phaseView('plead').mood).toBe('error')
     expect(phaseView('exit').mood).toBe('cool')
     expect(phaseView('stage').mood).toBeUndefined()
   })

@@ -38,7 +38,7 @@ export function useIntro(active: boolean, onDone: () => void) {
         done.current()
       } catch (e) { if (e !== CANCEL) throw e }
     })()
-    return () => { dead = true }
+    return () => { dead = true; setFrame('1a'); setText(''); setLit(true) }
   }, [active])
 
   const skip = useCallback(() => stop.current(), [])

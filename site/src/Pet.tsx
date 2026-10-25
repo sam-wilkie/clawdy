@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState, type PointerEvent, type RefObject } from 'react'
 import { createShake, createSpin } from './dizzy'
 import type { Phase } from './flow'
 import { contains, dockOffset, dragOffset, feetOf, type Point } from './geometry'
@@ -22,7 +22,6 @@ interface Props {
   zoneRef: RefObject<HTMLDivElement | null>
   termRef: RefObject<HTMLDivElement | null>
   forced?: VinnieState
-  extra?: ReactNode
   entrance: boolean
   reduced: boolean
   onDrag: (d: DragInfo) => void
@@ -32,7 +31,7 @@ interface Props {
 }
 
 /** Vinnie on the stage: idle life (sleep, wake, happy, dizzy) and drag and drop onto the drop zone. */
-export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, entrance, reduced, onDrag, onDrop, onPoke, onCenter }: Props) {
+export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, entrance, reduced, onDrag, onDrop, onPoke, onCenter }: Props) {
   const [state, send] = useReducer(petReduce, entrance && !reduced ? 'walking' : 'idle')
   const [off, setOff] = useState(ZERO)
   const [dock, setDock] = useState(ZERO)
@@ -177,7 +176,6 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
     <div ref={slotRef} className="pet-slot">
       <div className={cls} style={{ '--dx': `${o.dx}px`, '--dy': `${o.dy}px` } as React.CSSProperties}>
         <Vinnie state={shown} />
-        {extra}
         <button
           className="pet-hit"
           type="button"

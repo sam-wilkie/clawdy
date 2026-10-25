@@ -9,7 +9,6 @@ import { Intro } from './Intro'
 import { PermCard } from './PermCard'
 import { Pet, type DragInfo } from './Pet'
 import { phaseView } from './phase-view'
-import { PixelHearts } from './PixelHearts'
 import { Showcase } from './Showcase'
 import { Terminal } from './Terminal'
 import { useIntro } from './useIntro'
@@ -32,6 +31,7 @@ export default function App() {
   const [bloomed, setBloomed] = useState(false) // the first click or drag makes the flowers bloom
   const [petCenter, setPetCenter] = useState<Point | null>(null)
   const [restarts, setRestarts] = useState(0)
+  const [entrance, setEntrance] = useState(!withIntro) // Vinnie walks in only when there is no intro
   const slotRef = useRef<HTMLDivElement>(null)
   const zoneRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<HTMLDivElement>(null)
@@ -46,8 +46,10 @@ export default function App() {
   }, [view.stage, dragged])
 
   const restart = () => {
-    dispatch({ type: 'restart' })
-    setRestarts((n) => n + 1) // a fresh Vinnie walks back in
+    const intro = wantsIntro({ reduced, skip: skipIntro })
+    dispatch({ type: 'restart', intro }) // back to the start screen
+    setEntrance(!intro)
+    setRestarts((n) => n + 1) // a fresh Vinnie
     setDragged(false)
     setBloomed(false)
     setPetCenter(null)
@@ -75,8 +77,7 @@ export default function App() {
           zoneRef={zoneRef}
           termRef={termRef}
           forced={view.intro && intro.frame === '3' ? 'alert' : view.mood}
-          extra={phase === 'plead' ? <PixelHearts /> : undefined}
-          entrance={!withIntro || restarts > 0}
+          entrance={entrance}
           reduced={reduced}
           onDrag={(d) => { setDrag(d); if (d.dragging) { setDragged(true); setBloomed(true) } }}
           onPoke={() => setBloomed(true)}

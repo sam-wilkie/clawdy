@@ -20,6 +20,8 @@ Branch: `feat/site-react` (from `feat/vinnie-pet`). Delivery: ask-on-risk. Runne
 - S14 "esta muy grande el tamaño de vinnie en la pantalla": Vinnie's box is clamp(150px, 26vmin, 230px) (187 px at 1280x720, was 252).
 - S15 "que pasa con la pantalla de inicio porq ya no carga, se supone que al recargar tierne que volver a verse": the intro plays on every load (the reference stores nothing and replays it on reload); `?intro=0` skips it, reduced motion skips it. No localStorage flag.
 - S16 "si se sacude a vinnie deberia marearse asi como pasa en el desktop": shaking Vinnie while dragging makes it dizzy, with the desktop pet's rule (moves of 6 px or more, 3 reversals within 1 s, dizzy for 2 s; `desktop/renderer/renderer.js` detectShake).
+- S17 "porq se alegra al darle que no, faltan las animaciones de error": on Deny, Vinnie shows its `error` animation (X eyes, ERROR tag), not `happy`; no hearts. The plea text stays.
+- S18 "cuando se le da al boton de empzar de nuevo tiene que empezar a la pantalla de inicio": "Volver a empezar" (showcase and exit) goes back to the intro; with `?intro=0` or reduced motion it goes to the stage.
 - S11 Assumption (not asked): no extra menu or header; the "navigation" is the flow itself plus "Play from start" and the GitHub links.
 
 ## Tasks
@@ -32,6 +34,7 @@ Branch: `feat/site-react` (from `feat/vinnie-pet`). Delivery: ask-on-risk. Runne
 - T5 S1 S4 S8 · mobile layout, reduced motion, README/TODO, Playwright check at 390 and 1280 · inline · evidence: Playwright with touch emulation at 390x844 (real CDP touch drag onto the zone): card moves to the top below 900 px wide, showcase in 2 columns, no horizontal overflow, Play from start works; reduced motion skips the intro and the arc; `pnpm build` 76 KB gzip JS; 62 tests. Not verified: a real phone. Known harness artifact: the first tap after a synthetic CDP touch drag is sometimes dropped (5/5 taps pass without it) · commit: see git log (feat(site) release capture and docs)
 - T6 S12 S13 · favicon, click bloom, drop anywhere, preload · inline · RED: 3 dragOffset tests failed (function missing), GREEN: 65 tests; Playwright 1280x720 and 390x844: click -> happy + flowers, drop at two free spots keeps Vinnie there, re-drag continues from there, drop on the zone docks and starts the terminal, favicon files 200, SVGs requested at startup, no errors · commit: see git log (fix(site) drop anywhere)
 - T7 S14 S15 S16 · smaller Vinnie, intro on every load, shake-to-dizzy · inline · RED: wantsIntro skip test and 5 createShake tests failed first, GREEN: 68 tests; Playwright: intro frame 1a again after reload at 1280x720, 390x844 and 1920x1080 with no storage keys, `?intro=0` goes straight to the stage, slow drag stays idle, shaking while held shows dizzy and returns to idle about 2.5 s after the drop · commit: see git log (fix(site) intro on reload)
+- T8 S17 S18 · error animation on Deny, restart goes to the intro · inline · RED: restart-to-intro and plead-mood tests failed first, GREEN: 70 tests; Playwright: Deny shows error.svg with option 3 highlighted, restart from exit and from showcase lands on intro frame 1a (no stale iris), intro then stage, `?intro=0` restart goes to the stage, no errors · commit: see git log (fix(site) error on deny)
 
 ## Log
 
@@ -48,3 +51,5 @@ Branch: `feat/site-react` (from `feat/vinnie-pet`). Delivery: ask-on-risk. Runne
 - L7 (2026-10-24, user) "esta muy grande el tamaño de vinnie en la pantalla y que pasa con la pantalla de inicio porq ya no carga, se supone que al recargar tierne que volver a verse"
 - L7 finding: the intro was gated by a localStorage flag I added (once per browser), which the reference does not have; removed. Reference checked with Playwright: no storage keys, frame 1a again after reload.
 - L8 (2026-10-24, user) "si se sacude a vinnie deberia marearse asi como pasa en el desktop"
+- L9 (2026-10-24, user) "porq se alegra al darle que no, faltan las animaciones de error, y cuando se le da al boton de empzar de nuevo tiene que empezar a la pantalla de inicio"
+- L9 finding: the first Deny used `happy` plus hearts because I copied the reference's pleading crab. Replaced by `error`; PixelHearts removed. Only `error` was added; `confused`, `low_battery` and `hat_mishap` exist but are not used.

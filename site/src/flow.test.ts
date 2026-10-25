@@ -31,15 +31,19 @@ describe('flow', () => {
     expect(reduce(at('plead', 1), { type: 'allow' })).toEqual(at('showcase', 1))
   })
 
-  it('restarts from the showcase or the exit screen with a clean count', () => {
-    expect(reduce(at('showcase', 1), { type: 'restart' })).toEqual(at('stage'))
-    expect(reduce(at('exit', 2), { type: 'restart' })).toEqual(at('stage'))
+  it('restarts from the showcase or the exit screen on the intro, with a clean count', () => {
+    expect(reduce(at('showcase', 1), { type: 'restart', intro: true })).toEqual(at('intro'))
+    expect(reduce(at('exit', 2), { type: 'restart', intro: true })).toEqual(at('intro'))
+  })
+
+  it('restarts straight on the stage when there is no intro (reduced motion)', () => {
+    expect(reduce(at('exit', 2), { type: 'restart', intro: false })).toEqual(at('stage'))
   })
 
   it('ignores an action that does not belong to the current phase', () => {
     expect(reduce(at('stage'), { type: 'allow' })).toEqual(at('stage'))
     expect(reduce(at('intro'), { type: 'dropped' })).toEqual(at('intro'))
     expect(reduce(at('terminal'), { type: 'deny' })).toEqual(at('terminal'))
-    expect(reduce(at('stage'), { type: 'restart' })).toEqual(at('stage'))
+    expect(reduce(at('stage'), { type: 'restart', intro: true })).toEqual(at('stage'))
   })
 })

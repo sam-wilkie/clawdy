@@ -15,7 +15,7 @@ The intro plays on every load, like the reference. `?intro=0` skips it (handy wh
 ## Flow
 
 `intro` -> `stage` -> drag Vinnie onto the drop zone -> `terminal` -> `permission` -> Allow opens the `showcase`
-page; Deny once makes Vinnie plead (`plead`), Deny twice ends in `exit`. "Volver a empezar" returns to `stage`.
+page; Deny once shows Vinnie's error animation and a plea (`plead`), Deny twice ends in `exit`. "Volver a empezar" goes back to the start screen (the intro; straight to `stage` with `?intro=0` or reduced motion).
 The phases and their transitions live in `src/flow.ts`; `src/phase-view.ts` derives what each phase shows.
 
 ## Layout
