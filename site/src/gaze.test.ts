@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GAZE_MAX, REACH, approach, gazeTarget, settled } from './gaze'
+import { GAZE_MAX, REACH, approach, bodyLean, gazeTarget, lookTarget, settled, shadowOf } from './gaze'
 
 describe('gazeTarget', () => {
   it('looks straight ahead when the pointer is on the eyes', () => {
@@ -54,5 +54,41 @@ describe('settled', () => {
   it('is true once the eyes are within a hair of the target', () => {
     expect(settled({ x: 2.995, y: 1 }, { x: 3, y: 1 })).toBe(true)
     expect(settled({ x: 2, y: 1 }, { x: 3, y: 1 })).toBe(false)
+  })
+})
+
+describe('lookTarget', () => {
+  it('looks straight ahead when he appears, reads the cursor while the title is typed, held and erased, then looks ahead again', () => {
+    expect(['1a', '1b', '1c', '1d', '1e', '3'].map(lookTarget)).toEqual(['center', 'cursor', 'cursor', 'cursor', 'center', 'center'])
+  })
+
+  it('follows the pointer outside the intro', () => {
+    expect(lookTarget(undefined)).toBeNull()
+  })
+})
+
+describe('bodyLean', () => {
+  it('leans the body a third as far as the face, in whole art pixels', () => {
+    expect(bodyLean({ x: 0, y: 0 })).toEqual({ x: 0, y: 0 })
+    expect(bodyLean({ x: GAZE_MAX.x, y: GAZE_MAX.y })).toEqual({ x: 2, y: 1 })
+    expect(bodyLean({ x: -GAZE_MAX.x, y: -GAZE_MAX.y })).toEqual({ x: -2, y: -1 })
+  })
+
+  it('does not lean for a glance of one art pixel', () => {
+    expect(bodyLean({ x: 1, y: 1 })).toEqual({ x: 0, y: 0 })
+  })
+})
+
+describe('shadowOf', () => {
+  it('stays put when the body does not lean', () => {
+    expect(shadowOf({ x: 0, y: 0 })).toEqual({ shift: 0, stretch: 1 })
+  })
+
+  it('follows the lean and stretches with it, the same to either side', () => {
+    const r = shadowOf({ x: 2, y: 0 }), l = shadowOf({ x: -2, y: 0 })
+    expect(r.shift).toBeGreaterThan(0)
+    expect(l.shift).toBe(-r.shift)
+    expect(r.stretch).toBeGreaterThan(1)
+    expect(l.stretch).toBe(r.stretch)
   })
 })

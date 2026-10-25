@@ -25,3 +25,18 @@ export function approach(cur: Gaze, target: Gaze, k = 0.16): Gaze {
 
 export const settled = (cur: Gaze, target: Gaze, eps = 0.01) =>
   Math.abs(cur.x - target.x) < eps && Math.abs(cur.y - target.y) < eps
+
+/** What the face looks at: straight ahead, the intro's typing cursor, or (null) the pointer. */
+export type Look = 'center' | 'cursor' | null
+
+/** The intro reads its own title: it looks ahead on arrival, follows the cursor while the title is typed, held and erased. */
+export function lookTarget(frame: string | undefined): Look {
+  if (frame === undefined) return null
+  return frame === '1b' || frame === '1c' || frame === '1d' ? 'cursor' : 'center'
+}
+
+/** The body follows the face a third of the way, in whole art pixels (the reference does the same with 0.33). */
+export const bodyLean = (g: Gaze): Gaze => ({ x: Math.round(g.x * 0.33) || 0, y: Math.round(g.y * 0.33) || 0 })
+
+/** The shadow slides with the body's lean and stretches a little (art px, scale). */
+export const shadowOf = (lean: Gaze) => ({ shift: Math.round(lean.x * 0.3 * 2) / 2 || 0, stretch: 1 + Math.abs(lean.x) * 0.15 })

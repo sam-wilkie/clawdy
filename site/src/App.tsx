@@ -3,6 +3,7 @@ import { ArcHint } from './ArcHint'
 import { Exit } from './Exit'
 import { GithubCorner } from './GithubCorner'
 import { initialFlow, reduce, wantsIntro } from './flow'
+import { lookTarget } from './gaze'
 import { Intro } from './Intro'
 import { PermCard } from './PermCard'
 import { Pet } from './Pet'
@@ -66,6 +67,7 @@ export default function App() {
           zoneRef={zoneRef}
           termRef={termRef}
           forced={view.intro && intro.frame === '3' ? 'alert' : view.mood ?? mood}
+          look={lookTarget(view.intro ? intro.frame : undefined)}
           entrance={entrance}
           reduced={reduced}
           onDrag={act.onDrag}

@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { FADE_MS, crossfade, settle } from './crossfade'
 import { GazeSprite } from './GazeSprite'
+import type { Look } from './gaze'
 import { VINNIE, type VinnieState } from './vinnie-states'
 
-interface Props { state: VinnieState; replay?: number; className?: string; follow?: boolean }
+interface Props { state: VinnieState; replay?: number; className?: string; follow?: boolean; look?: Look }
 
 /** One state as an <img> of its animated SVG, placed so every state shares one pixel scale (viewBox ratio and offset). */
-function Sprite({ state, replay = 0, className, follow }: Props) {
+function Sprite({ state, replay = 0, className, follow, look }: Props) {
   // The idle sprite is inlined when its face should follow the pointer; every other state is an <img>.
-  if (state === 'idle' && follow !== undefined) return <GazeSprite follow={follow} />
+  if (state === 'idle' && follow !== undefined) return <GazeSprite follow={follow} look={look} />
   const { src, vb } = VINNIE[state]
   const size = vb[2] / 45 * 100
   return (

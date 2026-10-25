@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react'
 import { createShake } from './dizzy'
 import type { Phase } from './flow'
+import type { Look } from './gaze'
 import { BODY_LIFT, DOCK_LIFT, contains, dockOffset, dragOffset, feetOf } from './geometry'
 import { DURATION } from './pet-state'
 import type { Spot } from './phase-view'
@@ -24,6 +25,7 @@ interface Props {
   zoneRef: RefObject<HTMLDivElement | null>
   termRef: RefObject<HTMLDivElement | null>
   forced?: VinnieState
+  look?: Look                     // what the idle face looks at; null follows the pointer
   entrance: boolean
   reduced: boolean
   onDrag: (d: DragInfo) => void
@@ -32,7 +34,7 @@ interface Props {
 }
 
 /** Vinnie on the stage: idle life (sleep, wake, happy, dizzy) and drag and drop onto the drop zone. */
-export function Pet({ phase, spot, behind, slotRef, zoneRef, termRef, forced, entrance, reduced, onDrag, onDrop, onPoke }: Props) {
+export function Pet({ phase, spot, behind, slotRef, zoneRef, termRef, forced, look, entrance, reduced, onDrag, onDrop, onPoke }: Props) {
   const { state, send, dizzy } = usePetLife(entrance, reduced)
   const [off, setOff] = useState(ZERO)
   const offRef = useRef(ZERO)
@@ -96,7 +98,7 @@ export function Pet({ phase, spot, behind, slotRef, zoneRef, termRef, forced, en
   return (
     <div ref={slotRef} className={`pet-slot${behind ? ' behind' : ''}${jumping ? ' jumping' : ''}`}>
       <div className={cls} style={{ '--dx': `${o.dx}px`, '--dy': `${o.dy}px` } as React.CSSProperties}>
-        <Vinnie state={shown} follow={!reduced} />
+        <Vinnie state={shown} follow={!reduced} look={look} />
         <button
           className="pet-hit"
           type="button"
