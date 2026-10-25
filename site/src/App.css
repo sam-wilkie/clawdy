@@ -1,0 +1,11 @@
+.stage {
+  position: fixed; inset: 0; overflow: hidden;
+  background: radial-gradient(circle at center, rgba(222, 69, 83, .18) 0 1px, transparent 1.6px) 0 0 / var(--grid) var(--grid), var(--bg);
+}
+.vinnie-box { position: absolute; left: 50%; top: 50%; width: var(--S); height: var(--S); transform: translate(-50%, -62%); }
+
+.github-corner {
+  position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); z-index: 50;
+  font: 13px/1.3 var(--mono); color: var(--muted); text-decoration: none; border-bottom: 1px dotted currentColor;
+}
+.github-corner:hover { color: var(--ink); }
