@@ -20,7 +20,7 @@ Rules for every pet set of the Electron desktop pet (`desktop/renderer`). The cr
 - Light from the top left: light band on the top/left rim, shade on the bottom/right rim.
 - One hue family per body (two at most, like the monster's white/red), plus neutrals. Saturation stays moderate: no pure red, no pure black ink on large areas.
 - No stray tip pixels on the silhouette (remove pixels with one 4-neighbour or fewer).
-- Visual weight: a new pet should cover about the crab's area at 180 px. A round 30 × 30 body looks too big; Mochi is shown at 80 % by CSS (`#crab[data-art="monster"] #crab-art { scale: 0.8; }`). A new set should be drawn at its final size (about 24 px across) rather than scaled, so its pixels stay whole.
+- Visual weight: a new pet should cover about the crab's area at 180 px. A round 30 × 30 body looks too big; Vinnie is shown at 80 % by CSS (`#crab[data-art="monster"] #crab-art { scale: 0.8; }`). A new set should be drawn at its final size (about 24 px across) rather than scaled, so its pixels stay whole.
 - Leave flat body area around the face. A face that covers half the body reads as noise at 180 px.
 
 ## 3. Character parts
@@ -73,7 +73,7 @@ A set ships one file per state: `desktop/renderer/assets/<set>/<prefix>-<state>-
 1. **Static mockup first.** Draw one PNG with the crab beside the candidate at 180 px and at 2×, plus two or three expressions. Get approval before animating; a redraw of 29 animations costs far more than a mockup.
 2. **Generate.** Run `python tools/<set>_pixel.py`. Generation must be deterministic (two runs give the same bytes).
 3. **Review with one contact sheet per batch**, not one screenshot per frame. `python tools/pet_sheet.py out.png <svg> [<svg> ...] --frames 8 --size 200` gives one row per file. Put the crab's file in the first row to compare.
-4. **Live check.** Start a second pet that does not touch the real one: run `CLAWDY_PORT=19873 desktop/node_modules/electron/dist/electron.exe desktop`, then `CLAWDY_PORT=19873 node desktop/fake-daemon.js mochi`. Kiro, OpenCode and Antigravity each show Mochi in a different state, rotating every 6 s.
+4. **Live check.** Start a second pet that does not touch the real one: run `CLAWDY_PORT=19873 desktop/node_modules/electron/dist/electron.exe desktop`, then `CLAWDY_PORT=19873 node desktop/fake-daemon.js vinnie`. Kiro, OpenCode and Antigravity each show Vinnie in a different state, rotating every 6 s.
 5. **Gallery.** `desktop/renderer/assets/<set>/compare-v2.html` shows Claude, Codex and the set side by side.
 6. **Checks.**
    - `python tools/pet_check.py desktop/renderer/assets/<set> <prefix>`: checks the 29 files, each file's viewBox against the renderer, and that every coordinate is a whole art pixel. It is cheap, so run it before looking at any picture.
@@ -90,4 +90,4 @@ A set ships one file per state: `desktop/renderer/assets/<set>/<prefix>-<state>-
 |---|---|---|---|
 | crab | `assets/clawd-*-v2.svg` | hand-made / svgbuild | claude |
 | cloud | `assets/codex/cloud-*-v2.svg` (gitignored, licensing: `NOTICE.md`) | `tools/codex_cloud_pixel.py` (gitignored) | codex |
-| monster (**Mochi**, character sheet: `docs/mochi.md`) | `assets/monster/monster-*-v2.svg` | `tools/monster_pixel.py` (needs the local cloud engine) | every other agent |
+| monster (**Vinnie**, character sheet: `docs/vinnie.md`) | `assets/monster/monster-*-v2.svg` | `tools/monster_pixel.py` (needs the local cloud engine) | every other agent |

@@ -117,7 +117,7 @@ Cuando un agente pide permiso, la mascota correspondiente muestra los botones **
 
 ### Estados de la mascota
 
-La mascota de escritorio usa un juego de arte SVG propio, independiente del firmware: 28 estados animados para el cangrejo de Claude, un set de arte pixelado propio para Codex y **Mochi**, la mascota por defecto de Kiro, OpenCode, Antigravity, Pi y de cualquier agente sin arte propio.
+La mascota de escritorio usa un juego de arte SVG propio, independiente del firmware: 28 estados animados para el cangrejo de Claude, un set de arte pixelado propio para Codex y **Vinnie**, la mascota por defecto de Kiro, OpenCode, Antigravity, Pi y de cualquier agente sin arte propio.
 
 - **Trabajo y herramientas** — pensar, escribir, construir, con el estado ligado a la herramienta en uso.
 - **Subagentes** — `conducting` al lanzar y `grooving` cuando hay subagentes trabajando en segundo plano; el mini-cangrejo cuenta cuántos.
@@ -131,11 +131,11 @@ La mascota de escritorio usa un juego de arte SVG propio, independiente del firm
 
 Curiosidad: **sacude tres veces la mascota en un segundo** y se marea.
 
-### Mochi, la mascota por defecto
+### Vinnie, la mascota por defecto
 
-<img src="assets/readme/mochi-sheet.png" alt="Mochi en ocho poses: hola, pensando, soldando, buscando, listo, cool, durmiendo y error" width="100%">
+<img src="assets/readme/vinnie-sheet.png" alt="Vinnie en ocho poses: hola, pensando, soldando, buscando, listo, cool, durmiendo y error" width="100%">
 
-Mochi es el personaje propio de Clawdy: una bolita blanca con una media luna roja, tres ojos juntos y mitones. Nació del monstruo de la marca y aparece con cualquier agente que no tenga mascota propia; Claude conserva a Clawd y Codex su nube. Es atento, tranquilo y un poco torpe: suelda cuando construye, se pone un gorro de mago para buscar y se duerme cuando se acaba la batería. Su tooltip lo presenta y la etiqueta sigue mostrando el agente. Ficha de personaje: [docs/mochi.md](docs/mochi.md); reglas de arte para nuevas mascotas: [docs/pet-art-bible.md](docs/pet-art-bible.md).
+Vinnie es el personaje propio de Clawdy: una bolita blanca con una media luna roja, tres ojos juntos y mitones. Nació del monstruo de la marca y aparece con cualquier agente que no tenga mascota propia; Claude conserva a Clawd y Codex su nube. Es atento, tranquilo y un poco torpe: suelda cuando construye, se pone un gorro de mago para buscar y se duerme cuando se acaba la batería. Su tooltip lo presenta y la etiqueta sigue mostrando el agente. Ficha de personaje: [docs/vinnie.md](docs/vinnie.md); reglas de arte para nuevas mascotas: [docs/pet-art-bible.md](docs/pet-art-bible.md).
 
 ### Íconos
 
@@ -206,8 +206,8 @@ Conexión BLE con un solo bucle por transporte, sin caché GATT de Windows y con
 </tr>
 <tr>
 <td width="50%" valign="top">
-<b>Mochi y su kit de arte</b><br>
-Mochi, la mascota por defecto, con sus 29 estados. Un art bible, el skill <code>new-pet</code> y el validador <code>pet_check.py</code> para que cada mascota nueva siga las mismas reglas.<br>
+<b>Vinnie y su kit de arte</b><br>
+Vinnie, la mascota por defecto, con sus 29 estados. Un art bible, el skill <code>new-pet</code> y el validador <code>pet_check.py</code> para que cada mascota nueva siga las mismas reglas.<br>
 <code>SVG · docs/pet-art-bible.md · tools/pet_check.py</code>
 </td>
 <td width="50%" valign="top">
