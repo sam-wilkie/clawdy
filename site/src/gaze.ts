@@ -1,16 +1,20 @@
 export interface Gaze { x: number; y: number }
 
 /** How far the face slides over the body, in art pixels (1 art pixel = half a viewBox unit). */
-export const GAZE_MAX: Gaze = { x: 3, y: 1.5 }
+/** (5, 3) is about as far as the face can slide before it leaves the body's edge. */
+export const GAZE_MAX: Gaze = { x: 5, y: 3 }
+
+/** Distance from the eyes (CSS px) at which the face has turned fully; vertical is shorter, the page is wider than tall. */
+export const REACH: Gaze = { x: 170, y: 110 }
 
 const clamp = (v: number, lim: number) => Math.max(-lim, Math.min(lim, v))
 
-/** Where the face should be for a pointer at (dx, dy) CSS px from the eyes; it turns fully at `reach` px or more. */
-export function gazeTarget(dx: number, dy: number, reach = 420): Gaze {
+/** Where the face should be for a pointer at (dx, dy) CSS px from the eyes; it turns fully at REACH px or more. */
+export function gazeTarget(dx: number, dy: number): Gaze {
   if (!Number.isFinite(dx) || !Number.isFinite(dy)) return { x: 0, y: 0 }
   return {
-    x: clamp(dx / reach, 1) * GAZE_MAX.x,
-    y: clamp(dy / reach, 1) * GAZE_MAX.y,
+    x: clamp(dx / REACH.x, 1) * GAZE_MAX.x,
+    y: clamp(dy / REACH.y, 1) * GAZE_MAX.y,
   }
 }
 
