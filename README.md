@@ -19,6 +19,7 @@
 - Medidores de consumo en vivo: límites de Claude, créditos de Kiro, tokens y costo de OpenCode y Antigravity.
 - Botones **Allow / Deny** sobre la mascota cuando un agente pide permiso.
 - Las ventanas son transparentes, no roban el foco de tu terminal y la mascota ignora el ratón donde no hay nada que pulsar.
+- **Hotbar** (Windows): una barra acoplada al borde de la pantalla con el consumo de cada agente de un vistazo, un panel por proyecto y botones propios.
 
 Del mismo proyecto sale un modo opcional para hardware: Clawdy también corre en una pantalla [Waveshare ESP32-C6-LCD-1.47](https://s.click.aliexpress.com/e/_c4PGS55v) (320x172, ST7789), con fondo animado y barra de uso. Eso es un destino **secundario**; el producto principal es la app de escritorio. Ver [pantalla ESP32](#pantalla-esp32-opcional).
 
@@ -31,7 +32,7 @@ Del mismo proyecto sale un modo opcional para hardware: Clawdy también corre en
 | Kiro | Hooks por workspace; seguimiento de logs | Créditos del plan desde la caché de Kiro IDE | Implementado; la caché puede no reflejar el consumo más reciente |
 | OpenCode | Plugin local de Clawdy | Tokens y costo informado, por día, mes y acumulado | Implementado; la aparición de la mascota está confirmada, las aprobaciones v2 siguen sin certificar |
 | Antigravity CLI / IDE | Plugin registrado mediante `agy` | Tokens del historial local, por día, mes y acumulado | Implementado; instalación y flujo completo con `agy` real pendientes |
-| Pi (gentle-shell) | Extensión instalada desde la bandeja (**Install Pi Extension**) | Sin medidor de consumo | Implementado; estados y aprobaciones comprobados en una sesión aislada, falta probarlo con el `Clawdy.exe` instalado |
+| Pi (gentle-shell) | Extensión instalada desde la bandeja (**Install Pi Extension**) | Sin medidor en el panel de la mascota; tokens y costo informado en la hotbar | Implementado; estados y aprobaciones comprobados en una sesión aislada, falta probarlo con el `Clawdy.exe` instalado |
 
 Esta tabla describe el checkout actual, incluidos cambios locales pendientes de entrega. No garantiza que todas las funciones estén incluidas en el instalador publicado. Consulta el [estado técnico actual](docs/clawdy-desktop-estado-2026-10-13.md) para las comprobaciones y pendientes.
 
@@ -75,26 +76,30 @@ Ambos instaladores incluyen la app de bandeja / barra de menú, que es la que in
 
 ## `$ ./clawdy --preview`
 
-Lo primero que ves al abrir Clawdy. En la esquina inferior derecha, una mascota por agente activo:
+Lo primero que ves al abrir Clawdy. En la esquina inferior derecha, una mascota por agente activo, cada una animada según lo que hace su agente:
+
+<p align="center">
+<img src="assets/readme/preview-mascotas.png" alt="Cuatro mascotas de escritorio: Clawd construyendo con dos sesiones de Claude, y Vinnie pensando para Pi, escribiendo para Kiro y depurando para OpenCode" width="680">
+</p>
 
 <table>
 <tr>
 <td width="50%" valign="top">
-<img src="assets/readme/preview-sesiones.png" alt="Dos sesiones de Claude Code activas, con la barra de uso de sesión y semanal en la parte superior"><br>
-<b>Varias sesiones por agente</b><br>
-Cuando un producto tiene más de una sesión abierta, la mascota muestra un contador <code>x1</code>, <code>x2</code>… y la etiqueta del agente siempre visible.<br>
-<code>sesiones · proyecto · herramienta</code>
+<img src="assets/readme/preview-panel.png" alt="Panel de actividad de Claude con el uso de la sesión de 5 horas y de la semana, y dos sesiones activas"><br>
+<b>Panel de actividad por agente</b><br>
+Clic en la mascota: consumo con su reinicio y las sesiones abiertas con proyecto, herramienta, subagentes y estado. El contador <code>x2</code> de la mascota indica cuántas sesiones tiene ese agente.<br>
+<code>consumo · sesiones · proyecto · herramienta</code>
 </td>
 <td width="50%" valign="top">
-<img src="assets/readme/preview-notificacion.png" alt="Tarjeta de notificación en español junto a Clawdy"><br>
-<b>Tarjetas de notificación</b><br>
-Cuando un agente necesita tu atención, aparece una tarjeta Allow / Deny sobre la mascota. Hay cola con indicador <code>+N</code> cuando se acumulan.<br>
-<code>Allow · Deny · encolado</code>
+<img src="assets/readme/preview-permiso.png" alt="Tarjeta Permission request sobre la mascota de Claude, con la herramienta Bash, el proyecto y los botones Allow y Deny"><br>
+<b>Aprobaciones sobre la mascota</b><br>
+Cuando un agente pide permiso, aparece una tarjeta con la herramienta, el proyecto y el comando, y los botones Allow / Deny. Si hay más peticiones esperando, muestra un <code>+N</code>.<br>
+<code>Allow · Deny · en cola</code>
 </td>
 </tr>
 </table>
 
-<sub>Capturas del simulador escaladas 3x. Los valores de uso son de demostración. La pila de tarjetas rotatorias de hasta 8 pertenece a la pantalla ESP32 y al simulador; en Electron las tarjetas son de aprobación y se muestran de una en una.</sub>
+<sub>Capturas de la app de escritorio real, generadas con datos de demostración: los proyectos, porcentajes y costos son de ejemplo.</sub>
 
 ### El panel de actividad
 
@@ -105,6 +110,21 @@ Haz clic en la mascota de un agente y se abre su panel flotante, sin marco, sin 
 - **Reiniciar uso** en Codex: pide confirmación y consume un reinicio concedido. Si la respuesta es incierta, reutiliza la misma clave para no gastarlo dos veces.
 - Las métricas se actualizan **cada minuto mientras el panel está abierto** y dejan de consultarse al cerrarlo.
 - **El panel no incluye el texto de las conversaciones**, solo metadatos de sesión.
+
+### La hotbar (Windows)
+
+<img src="assets/readme/preview-hotbar.png" alt="Hotbar acoplada al borde derecho con un anillo de consumo por agente, y su panel de uso con los límites de Claude y Codex, tokens del día y consumo por proyecto" width="420" align="right">
+
+Una barra delgada que se acopla al borde de la pantalla y muestra a todos los agentes a la vez, sin abrir sus mascotas. Es una app aparte (Tauri) que la bandeja arranca y cierra; se activa con **Show hotbar** en el menú.
+
+- **Un botón por agente** con un anillo de consumo: los de plan (Claude, Codex, Kiro) muestran el porcentaje del límite y se ponen en alerta desde el 90 %; los de pago por uso (OpenCode, Pi) llevan una marca `$`.
+- **Panel de uso**: al pulsar un agente, o el botón de gráfico para verlos todos, se abre una tarjeta por agente con sus límites y reinicios, los tokens de entrada, salida y caché, y el reparto por proyecto. Rango **Hoy**, **7 días**, **30 días** o **Mes**, y el gasto total de pago por uso arriba.
+- **Botones propios** en `~/.clawd-tank/hotbar.json`: abrir una URL, lanzar un programa o mostrar la salida de un comando en el panel.
+- Se acopla al borde más cercano al soltarla, se puede contraer y recuerda su posición. Lee `~/.clawd-tank/project-usage.json`, que escribe el daemon.
+
+Por ahora solo se compila y se empaqueta para Windows; en macOS, **Show hotbar** no abre nada.
+
+<br clear="right">
 
 ### Aprobaciones sobre la mascota
 
@@ -118,6 +138,9 @@ Cuando un agente pide permiso, la mascota correspondiente muestra los botones **
 ### Estados de la mascota
 
 La mascota de escritorio usa un juego de arte SVG propio, independiente del firmware: 28 estados animados para el cangrejo de Claude, un set de arte pixelado propio para Codex y **Vinnie**, la mascota por defecto de Kiro, OpenCode, Antigravity, Pi y de cualquier agente sin arte propio.
+
+> [!NOTE]
+> El arte de la nube de Codex no está en el repositorio (`.gitignore`) mientras se aclaran los permisos (ver [AVISO](NOTICE.md)). Una copia o un instalador generados sin esos archivos no tienen imagen para la mascota de Codex; su panel y su consumo funcionan igual.
 
 - **Trabajo y herramientas** — pensar, escribir, construir, con el estado ligado a la herramienta en uso.
 - **Subagentes** — `conducting` al lanzar y `grooving` cuando hay subagentes trabajando en segundo plano; el mini-cangrejo cuenta cuántos.
@@ -187,9 +210,9 @@ Claude Code, Codex, Kiro, OpenCode, Antigravity y Pi con sus propios hooks o plu
 <code>Python · PyInstaller · Inno Setup</code>
 </td>
 <td width="50%" valign="top">
-<b>Panel de actividad</b><br>
-Sesiones, proyectos y consumo por agente en una ventana que se abre al hacer clic en la mascota de escritorio.<br>
-<code>Electron · desktop/renderer/dashboard.js</code>
+<b>Hotbar de consumo</b><br>
+Barra acoplada al borde de la pantalla con un anillo de consumo por agente, panel por proyecto con rangos de fechas y botones propios configurables. Solo Windows por ahora.<br>
+<code>Tauri 2 · Rust · hotbar/</code>
 </td>
 </tr>
 <tr>
@@ -228,18 +251,21 @@ OpenCode / Antigravity plugins ----> clawd-tank-notify --> daemon --> TCP --> Ap
 Kiro logs ------------------------/                    |
                                                           \-- TCP --> Simulador (SDL2)
                                                           \-- BLE --> ESP32-C6 (opcional)
+                                                          \-- project-usage.json --> Hotbar (Tauri, Windows)
 ```
 
 1. Los **hooks y plugins** convierten los eventos de cada agente en actividad de sesión; Kiro también tiene un lector de logs.
 2. **clawd-tank-notify** reenvía los eventos al daemon por un socket local.
 3. El **daemon** (Python) sigue sesiones y subagentes, asigna animaciones y traduce los mensajes a cada transporte.
 4. La **app de escritorio** (Electron) se conecta por TCP, abre una ventana por producto y lee el consumo desde las fuentes locales de cada agente.
-5. El **simulador SDL2** y el **firmware del ESP32** renderizan la pantalla del hardware con su propio juego de arte. Electron no comparte arte ni interfaz con ellos.
+5. La **hotbar** lee el consumo por agente y por proyecto que el daemon exporta a `~/.clawd-tank/project-usage.json`.
+6. El **simulador SDL2** y el **firmware del ESP32** renderizan la pantalla del hardware con su propio juego de arte. Electron no comparte arte ni interfaz con ellos.
 
 ## `$ cat stack.yaml`
 
 ```yaml
 escritorio: Electron + JavaScript, HTML/CSS, SVG, sql.js
+hotbar:     Tauri 2 + Rust, HTML/JS (Windows)
 host:       Python >= 3.10 (asyncio, bleak para BLE) — daemon, bandeja y barra de menú
 plugins:    JavaScript (OpenCode), plugin generado (Antigravity)
 simulador:  C + SDL2 (macOS y Windows)
@@ -335,6 +361,9 @@ La bandeja / barra de menú instala las conexiones de actividad:
 - **Install Kiro Hooks (choose folder)…** — hooks por workspace, en `<ws>/.kiro/hooks/clawdy.json`.
 - **Install OpenCode Hooks** — copia el plugin incluido en `host/opencode-plugin/` y registra su entrada en `opencode.json` dentro de la configuración XDG (`XDG_CONFIG_HOME` o `~/.config/opencode`, también en Windows).
 - **Install Antigravity Hooks** — Clawdy necesita encontrar `agy`; crea su plugin local y lo registra con `agy plugin install`. Sin ese ejecutable la instalación no se completa.
+- **Install Pi Extension** — instala la extensión de Clawdy para Pi, tanto en Gentle Shell como en un Pi sin Gentle Shell.
+
+El mismo menú tiene **Show hotbar**, que arranca o cierra la hotbar (solo Windows).
 
 Reinicia las sesiones de cada agente después de instalar: las sesiones abiertas no vuelven a leer la configuración.
 
@@ -372,6 +401,7 @@ Puedes renombrar sesiones sin tocar la identidad del agente. Crea `~/.clawd-tank
 - **Codex**: consulta `account/rateLimits/read` de su app-server local; requiere una sesión iniciada con ChatGPT. Busca el ejecutable en `PATH` y en las instalaciones locales de la aplicación y de npm; `CLAWDY_CODEX_BIN` fuerza una ruta. La consulta usa la autenticación que gestiona Codex y termina su proceso auxiliar al finalizar; no inicia conversaciones.
 - **Kiro**: lee la caché de créditos de Kiro IDE con SQLite en memoria (no escribe en su almacenamiento) e indica la fecha de esa copia, el consumo del plan y su próximo reinicio. `CLAWDY_KIRO_STATE_DB` permite indicar la ruta.
 - **OpenCode**: ejecuta una consulta de totales con `--pure` para evitar cargar plugins externos; tokens de entrada, salida y caché, respuestas registradas y costo cuando está disponible. El costo puede ser parcial y diferir de la factura del proveedor; no son límites de cuenta.
+- **Pi**: lee las sesiones de `~/.gentle-shell/agent/sessions` y su costo informado; se ve en la hotbar.
 - **Antigravity**: lee los metadatos de las conversaciones de CLI e IDE en `~/.gemini/antigravity-cli/conversations` y `~/.gemini/antigravity-ide/conversations`. Muestra tokens y llamadas registradas, incluido el razonamiento cuando existe. Su historial no aporta un costo monetario: el panel muestra **No disponible**. Si algunas conversaciones no se pueden leer, indica que el resultado es parcial.
 
 Día y mes comienzan a medianoche y el primer día del mes en la zona horaria local. Un valor desconocido no se presenta como cero.
@@ -382,14 +412,23 @@ Día y mes comienzan a medianoche y el primer día del mes en la zona horaria lo
 # Suite del escritorio (Node.js) — el producto principal
 cd desktop && pnpm test
 
+# Helpers de la UI de la hotbar (Node.js)
+cd hotbar/ui && node --test
+
 # Tests del host (daemon + protocolo + plugins)
 cd host && .venv/bin/python -m pytest -v   # Windows: .venv\Scripts\python -m pytest -v
 ```
 
-La suite del escritorio corre con el runner nativo de Node (`node --test`), sin necesitar Electron ni dependencias de test: los archivos de `desktop/` se cargan en contextos `vm` con módulos `electron` simulados. Cubre el panel de actividad, los productos por agente, los lectores de consumo, el mapeo de animaciones, Codex, Antigravity, el plugin de OpenCode y las etiquetas de sesión. La última ejecución local (2026-10-13) dio **43 pruebas aprobadas, sin fallos** en 9 archivos.
+La suite del escritorio corre con el runner nativo de Node (`node --test`), sin necesitar Electron ni dependencias de test: los archivos de `desktop/` se cargan en contextos `vm` con módulos `electron` simulados. Cubre el panel de actividad, los productos por agente, los lectores de consumo, el mapeo de animaciones, Codex, Antigravity, el plugin de OpenCode y las etiquetas de sesión.
+
+Última ejecución local, en macOS (Apple Silicon) el 2026-10-25:
+
+- Escritorio: **52 pruebas aprobadas, sin fallos**, en 9 archivos.
+- UI de la hotbar: **23 aprobadas, sin fallos**.
+- Host: **1408 aprobadas, 15 fallidas y 28 omitidas**. Las 15 fallas son de las propias pruebas, que suponen Windows (importan `winreg`, esperan rutas de Windows o `/var` en vez de `/private/var`), no de la app. En macOS, `test_tray_icons.py` necesita además `pip install Pillow`, que `requirements-dev.txt` solo instala en Windows.
 
 > [!WARNING]
-> La suite completa del host **no** se volvió a ejecutar durante esa revisión documental, así que este README no publica una cifra de tests Python como resultado actual. El firmware tiene su propia suite en `firmware/test` (`make test`). Los pendientes y las validaciones abiertas están en [TODO.md](TODO.md) y en el [estado técnico](docs/clawdy-desktop-estado-2026-10-13.md).
+> El firmware tiene su propia suite en `firmware/test` (`make test`), que no se ejecutó en esta revisión. Los pendientes y las validaciones abiertas están en [TODO.md](TODO.md) y en el [estado técnico](docs/clawdy-desktop-estado-2026-10-13.md).
 
 ## `$ cat CREDITS`
 
