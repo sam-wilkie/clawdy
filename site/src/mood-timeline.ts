@@ -13,10 +13,10 @@ export function moodTimeline(phase: Phase, stage?: TerminalStage, compact = fals
   if (phase === 'terminal' && (stage === 'think' || stage === 'tool')) {
     if (compact) return [{ mood: 'walking', ms: 700 }]
     // think: walk to the window's left edge, slip under it; tool: cross hidden under the window, peek out at the right
-    // edge (look left, right, up, blink: 1.8 s sprite), slip out
+    // edge (look left, double take, right, up, blink: 2.4 s sprite), slip out
     return stage === 'think'
       ? [{ mood: 'walking', ms: 650 }, { mood: 'slip_in' }]
-      : [{ mood: 'slip_in', ms: 650 }, { mood: 'peek', ms: 1800 }, { mood: 'slip_out' }]
+      : [{ mood: 'slip_in', ms: 650 }, { mood: 'peek', ms: 2400 }, { mood: 'slip_out' }]
   }
   switch (phase) {
     case 'permission': return [{ mood: 'idea', ms: 2400 }, { mood: 'waiting_reply' }]
