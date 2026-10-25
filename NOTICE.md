@@ -36,8 +36,9 @@ changed or removed, it will be.
 
 - Source code: see [LICENSE](LICENSE) (MIT, with the upstream copyright
   preserved).
-- Original non-character artwork and animation work by Sam Wilkie: see
-  [ASSETS-LICENSE.md](ASSETS-LICENSE.md).
+- Original artwork and animation work by Sam Wilkie, including **Vinnie**,
+  the default pet, which is his original character and not a third-party
+  mascot: see [ASSETS-LICENSE.md](ASSETS-LICENSE.md) (all rights reserved).
 
 ## Open items
 
