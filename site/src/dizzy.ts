@@ -34,3 +34,29 @@ export function createSpin(o: { turns?: number; gapMs?: number; minR?: number; m
 
   return { push, reset }
 }
+
+/** Shake-to-dizzy while dragging, like the desktop pet: fast back-and-forth moves, 3 reversals within a second. */
+export function createShake(o: { minSpeed?: number; reversals?: number; windowMs?: number } = {}) {
+  const minSpeed = o.minSpeed ?? 6   // px per move to count as fast
+  const need = o.reversals ?? 3      // direction flips needed
+  const windowMs = o.windowMs ?? 1000 // the flips must fall inside this window
+  let dir = 0
+  let flips: number[] = []
+
+  const reset = () => { dir = 0; flips = [] }
+
+  /** dx: horizontal distance since the previous pointer move; t: timestamp in ms. True when it counts as a shake. */
+  function push(dx: number, t: number): boolean {
+    if (Math.abs(dx) < minSpeed) return false
+    const d = dx > 0 ? 1 : -1
+    let fired = false
+    if (dir !== 0 && d !== dir) {
+      flips = [...flips, t].filter((x) => t - x <= windowMs)
+      if (flips.length >= need) { flips = []; fired = true }
+    }
+    dir = d
+    return fired
+  }
+
+  return { push, reset }
+}

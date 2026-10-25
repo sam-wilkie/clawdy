@@ -4,10 +4,9 @@ import { initialFlow, reduce, wantsIntro, type Flow } from './flow'
 const at = (phase: Flow['phase'], denies = 0): Flow => ({ phase, denies })
 
 describe('wantsIntro', () => {
-  it('plays on a first visit', () => expect(wantsIntro({ reduced: false, forced: false, seen: false })).toBe(true))
-  it('is skipped once seen', () => expect(wantsIntro({ reduced: false, forced: false, seen: true })).toBe(false))
-  it('can be forced back on', () => expect(wantsIntro({ reduced: false, forced: true, seen: true })).toBe(true))
-  it('never plays under reduced motion', () => expect(wantsIntro({ reduced: true, forced: true, seen: false })).toBe(false))
+  it('plays on every load', () => expect(wantsIntro({ reduced: false, skip: false })).toBe(true))
+  it('can be skipped with ?intro=0', () => expect(wantsIntro({ reduced: false, skip: true })).toBe(false))
+  it('never plays under reduced motion', () => expect(wantsIntro({ reduced: true, skip: false })).toBe(false))
 })
 
 describe('flow', () => {

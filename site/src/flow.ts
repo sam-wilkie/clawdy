@@ -3,8 +3,9 @@ export interface Flow { phase: Phase; denies: number }
 export type Action =
   | { type: 'introDone' | 'dropped' | 'terminalReady' | 'allow' | 'deny' | 'restart' }
 
-export function wantsIntro(o: { reduced: boolean; forced: boolean; seen: boolean }): boolean {
-  return !o.reduced && (o.forced || !o.seen)
+/** The intro plays on every load, like the reference; ?intro=0 skips it and reduced motion never plays it. */
+export function wantsIntro(o: { reduced: boolean; skip: boolean }): boolean {
+  return !o.reduced && !o.skip
 }
 
 export const initialFlow = (intro: boolean): Flow => ({ phase: intro ? 'intro' : 'stage', denies: 0 })

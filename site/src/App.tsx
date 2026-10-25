@@ -5,7 +5,6 @@ import { Flowers } from './Flowers'
 import { GithubCorner } from './GithubCorner'
 import { initialFlow, reduce, wantsIntro } from './flow'
 import type { Point } from './geometry'
-import { markSeen, readSeen } from './intro-schedule'
 import { Intro } from './Intro'
 import { PermCard } from './PermCard'
 import { Pet, type DragInfo } from './Pet'
@@ -18,14 +17,14 @@ import { useTerminal } from './useTerminal'
 import './App.css'
 
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-const forced = new URLSearchParams(window.location.search).get('intro') === '1'
+const skipIntro = new URLSearchParams(window.location.search).get('intro') === '0'
 const ARC_DELAY = 3000 // ms on the stage before the dashed arc shows the way
 const NO_DRAG: DragInfo = { dragging: false, over: false }
 
 export default function App() {
-  const [withIntro] = useState(() => wantsIntro({ reduced, forced, seen: readSeen() }))
+  const [withIntro] = useState(() => wantsIntro({ reduced, skip: skipIntro }))
   const [flow, dispatch] = useReducer(reduce, withIntro, initialFlow)
-  const intro = useIntro(flow.phase === 'intro', () => { markSeen(); dispatch({ type: 'introDone' }) })
+  const intro = useIntro(flow.phase === 'intro', () => dispatch({ type: 'introDone' }))
   const term = useTerminal(flow.phase, () => dispatch({ type: 'terminalReady' }))
   const [drag, setDrag] = useState<DragInfo>(NO_DRAG)
   const [dragged, setDragged] = useState(false)

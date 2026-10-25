@@ -10,7 +10,7 @@ pnpm test                   # vitest, pure logic only
 pnpm build                  # tsc -b + vite build into dist/
 ```
 
-`?intro=1` replays the intro (it plays once per browser). `prefers-reduced-motion` skips it.
+The intro plays on every load, like the reference. `?intro=0` skips it (handy while developing) and `prefers-reduced-motion` skips it too.
 
 ## Flow
 

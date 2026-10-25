@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { introFrames, introDuration, readSeen, markSeen } from './intro-schedule'
+import { introFrames, introDuration } from './intro-schedule'
 
 describe('introFrames', () => {
   it('runs the frames in order', () => {
@@ -14,11 +14,4 @@ describe('introFrames', () => {
   })
 
   it('lasts 6.2 s with the default title', () => expect(introDuration('Clawdy')).toBe(6200))
-})
-
-describe('seen flag', () => {
-  it('is false when storage is unavailable and never throws', () => {
-    expect(readSeen()).toBe(false)
-    expect(() => markSeen()).not.toThrow()
-  })
 })

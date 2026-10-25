@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react'
-import { createSpin } from './dizzy'
+import { createShake, createSpin } from './dizzy'
 import type { Phase } from './flow'
 import { contains, dockOffset, dragOffset, feetOf, type Point } from './geometry'
 import { DURATION, petReduce } from './pet-state'
@@ -38,10 +38,12 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
   const [dock, setDock] = useState(ZERO)
   const offRef = useRef(ZERO)
   const [drag, setDrag] = useState<DragInfo>(NO_DRAG)
-  const press = useRef<{ id: number; x: number; y: number; moved: boolean; base: typeof ZERO } | null>(null)
+  const press = useRef<{ id: number; x: number; y: number; moved: boolean; base: typeof ZERO; lastX: number } | null>(null)
   const over = useRef(false)
   const sleepTimer = useRef(0)
   const dizzyUntil = useRef(0)
+  const dizzyMs = useRef<number>(DURATION.dizzy)
+  const shake = useRef(createShake())
 
   const stage = phase === 'stage'
   const docked = spot !== 'rest'
@@ -56,7 +58,7 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
 
   // Timed states return to idle; idle falls asleep after a long quiet spell.
   useEffect(() => {
-    const ms = { happy: DURATION.happy, dizzy: DURATION.dizzy, wake: DURATION.wake, walking: DURATION.walking, idle: 0, sleeping: 0 }[state]
+    const ms = { happy: DURATION.happy, dizzy: dizzyMs.current, wake: DURATION.wake, walking: DURATION.walking, idle: 0, sleeping: 0 }[state]
     if (reduced || !ms) return
     const id = window.setTimeout(() => send('settle'), ms)
     return () => window.clearTimeout(id)
@@ -90,6 +92,7 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
       if (!r) return
       const f = feetOf(r)
       if (spin.push(e.clientX, e.clientY, f.x + offRef.current.dx, f.y + offRef.current.dy - BODY_LIFT, now)) {
+        dizzyMs.current = DURATION.dizzy
         send('spin')
         dizzyUntil.current = now + DURATION.dizzy + DURATION.cooldown
       }
@@ -129,7 +132,8 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
 
   const onPointerDown = (e: PointerEvent<HTMLButtonElement>) => {
     if (!stage || e.button > 0) return
-    press.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, base: off }
+    shake.current.reset()
+    press.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, base: off, lastX: e.clientX }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
 
@@ -137,8 +141,12 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
     const p = press.current, slot = slotRef.current, zone = zoneRef.current
     if (!p || e.pointerId !== p.id || !slot || !zone) return
     const dx = e.clientX - p.x, dy = e.clientY - p.y
+    const step = e.clientX - p.lastX
+    p.lastX = e.clientX
     if (!p.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return
     p.moved = true
+    // Shaking Vinnie while dragging makes it dizzy, like the desktop pet.
+    if (!reduced && shake.current.push(step, performance.now())) { dizzyMs.current = DURATION.dizzyShake; send('spin') }
     const feet = feetOf(slot.getBoundingClientRect())
     const next = dragOffset(feet, p.base, { dx, dy }, window.innerWidth, window.innerHeight)
     setOff(next)
@@ -162,7 +170,7 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
     report(NO_DRAG)
   }
 
-  const shown: VinnieState = forced ?? (spot === 'zone' ? 'typing' : drag.dragging ? (drag.over ? 'typing' : 'idle') : state)
+  const shown: VinnieState = forced ?? (spot === 'zone' ? 'typing' : drag.dragging ? (state === 'dizzy' ? 'dizzy' : drag.over ? 'typing' : 'idle') : state)
   const cls = ['pet', entrance && 'arrive', drag.dragging && 'held'].filter(Boolean).join(' ')
 
   return (
