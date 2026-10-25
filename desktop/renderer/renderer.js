@@ -171,9 +171,9 @@ const MONSTER_STATES = Object.fromEntries(
 );
 const ART = AGENT === "claude" ? "crab" : AGENT === "codex" ? "cloud" : "monster";
 crab.dataset.art = ART;
-// The default monster is a character of its own, Mochi (docs/mochi.md): it says
+// The default monster is a character of its own, Vinnie (docs/vinnie.md): it says
 // its name in the tooltip, while the label keeps naming the agent it works for.
-if (ART === "monster") hit.title = "Mochi · Clic para ver actividad · Arrastra para mover";
+if (ART === "monster") hit.title = "Vinnie · Clic para ver actividad · Arrastra para mover";
 const ART_STATES = { crab: STATES, cloud: CODEX_STATES, monster: MONSTER_STATES }[ART];
 
 const ALIAS = {

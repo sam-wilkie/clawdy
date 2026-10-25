@@ -109,7 +109,7 @@ test("every monster art file the renderer can request exists", () => {
   }
 });
 
-test("the default monster pet introduces itself as Mochi in its tooltip; crab and cloud keep theirs", () => {
+test("the default monster pet introduces itself as Vinnie in its tooltip; crab and cloud keep theirs", () => {
   const tooltip = (agent) => {
     const els = new Map();
     const element = (id) => (els.has(id) ? els.get(id) : els.set(id, stubElement()).get(id));
@@ -124,14 +124,14 @@ test("the default monster pet introduces itself as Mochi in its tooltip; crab an
     return { title: typeof title === "string" ? title : undefined, label: element("crab-label").textContent };
   };
   for (const agent of ["kiro", "opencode", "antigravity"]) {
-    assert.equal(tooltip(agent).title, "Mochi · Clic para ver actividad · Arrastra para mover", agent);
+    assert.equal(tooltip(agent).title, "Vinnie · Clic para ver actividad · Arrastra para mover", agent);
   }
   assert.equal(tooltip("kiro").label, "Kiro");
   assert.equal(tooltip("claude").title, undefined);
   assert.equal(tooltip("codex").title, undefined);
 });
 
-test("Mochi is drawn at 80 % and only Mochi: the crab and the cloud keep full size", () => {
+test("Vinnie is drawn at 80 % and only Vinnie: the crab and the cloud keep full size", () => {
   const css = read("renderer/style.css");
   assert.match(css, /#crab\[data-art="monster"\] #crab-art \{ scale: 0\.8; \}/);
   assert.equal((css.match(/scale:/g) || []).length, 1);

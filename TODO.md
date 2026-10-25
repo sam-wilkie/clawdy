@@ -4,7 +4,7 @@
 
 - [x] Retirado el mod de terminal de Claude: sin menu, activacion, fuentes ni empaquetado. Limpieza de instalaciones antiguas conserva otros plugins y hooks.
 
-- [x] Mascota por defecto: monstruo de la marca (`tools/monster_pixel.py`, 29 estados en `desktop/renderer/assets/monster/`) para Kiro, OpenCode, Antigravity y agentes sin arte propio; Claude conserva el cangrejo y Codex la nube. Pendiente: verlo en una ventana Electron real. Detalle: `odd/tasks/monster-default-pet.md`.
+- [x] Mascota por defecto: monstruo de la marca (`tools/monster_pixel.py`, 29 estados en `desktop/renderer/assets/monster/`) para Kiro, OpenCode, Antigravity y agentes sin arte propio; Claude conserva el cangrejo y Codex la nube. Pendiente: verlo en una ventana Electron real. Detalle: `odd/tasks/monster-default-pet.md`. Renombrada Vinnie (antes Mochi) y usada también en la web (`website/assets/vinnie-*-v2.svg`, sin seguimiento de ojos); ficha en `docs/vinnie.md`.
 - [x] Art bible de mascotas (`docs/pet-art-bible.md`), skill `new-pet` (`.agents/skills/`, `.claude/skills/`), validador `tools/pet_check.py` y hoja de cuadros `tools/pet_sheet.py` para crear mascotas nuevas con menos iteraciones.
 - [x] Electron: mascotas y panel para Claude Code, Codex, Kiro, OpenCode y Antigravity.
 - [x] Consumo: Claude por statusLine, Codex por app-server, Kiro IDE por cache y OpenCode/Antigravity por historial (dia/mes/acumulado); Antigravity no informa costo monetario.
