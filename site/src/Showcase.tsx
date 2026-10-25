@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
 import { CARDS, SHOWCASE_SUBTITLE } from './showcase-data'
 import { Vinnie } from './Vinnie'
 
@@ -6,11 +6,13 @@ const GITHUB_MARK = 'M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-
 
 /** The second page: six cards of Vinnie at work, a way back to the start and the repo link. */
 export function Showcase({ onRestart }: { onRestart: () => void }) {
+  const title = useRef<HTMLHeadingElement>(null)
+  useEffect(() => { title.current?.focus({ preventScroll: true }) }, []) // the page changed under the keyboard: land on its title
   return (
     <section className="showcase" aria-labelledby="show-title">
       <button type="button" className="play" onClick={onRestart}>↻ Volver a empezar</button>
       <header className="show-head">
-        <h2 id="show-title" tabIndex={-1}>Clawdy</h2>
+        <h2 ref={title} id="show-title" tabIndex={-1}>Clawdy</h2>
         <p>{SHOWCASE_SUBTITLE}</p>
       </header>
       <div className="cards">

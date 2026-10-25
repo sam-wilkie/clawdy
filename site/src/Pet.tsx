@@ -3,7 +3,7 @@ import { createShake } from './dizzy'
 import type { Phase } from './flow'
 import type { Look } from './gaze'
 import { BODY_LIFT, DOCK_LIFT, contains, dockOffset, dragOffset, feetOf } from './geometry'
-import { DURATION } from './pet-state'
+import { DURATION, heldMood } from './pet-state'
 import type { Spot } from './phase-view'
 import { useDock } from './useDock'
 import { usePetLife } from './usePetLife'
@@ -26,6 +26,7 @@ interface Props {
   termRef: RefObject<HTMLDivElement | null>
   forced?: VinnieState
   look?: Look                     // what the idle face looks at; null follows the pointer
+  leaving?: boolean               // the allow choreography: fade out where he stands
   entrance: boolean
   reduced: boolean
   onDrag: (d: DragInfo) => void
@@ -34,7 +35,7 @@ interface Props {
 }
 
 /** Vinnie on the stage: idle life (sleep, wake, happy, dizzy) and drag and drop onto the drop zone. */
-export function Pet({ phase, spot, behind, slotRef, zoneRef, termRef, forced, look, entrance, reduced, onDrag, onDrop, onPoke }: Props) {
+export function Pet({ phase, spot, behind, slotRef, zoneRef, termRef, forced, look, leaving, entrance, reduced, onDrag, onDrop, onPoke }: Props) {
   const { state, send, dizzy } = usePetLife(entrance, reduced)
   const [off, setOff] = useState(ZERO)
   const offRef = useRef(ZERO)
@@ -91,12 +92,12 @@ export function Pet({ phase, spot, behind, slotRef, zoneRef, termRef, forced, lo
     report(NO_DRAG)
   }
 
-  const shown: VinnieState = forced ?? (spot === 'zone' ? 'typing' : drag.dragging ? (state === 'dizzy' ? 'dizzy' : drag.over ? 'typing' : 'idle') : state)
+  const shown: VinnieState = forced ?? (spot === 'zone' ? 'typing' : drag.dragging ? heldMood(state, drag.over) : state)
   const jumping = forced === 'jump' // the hop from the peek spot to the resting spot, an arc in CSS
   const cls = ['pet', entrance && 'arrive', drag.dragging && 'held', jumping && 'jumping'].filter(Boolean).join(' ')
 
   return (
-    <div ref={slotRef} className={`pet-slot${behind ? ' behind' : ''}${jumping ? ' jumping' : ''}`}>
+    <div ref={slotRef} className={`pet-slot${behind ? ' behind' : ''}${jumping ? ' jumping' : ''}${leaving ? ' leaving' : ''}`}>
       <div className={cls} style={{ '--dx': `${o.dx}px`, '--dy': `${o.dy}px` } as React.CSSProperties}>
         <Vinnie state={shown} follow={!reduced} look={look} />
         <button

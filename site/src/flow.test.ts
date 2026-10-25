@@ -15,10 +15,17 @@ describe('flow', () => {
     expect(initialFlow(false)).toEqual(at('stage'))
   })
 
-  it('walks the happy path to the showcase', () => {
+  it('walks the happy path to the showcase, through the allow choreography', () => {
     let f = initialFlow(true)
     for (const type of ['introDone', 'dropped', 'terminalReady', 'allow'] as const) f = reduce(f, { type })
-    expect(f).toEqual(at('showcase'))
+    expect(f).toEqual(at('allowing'))
+    expect(reduce(f, { type: 'allowed' })).toEqual(at('showcase'))
+  })
+
+  it('does not let a click interrupt the allow choreography', () => {
+    for (const type of ['allow', 'deny', 'restart'] as const) {
+      expect(reduce(at('allowing'), type === 'restart' ? { type, intro: true } : { type })).toEqual(at('allowing'))
+    }
   })
 
   it('pleads on the first deny and ends on the second', () => {
@@ -28,7 +35,7 @@ describe('flow', () => {
   })
 
   it('still lets the plea end in Allow', () => {
-    expect(reduce(at('plead', 1), { type: 'allow' })).toEqual(at('showcase', 1))
+    expect(reduce(at('plead', 1), { type: 'allow' })).toEqual(at('allowing', 1))
   })
 
   it('restarts from the showcase or the exit screen on the intro, with a clean count', () => {
@@ -42,6 +49,7 @@ describe('flow', () => {
 
   it('ignores an action that does not belong to the current phase', () => {
     expect(reduce(at('stage'), { type: 'allow' })).toEqual(at('stage'))
+    expect(reduce(at('permission'), { type: 'allowed' })).toEqual(at('permission'))
     expect(reduce(at('intro'), { type: 'dropped' })).toEqual(at('intro'))
     expect(reduce(at('terminal'), { type: 'deny' })).toEqual(at('terminal'))
     expect(reduce(at('stage'), { type: 'restart', intro: true })).toEqual(at('stage'))

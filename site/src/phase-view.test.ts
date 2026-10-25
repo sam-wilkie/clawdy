@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Phase } from './flow'
 import { phaseView } from './phase-view'
 
-const phases: Phase[] = ['intro', 'stage', 'terminal', 'permission', 'plead', 'showcase', 'exit']
+const phases: Phase[] = ['intro', 'stage', 'terminal', 'permission', 'plead', 'allowing', 'showcase', 'exit']
 
 describe('phaseView', () => {
   it('flags exactly one screen family per phase', () => {
@@ -16,6 +16,7 @@ describe('phaseView', () => {
     expect(phaseView('terminal').terminal).toBe(true)
     expect(phaseView('permission').terminal).toBe(true)
     expect(phaseView('plead').terminal).toBe(true)
+    expect(phaseView('allowing').terminal).toBe(true) // it shrinks away after the card fades
     expect(phaseView('stage').terminal).toBe(false)
   })
 
@@ -24,12 +25,17 @@ describe('phaseView', () => {
   })
 
   it('docks Vinnie on the drop zone, then beside the terminal, else at rest', () => {
-    expect(phases.map((p) => phaseView(p).spot)).toEqual(['rest', 'rest', 'zone', 'terminal', 'terminal', 'rest', 'rest'])
+    expect(phases.map((p) => phaseView(p).spot)).toEqual(['rest', 'rest', 'zone', 'terminal', 'terminal', 'terminal', 'rest', 'rest'])
   })
 
   it('keeps a fixed mood only on the exit screen (the others follow the mood timeline)', () => {
     expect(phaseView('exit').mood).toBe('cool')
-    for (const p of ['intro', 'stage', 'terminal', 'permission', 'plead', 'showcase'] as const) expect(phaseView(p).mood).toBeUndefined()
+    for (const p of ['intro', 'stage', 'terminal', 'permission', 'plead', 'allowing', 'showcase'] as const) expect(phaseView(p).mood).toBeUndefined()
+  })
+
+  it('marks the allow choreography, where the card is still on screen but no longer answerable', () => {
+    expect(phases.filter((p) => phaseView(p).allowing)).toEqual(['allowing'])
+    expect(phaseView('allowing').asking).toBe(false)
   })
 
   it('hides Vinnie on the showcase page only', () => {

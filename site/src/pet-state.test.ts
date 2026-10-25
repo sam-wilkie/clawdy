@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { petReduce, type PetEvent, type PetState } from './pet-state'
+import { heldMood, petReduce, type PetEvent, type PetState } from './pet-state'
 
 const step = (s: PetState, e: PetEvent) => petReduce(s, e)
 
@@ -30,5 +30,21 @@ describe('petReduce', () => {
   it('settles back to idle when a timed state ends', () => {
     for (const s of ['happy', 'dizzy', 'wake', 'walking'] as const) expect(step(s, 'settle')).toBe('idle')
     expect(step('sleeping', 'settle')).toBe('sleeping')
+  })
+})
+
+describe('heldMood', () => {
+  it('struggles while he is held anywhere on the stage', () => {
+    expect(heldMood('idle', false)).toBe('drag')
+    expect(heldMood('sleeping', false)).toBe('drag')
+  })
+
+  it('starts typing as soon as he is over the drop zone', () => {
+    expect(heldMood('idle', true)).toBe('typing')
+  })
+
+  it('stays dizzy if shaking him made him dizzy', () => {
+    expect(heldMood('dizzy', false)).toBe('dizzy')
+    expect(heldMood('dizzy', true)).toBe('dizzy')
   })
 })

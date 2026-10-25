@@ -7,8 +7,8 @@ describe('moodTimeline', () => {
     expect(moodTimeline('permission').map((b) => b.mood)).toEqual(['idea', 'waiting_reply'])
   })
 
-  it('shows the error, then wakes up, then waits for another answer', () => {
-    expect(moodTimeline('plead').map((b) => b.mood)).toEqual(['error', 'wake', 'waiting_reply'])
+  it('shows the error, wakes up, scratches his head, pleads with hearts, then waits for another answer', () => {
+    expect(moodTimeline('plead').map((b) => b.mood)).toEqual(['error', 'wake', 'scratch', 'aegyo', 'waiting_reply'])
   })
 
   it('has nothing to say in the other phases, and the last beat holds forever', () => {
@@ -51,10 +51,13 @@ describe('moodAt', () => {
 
   it('walks the beats by elapsed time', () => {
     expect(moodAt(plead, 0)).toBe('error')
-    expect(moodAt(plead, 2199)).toBe('error')
-    expect(moodAt(plead, 2200)).toBe('wake')
-    expect(moodAt(plead, 3799)).toBe('wake')
-    expect(moodAt(plead, 3800)).toBe('waiting_reply')
+    expect(moodAt(plead, 1199)).toBe('error')
+    expect(moodAt(plead, 1200)).toBe('wake')
+    expect(moodAt(plead, 2699)).toBe('wake')
+    expect(moodAt(plead, 2700)).toBe('scratch')
+    expect(moodAt(plead, 3450)).toBe('aegyo')
+    expect(moodAt(plead, 9529)).toBe('aegyo')
+    expect(moodAt(plead, 9530)).toBe('waiting_reply')
     expect(moodAt(plead, 600000)).toBe('waiting_reply')
   })
 

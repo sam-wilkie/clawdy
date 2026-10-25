@@ -1,7 +1,7 @@
-export type Phase = 'intro' | 'stage' | 'terminal' | 'permission' | 'plead' | 'showcase' | 'exit'
+export type Phase = 'intro' | 'stage' | 'terminal' | 'permission' | 'plead' | 'allowing' | 'showcase' | 'exit'
 export interface Flow { phase: Phase; denies: number }
 export type Action =
-  | { type: 'introDone' | 'dropped' | 'terminalReady' | 'allow' | 'deny' }
+  | { type: 'introDone' | 'dropped' | 'terminalReady' | 'allow' | 'allowed' | 'deny' }
   | { type: 'restart'; intro: boolean } // back to the start: the intro, or the stage when there is no intro
 
 /** The intro plays on every load, like the reference; ?intro=0 skips it and reduced motion never plays it. */
@@ -17,7 +17,8 @@ export function reduce(f: Flow, a: Action): Flow {
     case 'introDone': return f.phase === 'intro' ? { ...f, phase: 'stage' } : f
     case 'dropped': return f.phase === 'stage' ? { ...f, phase: 'terminal' } : f
     case 'terminalReady': return f.phase === 'terminal' ? { ...f, phase: 'permission' } : f
-    case 'allow': return f.phase === 'permission' || f.phase === 'plead' ? { ...f, phase: 'showcase' } : f
+    case 'allow': return f.phase === 'permission' || f.phase === 'plead' ? { ...f, phase: 'allowing' } : f // the card fades, the stage clears
+    case 'allowed': return f.phase === 'allowing' ? { ...f, phase: 'showcase' } : f
     case 'deny':
       if (f.phase === 'permission') return { phase: 'plead', denies: f.denies + 1 }
       if (f.phase === 'plead') return { phase: 'exit', denies: f.denies + 1 }

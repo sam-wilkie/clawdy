@@ -10,7 +10,7 @@ export interface Beat { mood: VinnieState; ms?: number }
 
 /**
  * What Vinnie shows over time while the permission card is up. When the card arrives a bulb lights up, then it waits;
- * after a Deny it shows the error, wakes up and waits for another answer, instead of staying in the error.
+ * after a Deny it shows the error, wakes up, scratches his head and pleads with hearts, then waits for another answer.
  */
 export function moodTimeline(phase: Phase, stage?: TerminalStage, compact = false): Beat[] {
   if (phase === 'terminal' && (stage === 'think' || stage === 'tool')) {
@@ -23,7 +23,8 @@ export function moodTimeline(phase: Phase, stage?: TerminalStage, compact = fals
   }
   switch (phase) {
     case 'permission': return [{ mood: 'idea', ms: 2400 }, { mood: 'waiting_reply' }]
-    case 'plead': return [{ mood: 'error', ms: 2200 }, { mood: 'wake', ms: 1600 }, { mood: 'waiting_reply' }]
+    // the reference's order after a Deny: error, wake, scratch his head, then the shy plea with hearts for 6 s, then wait
+    case 'plead': return [{ mood: 'error', ms: 1200 }, { mood: 'wake', ms: 1500 }, { mood: 'scratch', ms: 750 }, { mood: 'aegyo', ms: 6080 }, { mood: 'waiting_reply' }]
     default: return []
   }
 }

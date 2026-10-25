@@ -20,6 +20,10 @@ export const VINNIE = {
   error: entry('error'),
   idea: entry('idea'),
   slip_in: entry('slip-in'),   // slides under the terminal window's left edge (drawn for a window edge at viewBox x = 16)
+  scratch: entry('scratch'),   // scratches his head after waking from the error (loop, already mid-gesture at t=0)
+  aegyo: entry('aegyo'),       // the shy plea after a second look: ^ ^ eyes, blush, four hearts rising (loop 3.2 s)
+  panic: entry('panic'),       // the intro's reveal startle, 3.5 s once, ends in the idle pose
+  drag: entry('drag'),         // held by the pointer: > < eyes, sways, mittens flail, shadow shrinks (loops)
   peek: entry('peek'),         // slides out at the window's right edge, waves a mitten, blinks and holds half out (edge at viewBox x = 0)
   jump: entry('jump'),         // 350 ms squash and stretch drawn at the resting spot; the arc itself is CSS (.jumping)
   waiting_reply: entry('waiting_reply'),

@@ -11,6 +11,7 @@ import { phaseView } from './phase-view'
 import { PointerPulse } from './PointerPulse'
 import { Showcase } from './Showcase'
 import { Terminal } from './Terminal'
+import { useAllow } from './useAllow'
 import { useIntro } from './useIntro'
 import { useMood } from './useMood'
 import { useStageActivity } from './useStageActivity'
@@ -37,6 +38,7 @@ export default function App() {
   const view = phaseView(phase, term.stage, compact)
   const act = useStageActivity(view.stage, reduced)
   const mood = useMood(phase, term.stage, compact)
+  const closing = useAllow(phase, reduced, () => dispatch({ type: 'allowed' })) // the terminal shrinks away after Allow
 
   const restart = () => {
     const playIntro = wantsIntro({ reduced, skip: skipIntro })
@@ -47,15 +49,15 @@ export default function App() {
   }
 
   return (
-    <main className="stage" data-phase={phase} data-frame={view.intro ? intro.frame : '4'}>
+    <main className="stage" data-phase={phase} data-dragging={act.drag.dragging || undefined} data-frame={view.intro ? intro.frame : '4'}>
       <h1 className="sr">Clawdy, una mascota pixel art llamada Vinnie que reacciona a tus sesiones de Claude Code.</h1>
       <PointerPulse reduced={reduced} />
       {view.intro && <Intro {...intro} />}
       {view.exit && <Exit reduced={reduced} onRestart={restart} />}
       <div ref={zoneRef} className={`drop-zone${act.drag.dragging || view.stage ? ' show' : ''}${act.drag.over ? ' over' : ''}`} aria-hidden="true">Suéltame aquí</div>
       <ArcHint show={view.stage && act.arcReady && !act.dragged && !act.poked} petRef={slotRef} zoneRef={zoneRef} />
-      {view.terminal && <Terminal stage={term.stage} text={term.text} dim={view.asking} choice={phase === 'plead' ? 3 : 1} termRef={termRef} />}
-      {view.asking && <PermCard pleading={phase === 'plead'} onAllow={() => dispatch({ type: 'allow' })} onDeny={() => dispatch({ type: 'deny' })} />}
+      {view.terminal && <Terminal stage={term.stage} text={term.text} dim={view.asking || view.allowing} closing={closing} choice={phase === 'plead' ? 3 : 1} termRef={termRef} />}
+      {(view.asking || view.allowing) && <PermCard pleading={phase === 'plead' || (view.allowing && flow.denies > 0)} leaving={view.allowing} onAllow={() => dispatch({ type: 'allow' })} onDeny={() => dispatch({ type: 'deny' })} />}
       {view.showcase && <Showcase onRestart={restart} />}
       {!view.petHidden && (
         <Pet
@@ -66,8 +68,9 @@ export default function App() {
           slotRef={slotRef}
           zoneRef={zoneRef}
           termRef={termRef}
-          forced={view.intro && intro.frame === '3' ? 'alert' : view.mood ?? mood}
-          look={lookTarget(view.intro ? intro.frame : undefined)}
+          forced={view.intro && intro.frame === '3' ? 'panic' : view.mood ?? mood}
+          look={view.allowing ? 'center' : lookTarget(view.intro ? intro.frame : undefined)}
+          leaving={closing}
           entrance={entrance}
           reduced={reduced}
           onDrag={act.onDrag}

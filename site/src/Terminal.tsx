@@ -1,14 +1,14 @@
 import type { RefObject } from 'react'
 import { PROMPT, TOOL_COMMAND, stageIndex, type TerminalStage } from './terminal-script'
 
-interface Props { stage: TerminalStage; text: string; dim: boolean; choice: 1 | 3; termRef: RefObject<HTMLDivElement | null> }
+interface Props { stage: TerminalStage; text: string; dim: boolean; closing?: boolean; choice: 1 | 3; termRef: RefObject<HTMLDivElement | null> }
 
 /** A macOS-style terminal window running a coding agent. The view only reads the stage the script has reached. */
-export function Terminal({ stage, text, dim, choice, termRef }: Props) {
+export function Terminal({ stage, text, dim, closing, choice, termRef }: Props) {
   const at = (s: TerminalStage) => stageIndex(stage) >= stageIndex(s)
   const typing = stage === 'type'
   return (
-    <div ref={termRef} className={`term${dim ? ' dim' : ''}`} role="img" aria-label="Terminal simulada de un agente de código">
+    <div ref={termRef} className={`term${dim ? ' dim' : ''}${closing ? ' closing' : ''}`} role="img" aria-label="Terminal simulada de un agente de código">
       <div className="term-bar">
         <i className="dot r" /><i className="dot y" /><i className="dot g" />
         <span className="term-title">vinnie@clawdy: ~</span>

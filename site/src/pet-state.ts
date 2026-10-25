@@ -1,3 +1,5 @@
+import type { VinnieState } from './vinnie-states'
+
 export type PetState = 'idle' | 'happy' | 'dizzy' | 'sleeping' | 'wake' | 'walking'
 export type PetEvent = 'click' | 'spin' | 'sleep' | 'activity' | 'settle'
 
@@ -14,4 +16,9 @@ export function petReduce(s: PetState, e: PetEvent): PetState {
     case 'activity': return s === 'sleeping' ? 'wake' : s
     case 'settle': return s === 'sleeping' || s === 'idle' ? s : 'idle'
   }
+}
+
+/** What he shows while the pointer holds him: struggling, typing once over the drop zone, or still dizzy from being shaken. */
+export function heldMood(state: PetState, over: boolean): VinnieState {
+  return state === 'dizzy' ? 'dizzy' : over ? 'typing' : 'drag'
 }

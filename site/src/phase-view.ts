@@ -12,16 +12,18 @@ export type Spot = 'rest' | 'zone' | 'hide' | 'terminal'
  */
 export function phaseView(phase: Phase, stage?: TerminalStage, compact = false) {
   const asking = phase === 'permission' || phase === 'plead'
+  const allowing = phase === 'allowing' // Allow was pressed: the card fades, then the terminal shrinks away with Vinnie
   const running = phase === 'terminal' && (stage === 'think' || stage === 'tool')
   const spot: Spot = phase === 'terminal'
     ? running ? (compact || stage === 'tool' ? 'terminal' : 'hide') : 'zone'
-    : asking ? 'terminal' : 'rest'
+    : asking || allowing ? 'terminal' : 'rest'
   const mood: VinnieState | undefined = phase === 'exit' ? 'cool' : undefined
   return {
     intro: phase === 'intro',
     stage: phase === 'stage',
-    terminal: phase === 'terminal' || asking,
+    terminal: phase === 'terminal' || asking || allowing,
     asking,
+    allowing,
     showcase: phase === 'showcase',
     exit: phase === 'exit',
     petHidden: phase === 'showcase',
