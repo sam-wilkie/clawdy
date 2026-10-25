@@ -139,6 +139,7 @@ export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, ent
     const p = press.current
     press.current = null
     if (!p || e.pointerId !== p.id) return
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
     const slot = slotRef.current, zone = zoneRef.current
     if (!p.moved) { if (!cancelled) send('click'); return }
     if (over.current && !cancelled && slot && zone) {

@@ -122,6 +122,16 @@ cd host && .venv/Scripts/python.exe -m pytest tests/test_hotbar_process.py
 
 The tray starts and stops the hotbar (`hotbar_process.py`); "Show hotbar" in the tray menu toggles `hotbar_enabled` in `preferences.json`. The exe is found via `CLAWDY_HOTBAR_EXE` (absolute path), then next to `sys.executable`, then `$CARGO_TARGET_DIR/release/`, then `hotbar/src-tauri/target/release/`; if none exists the tray logs a warning and runs without the bar. The headless daemon never launches it. Packaging: `margarita_tank.spec` copies the exe next to `Clawdy.exe` (same candidates; warns when missing), the release workflow builds it before PyInstaller and fails the build check without it, and `installer.iss` kills it before an upgrade and on uninstall.
 
+### Site (React)
+
+```bash
+cd site && pnpm install
+cd site && pnpm dev --host 127.0.0.1   # http://127.0.0.1:5173/
+cd site && pnpm test && pnpm build
+```
+
+The Clawdy landing (`site/`, Vite + React + TypeScript). Flow, phases and file layout: `site/README.md`. The old `website/` prototype is gitignored and no longer maintained.
+
 ### Releases
 
 `.github/workflows/release.yml` runs on a `vX.Y.Z` tag push (or a release published from the UI) and attaches `Clawdy.dmg` and `Clawdy-Setup.exe` to the release. Asset names are unversioned so the README links to `releases/latest/download/<asset>`.
