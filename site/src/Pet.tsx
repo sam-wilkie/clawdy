@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState, type PointerEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react'
 import { createSpin } from './dizzy'
 import type { Phase } from './flow'
 import { contains, dockOffset, feetOf } from './geometry'
@@ -14,11 +14,16 @@ export interface DragInfo { dragging: boolean; over: boolean }
 const NO_DRAG: DragInfo = { dragging: false, over: false }
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
+export type Spot = 'rest' | 'zone' | 'terminal'
+
 interface Props {
   phase: Phase
+  spot: Spot
   slotRef: RefObject<HTMLDivElement | null>
   zoneRef: RefObject<HTMLDivElement | null>
+  termRef: RefObject<HTMLDivElement | null>
   forced?: VinnieState
+  extra?: ReactNode
   entrance: boolean
   reduced: boolean
   onDrag: (d: DragInfo) => void
@@ -26,7 +31,7 @@ interface Props {
 }
 
 /** Vinnie on the stage: idle life (sleep, wake, happy, dizzy) and drag and drop onto the drop zone. */
-export function Pet({ phase, slotRef, zoneRef, forced, entrance, reduced, onDrag, onDrop }: Props) {
+export function Pet({ phase, spot, slotRef, zoneRef, termRef, forced, extra, entrance, reduced, onDrag, onDrop }: Props) {
   const [state, send] = useReducer(petReduce, entrance && !reduced ? 'walking' : 'idle')
   const [off, setOff] = useState({ dx: 0, dy: 0 })
   const [dock, setDock] = useState({ dx: 0, dy: 0 })
@@ -37,7 +42,7 @@ export function Pet({ phase, slotRef, zoneRef, forced, entrance, reduced, onDrag
   const dizzyUntil = useRef(0)
 
   const stage = phase === 'stage'
-  const docked = phase !== 'stage' && phase !== 'intro'
+  const docked = spot !== 'rest'
 
   const armSleep = useCallback(() => {
     window.clearTimeout(sleepTimer.current)
@@ -89,16 +94,25 @@ export function Pet({ phase, slotRef, zoneRef, forced, entrance, reduced, onDrag
     return () => window.removeEventListener('pointermove', onMove)
   }, [stage, reduced, drag.dragging, slotRef])
 
-  // Keep the docked position right when the window changes size.
+  // Docked spots: on the drop zone (typing) or waiting to the right of the terminal. Recomputed on resize.
   useEffect(() => {
-    if (!docked) return
+    if (spot === 'rest') return
     const place = () => {
-      const slot = slotRef.current?.getBoundingClientRect(), zone = zoneRef.current?.getBoundingClientRect()
-      if (slot && zone) setDock(dockOffset(feetOf(slot), zone, DOCK_LIFT))
+      const slot = slotRef.current?.getBoundingClientRect()
+      if (!slot) return
+      const feet = feetOf(slot)
+      if (spot === 'zone') {
+        const zone = zoneRef.current?.getBoundingClientRect()
+        if (zone) setDock(dockOffset(feet, zone, DOCK_LIFT))
+        return
+      }
+      const term = termRef.current?.getBoundingClientRect()
+      if (term) setDock({ dx: Math.min(term.right + 60, window.innerWidth - 60) - feet.x, dy: term.bottom + 14 - feet.y })
     }
+    place()
     window.addEventListener('resize', place)
     return () => window.removeEventListener('resize', place)
-  }, [docked, slotRef, zoneRef])
+  }, [spot, slotRef, zoneRef, termRef])
 
   const report = (d: DragInfo) => { setDrag(d); onDrag(d) }
 
@@ -137,7 +151,7 @@ export function Pet({ phase, slotRef, zoneRef, forced, entrance, reduced, onDrag
     report(NO_DRAG)
   }
 
-  const shown: VinnieState = forced ?? (docked ? 'typing' : drag.dragging ? (drag.over ? 'typing' : 'idle') : state)
+  const shown: VinnieState = forced ?? (spot === 'zone' ? 'typing' : drag.dragging ? (drag.over ? 'typing' : 'idle') : state)
   const o = docked ? dock : off
   const cls = ['pet', entrance && 'arrive', drag.dragging && 'held'].filter(Boolean).join(' ')
 
@@ -145,6 +159,7 @@ export function Pet({ phase, slotRef, zoneRef, forced, entrance, reduced, onDrag
     <div ref={slotRef} className="pet-slot">
       <div className={cls} style={{ '--dx': `${o.dx}px`, '--dy': `${o.dy}px` } as React.CSSProperties}>
         <Vinnie state={shown} />
+        {extra}
         <button
           className="pet-hit"
           type="button"
