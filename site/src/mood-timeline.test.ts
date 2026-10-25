@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { moodAt, moodTimeline } from './mood-timeline'
+import { JUMP_MS, moodAt, moodTimeline } from './mood-timeline'
 import { T } from './terminal-script'
 
 describe('moodTimeline', () => {
@@ -27,14 +27,17 @@ describe('moodTimeline while the terminal runs', () => {
     expect(moodTimeline('terminal', 'think').map((b) => b.mood)).toEqual(['walking', 'slip_in'])
   })
 
-  it('crosses hidden under the window, peeks out at the right edge looking around, then slips out', () => {
-    expect(moodTimeline('terminal', 'tool').map((b) => b.mood)).toEqual(['slip_in', 'peek', 'slip_out'])
+  it('crosses hidden under the window, peeks out at the right edge, then jumps to its resting spot', () => {
+    expect(moodTimeline('terminal', 'tool').map((b) => b.mood)).toEqual(['slip_in', 'peek', 'jump'])
   })
 
-  it('leaves the tool stage long enough for the whole slip-in, peek and slip-out', () => {
-    const beats = moodTimeline('terminal', 'tool')
-    const before = beats.slice(0, -1).reduce((t, b) => t + (b.ms ?? 0), 0)
-    expect(before + 1450).toBeLessThanOrEqual(T.tool)
+  it('leaves the tool stage long enough for the slip-in, the peek and the jump', () => {
+    const total = moodTimeline('terminal', 'tool').reduce((t, b) => t + (b.ms ?? JUMP_MS), 0)
+    expect(total).toBeLessThanOrEqual(T.tool)
+  })
+
+  it('holds the jump until the stage ends, so the card finds him landed', () => {
+    expect(moodTimeline('terminal', 'tool').at(-1)?.ms).toBeUndefined()
   })
 
   it('on a narrow screen it just walks to the waiting spot', () => {

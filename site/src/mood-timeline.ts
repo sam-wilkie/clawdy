@@ -2,6 +2,9 @@ import type { Phase } from './flow'
 import type { TerminalStage } from './terminal-script'
 import type { VinnieState } from './vinnie-states'
 
+/** The hop from the peek spot to the resting spot (ms): the sprite's length and the CSS arc in App.css (.jumping). */
+export const JUMP_MS = 350
+
 /** One beat of Vinnie's mood: how long it lasts in ms; a beat without ms holds until the phase ends. */
 export interface Beat { mood: VinnieState; ms?: number }
 
@@ -13,10 +16,10 @@ export function moodTimeline(phase: Phase, stage?: TerminalStage, compact = fals
   if (phase === 'terminal' && (stage === 'think' || stage === 'tool')) {
     if (compact) return [{ mood: 'walking', ms: 700 }]
     // think: walk to the window's left edge, slip under it; tool: cross hidden under the window, peek out at the right
-    // edge (look left, double take, right, up, blink: 2.4 s sprite), slip out
+    // edge (1.65 s: slides in, waves a mitten, blinks), then hop to the resting spot and wait there for the card
     return stage === 'think'
       ? [{ mood: 'walking', ms: 650 }, { mood: 'slip_in' }]
-      : [{ mood: 'slip_in', ms: 650 }, { mood: 'peek', ms: 2400 }, { mood: 'slip_out' }]
+      : [{ mood: 'slip_in', ms: 650 }, { mood: 'peek', ms: 1650 }, { mood: 'jump' }]
   }
   switch (phase) {
     case 'permission': return [{ mood: 'idea', ms: 2400 }, { mood: 'waiting_reply' }]

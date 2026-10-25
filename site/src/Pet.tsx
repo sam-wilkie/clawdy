@@ -90,10 +90,11 @@ export function Pet({ phase, spot, behind, slotRef, zoneRef, termRef, forced, en
   }
 
   const shown: VinnieState = forced ?? (spot === 'zone' ? 'typing' : drag.dragging ? (state === 'dizzy' ? 'dizzy' : drag.over ? 'typing' : 'idle') : state)
-  const cls = ['pet', entrance && 'arrive', drag.dragging && 'held'].filter(Boolean).join(' ')
+  const jumping = forced === 'jump' // the hop from the peek spot to the resting spot, an arc in CSS
+  const cls = ['pet', entrance && 'arrive', drag.dragging && 'held', jumping && 'jumping'].filter(Boolean).join(' ')
 
   return (
-    <div ref={slotRef} className={`pet-slot${behind ? ' behind' : ''}`}>
+    <div ref={slotRef} className={`pet-slot${behind ? ' behind' : ''}${jumping ? ' jumping' : ''}`}>
       <div className={cls} style={{ '--dx': `${o.dx}px`, '--dy': `${o.dy}px` } as React.CSSProperties}>
         <Vinnie state={shown} follow={!reduced} />
         <button

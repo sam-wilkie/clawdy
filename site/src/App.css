@@ -19,6 +19,24 @@
   transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(var(--pet-scale));
   transition: transform .6s var(--ease-boing);
 }
+/* One sprite per state; a state change crossfades for FADE_MS (140 ms, crossfade.ts): the old one fades out, the new one in. */
+.sprite { position: absolute; inset: 0; pointer-events: none; }
+.sprite.in { animation: sprite-in .14s linear; }
+.sprite.out { animation: sprite-out .14s linear forwards; }
+@keyframes sprite-in { from { opacity: 0; } }
+@keyframes sprite-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sprite.in { animation: none; } .sprite.out { display: none; } }
+/* The hop (JUMP_MS = 350 ms): x moves linearly from where the peek sprite ended (8 viewBox units = .178 S left of rest) and y
+   follows a parabola (fast up, slow at the top, accelerating down); they are separate properties so each keeps its own easing. */
+.pet-slot.jumping { animation: hop-x .35s linear; }
+.pet.jumping { animation: hop-y .35s linear; }
+@keyframes hop-x { from { translate: calc(var(--S) * -.178) 0; } }
+@keyframes hop-y {
+  0% { translate: 0 0; animation-timing-function: cubic-bezier(.33, 1, .68, 1); }
+  50% { translate: 0 calc(var(--S) * -.22); animation-timing-function: cubic-bezier(.32, 0, .67, 0); }
+  100% { translate: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) { .pet-slot.jumping, .pet.jumping { animation: none; } }
 .pet.held { transition: none; }
 .pet.arrive { animation: arrive 1.5s cubic-bezier(.16, 1, .3, 1) backwards; }
 @keyframes arrive { from { transform: translate(-30vw, 0) scale(var(--pet-scale)); opacity: 0; } }

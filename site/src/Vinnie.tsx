@@ -1,8 +1,12 @@
+import { useEffect, useState } from 'react'
+import { FADE_MS, crossfade, settle } from './crossfade'
 import { GazeSprite } from './GazeSprite'
 import { VINNIE, type VinnieState } from './vinnie-states'
 
-/** Vinnie as an <img> of its animated SVG, placed so every state shares one pixel scale (viewBox ratio and offset). */
-export function Vinnie({ state, replay = 0, className, follow }: { state: VinnieState; replay?: number; className?: string; follow?: boolean }) {
+interface Props { state: VinnieState; replay?: number; className?: string; follow?: boolean }
+
+/** One state as an <img> of its animated SVG, placed so every state shares one pixel scale (viewBox ratio and offset). */
+function Sprite({ state, replay = 0, className, follow }: Props) {
   // The idle sprite is inlined when its face should follow the pointer; every other state is an <img>.
   if (state === 'idle' && follow !== undefined) return <GazeSprite follow={follow} />
   const { src, vb } = VINNIE[state]
@@ -25,5 +29,29 @@ export function Vinnie({ state, replay = 0, className, follow }: { state: Vinnie
         pointerEvents: 'none',
       }}
     />
+  )
+}
+
+/**
+ * Vinnie in `state`. A change of state crossfades (FADE_MS): the previous sprite stays mounted fading out while the new
+ * one fades in, so the swap is never a hard cut. Keys are the state names, so a sprite is never remounted (and its
+ * one-shot timeline never restarted) when the fade ends.
+ */
+export function Vinnie({ state, ...rest }: Props) {
+  const [fade, setFade] = useState(() => crossfade(undefined, state))
+  const next = crossfade(fade, state)
+  if (next !== fade) setFade(next) // derived during render: the sprite that was showing becomes `leaving`
+
+  useEffect(() => {
+    if (!next.leaving) return
+    const id = window.setTimeout(() => setFade((f) => (f.leaving ? settle(f) : f)), FADE_MS)
+    return () => window.clearTimeout(id)
+  }, [next])
+
+  return (
+    <>
+      {next.leaving && <div key={next.leaving} className="sprite out"><Sprite state={next.leaving} follow={rest.follow} /></div>}
+      <div key={next.cur} className={next.leaving ? 'sprite in' : 'sprite'}><Sprite state={next.cur} {...rest} /></div>
+    </>
   )
 }
