@@ -158,7 +158,7 @@ Curiosidad: **sacude tres veces la mascota en un segundo** y se marea.
 
 <img src="assets/readme/vinnie-sheet.png" alt="Vinnie en ocho poses: hola, pensando, soldando, buscando, listo, cool, durmiendo y error" width="100%">
 
-Vinnie es el personaje propio de Clawdy: una bolita blanca con una media luna roja, tres ojos juntos y mitones. Nació del monstruo de la marca y aparece con cualquier agente que no tenga mascota propia; Claude conserva a Clawd y Codex su nube. Es atento, tranquilo y un poco torpe: suelda cuando construye, se pone un gorro de mago para buscar y se duerme cuando se acaba la batería. Su tooltip lo presenta y la etiqueta sigue mostrando el agente. Ficha de personaje: [docs/vinnie.md](docs/vinnie.md); reglas de arte para nuevas mascotas: [docs/pet-art-bible.md](docs/pet-art-bible.md).
+Vinnie es el personaje propio de Clawdy: una bolita blanca con una media luna roja, tres ojos juntos y mitones. Nació del monstruo de la marca y aparece con cualquier agente que no tenga mascota propia; Claude conserva a Clawd y Codex su nube. Es atento, tranquilo y un poco torpe: suelda cuando construye, se pone un gorro de mago para buscar y se duerme cuando se acaba la batería. Su tooltip lo presenta y la etiqueta sigue mostrando el agente. Ficha de personaje: [docs/vinnie.md](docs/vinnie.md); reglas de arte para nuevas mascotas: [docs/pet-art-bible.md](docs/pet-art-bible.md). Vinnie es un diseño original de Sam Wilkie, con todos los derechos reservados ([licencia](ASSETS-LICENSE.md#vinnie)).
 
 ### Íconos
 
@@ -439,8 +439,10 @@ La suite del escritorio corre con el runner nativo de Node (`node --test`), sin 
 
 MIT. Consulta [LICENSE](LICENSE): conserva el copyright original de Marcio Granzotto Rodrigues, además del de las modificaciones de Clawdy.
 
-El arte original que no representa personajes de terceros se rige por [ASSETS-LICENSE.md](ASSETS-LICENSE.md). Los personajes y las marcas de terceros **no** están licenciados por este proyecto: consulta [NOTICE.md](NOTICE.md).
+El arte original que no representa personajes de terceros se rige por [ASSETS-LICENSE.md](ASSETS-LICENSE.md). Eso incluye a **Vinnie**, un personaje original de Sam Wilkie con todos los derechos reservados: su nombre, su diseño y sus animaciones. Puede mostrarse como parte de Clawdy y en capturas o reseñas del proyecto; cualquier otro uso necesita permiso por escrito. El código de las herramientas que generan su arte es MIT, pero esa licencia no da ningún derecho sobre el personaje.
+
+Los personajes y las marcas de terceros **no** están licenciados por este proyecto: consulta [NOTICE.md](NOTICE.md).
 
 ## `$ cat AVISO`
 
-Proyecto independiente y no oficial: **no está afiliado, patrocinado ni respaldado por Anthropic, OpenAI, Kiro ni ninguna otra empresa** cuyos productos puede mostrar. "Claude", "Claude Code", el personaje Clawd, "Codex" y "OpenAI" son propiedad de sus respectivos dueños y se mencionan solo para indicar compatibilidad. Los personajes incluidos son versiones hechas por fans, para uso personal. Si un titular pide que se cambien o se retiren, se hará.
+Proyecto independiente y no oficial: **no está afiliado, patrocinado ni respaldado por Anthropic, OpenAI, Kiro ni ninguna otra empresa** cuyos productos puede mostrar. "Claude", "Claude Code", el personaje Clawd, "Codex" y "OpenAI" son propiedad de sus respectivos dueños y se mencionan solo para indicar compatibilidad. El cangrejo y la nube de Codex son versiones hechas por fans, para uso personal; Vinnie es un personaje original del autor. Si un titular pide que se cambien o se retiren, se hará.
