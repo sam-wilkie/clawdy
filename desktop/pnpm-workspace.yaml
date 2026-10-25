@@ -1,0 +1,8 @@
+# pnpm 11+ reads build-script approvals only from this file, not package.json.
+# pnpm 9 requires a packages field here.
+packages:
+  - '.'
+onlyBuiltDependencies:
+  - electron
+allowBuilds:
+  electron: true
